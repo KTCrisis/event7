@@ -10,8 +10,11 @@ Ce fichier remplace l'existant. Les ajouts sont marqués # P0-AUTH
 from functools import lru_cache
 from pydantic_settings import BaseSettings
 
-
 class Settings(BaseSettings):
+    # --- Database provider ---
+    db_provider: str = "supabase"          # "supabase" | "postgresql"
+    database_url: str = ""                 # PostgreSQL DSN (GKE mode)
+
     # --- Supabase ---
     supabase_url: str = ""
     supabase_anon_key: str = ""

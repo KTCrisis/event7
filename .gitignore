@@ -24,6 +24,7 @@ Thumbs.db
 
 # Docker
 redis_data/
+postgres_data/
 
 # Node (frontend)
 node_modules/

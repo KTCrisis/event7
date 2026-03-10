@@ -22,6 +22,11 @@ export default function SignupPage() {
     setLoading(true);
 
     const supabase = createClient();
+    if (!supabase) {
+      toast.error("Authentication not configured");
+      setLoading(false);
+      return;
+    }
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -35,8 +40,8 @@ export default function SignupPage() {
 
     toast.success("Check your email to confirm your account");
     router.push("/login");
-  };
-
+  }; 
+  
   return (
     <Card className="p-8 space-y-6">
       <div className="space-y-2 text-center">

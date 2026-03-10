@@ -5,16 +5,16 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 class ApiClient {
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    const supabase = createClient();
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
 
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+    const supabase = createClient();
+    if (supabase) {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.access_token) {
+        headers["Authorization"] = `Bearer ${data.session.access_token}`;
+      }
     }
 
     return headers;

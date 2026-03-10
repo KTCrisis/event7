@@ -11,12 +11,14 @@ from loguru import logger
 
 from app.config import get_settings
 from app.cache.redis_cache import RedisCache
-from app.db.supabase_client import SupabaseClient
+from app.db.factory import create_database
+from app.db.base import DatabaseProvider
 
 # Instances globales
 settings = get_settings()
 redis_cache = RedisCache()
-supabase_client = SupabaseClient(url=settings.supabase_url, key=settings.supabase_service_role_key)
+db_client: DatabaseProvider = create_database()
+supabase_client = db_client  # backward compat alias pour les routes existantes
 
 
 @asynccontextmanager
@@ -26,11 +28,13 @@ async def lifespan(app: FastAPI):
 
     # Startup
     await redis_cache.connect()
-    logger.info("All services connected")
+    await db_client.connect()
+    logger.info(f"All services connected [db={type(db_client).__name__}]")
 
     yield
 
     # Shutdown
+    await db_client.disconnect()
     await redis_cache.disconnect()
     logger.info("event7 stopped")
 
@@ -69,14 +73,15 @@ app.include_router(asyncapi_router)
 async def health():
     """Health check endpoint"""
     redis_ok = await redis_cache.ping()
-    supabase_ok = supabase_client.ping()
+    db_ok = supabase_client.ping()
 
     return {
-        "status": "healthy" if (redis_ok and supabase_ok) else "degraded",
+        "status": "healthy" if (redis_ok and db_ok) else "degraded",
         "services": {
             "redis": "ok" if redis_ok else "error",
-            "supabase": "ok" if supabase_ok else "error",
+            "database": "ok" if db_ok else "error",
         },
+        "database_provider": type(db_client).__name__,
         "version": "0.1.0",
     }
 

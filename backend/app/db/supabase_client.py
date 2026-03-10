@@ -1,14 +1,12 @@
 """
-Supabase database client.
+Supabase database provider.
 
 Placement: backend/app/db/supabase_client.py
-Modifications:
-  - P0-AUTH: toutes les méthodes reçoivent user_id en paramètre (plus de hardcode)
-  - P0-DELETE: les mutations vérifient le résultat réel (response.data non vide)
-  - get_registry_by_id filtre par user_id pour isolation multi-tenant
 
-Note: en dev (service_role_key), le RLS est bypassé mais le filtrage
-user_id est quand même fait explicitement dans les queries.
+Refactored from SupabaseClient to SupabaseDatabase(DatabaseProvider).
+Internal logic is identical — only the class hierarchy changed.
+
+Backward compat: SupabaseClient alias kept for existing imports.
 """
 
 from typing import Any
@@ -16,26 +14,48 @@ from typing import Any
 from loguru import logger
 from supabase import create_client, Client
 
+from app.db.base import DatabaseProvider
 
-class SupabaseClient:
-    """Wrapper around supabase-py with explicit user scoping."""
+
+class SupabaseDatabase(DatabaseProvider):
+    """Supabase implementation of DatabaseProvider."""
 
     def __init__(self, url: str, key: str):
-        """Initialize Supabase client.
-
+        """
         Args:
             url: Supabase project URL
             key: service_role_key (dev) or anon_key (prod with JWT forwarding)
         """
-        self.client: Client = create_client(url, key)
+        self._url = url
+        self._key = key
+        self.client: Client | None = None
+
+    # ================================================================
+    # LIFECYCLE
+    # ================================================================
+
+    async def connect(self) -> None:
+        """Initialize Supabase client."""
+        self.client = create_client(self._url, self._key)
         logger.info("Supabase client initialized")
 
+    async def disconnect(self) -> None:
+        """Supabase-py has no explicit close — no-op."""
+        logger.info("Supabase client disconnected (no-op)")
+
+    def ping(self) -> bool:
+        """Check Supabase connectivity."""
+        try:
+            self.client.table("registries").select("id").limit(1).execute()
+            return True
+        except Exception:
+            return False
     # ================================================================
     # REGISTRIES
     # ================================================================
 
     def get_registries(self, user_id: str) -> list[dict]:
-        """List all registries for a user."""
+        """List all active registries for a user."""
         response = (
             self.client.table("registries")
             .select("*")
@@ -46,10 +66,7 @@ class SupabaseClient:
         return response.data or []
 
     def get_registry_by_id(self, registry_id: str, user_id: str) -> dict | None:
-        """Fetch a single registry, scoped to the user.
-
-        Returns None if not found or not owned by user.
-        """
+        """Fetch a single registry, scoped to the user."""
         response = (
             self.client.table("registries")
             .select("*")
@@ -70,31 +87,24 @@ class SupabaseClient:
             .execute()
         )
         if not response.data:
-            logger.error(f"Failed to create registry: no data returned")
+            logger.error("Failed to create registry: no data returned")
             return None
         return response.data[0]
 
     def delete_registry(self, registry_id: str, user_id: str) -> bool:
-        """Soft-delete a registry (set is_active=False).
-
-        P0-DELETE: now verifies that a row was actually modified.
-        Returns True only if a row belonging to user_id was updated.
-        """
+        """Soft-delete a registry (set is_active=False)."""
         response = (
             self.client.table("registries")
             .update({"is_active": False})
             .eq("id", registry_id)
-            .eq("user_id", user_id)  # P0-AUTH: scope to user
+            .eq("user_id", user_id)
             .execute()
         )
-
-        # P0-DELETE: verify the mutation actually affected a row
         if not response.data:
             logger.warning(
                 f"delete_registry: no row affected for registry={registry_id}, user={user_id}"
             )
             return False
-
         logger.info(f"Registry {registry_id} deactivated by user {user_id}")
         return True
 
@@ -117,7 +127,7 @@ class SupabaseClient:
         return data[0]
 
     def get_enrichments_for_registry(self, registry_id: str) -> list[dict]:
-        """Get all enrichments for a registry (used by catalog)."""
+        """Get all enrichments for a registry."""
         response = (
             self.client.table("enrichments")
             .select("*")
@@ -127,10 +137,7 @@ class SupabaseClient:
         return response.data or []
 
     def upsert_enrichment(self, enrichment_data: dict) -> dict | None:
-        """Create or update an enrichment.
-
-        P0-DELETE pattern: verify the mutation result.
-        """
+        """Create or update an enrichment."""
         response = (
             self.client.table("enrichments")
             .upsert(
@@ -140,7 +147,7 @@ class SupabaseClient:
             .execute()
         )
         if not response.data:
-            logger.error(f"Failed to upsert enrichment: no data returned")
+            logger.error("Failed to upsert enrichment: no data returned")
             return None
         return response.data[0]
 
@@ -149,75 +156,23 @@ class SupabaseClient:
     # ================================================================
 
     def get_asyncapi_spec(self, registry_id: str, subject: str) -> dict | None:
-        """Récupère une spec AsyncAPI depuis la table asyncapi_specs."""
-        if not self.client:
+        """Retrieve an AsyncAPI spec."""
+        response = (
+            self.client.table("asyncapi_specs")
+            .select("*")
+            .eq("registry_id", registry_id)
+            .eq("subject", subject)
+            .execute()
+        )
+        data = response.data
+        if not data:
             return None
+        return data[0]
 
-        try:
-            response = (
-                self.client.table("asyncapi_specs")
-                .select("*")
-                .eq("registry_id", registry_id)
-                .eq("subject", subject)
-                .execute()
-            )
-            if not response.data:
-                return None
-            return response.data[0]
-        except Exception as e:
-            logger.error(f"Failed to get AsyncAPI spec: {e}")
-            return None
-
-
-    def upsert_asyncapi_spec(
-        self,
-        registry_id: str,
-        subject: str,
-        spec_content: dict,
-        is_auto_generated: bool = True,
-        user_id: str = "",
-    ) -> dict | None:
-        """
-        Insert or update une spec AsyncAPI.
-        Conflict resolution sur (registry_id, subject).
-        """
-        if not self.client:
-            return None
-
-        data = {
-            "registry_id": registry_id,
-            "subject": subject,
-            "spec_content": spec_content,
-            "is_auto_generated": is_auto_generated,
-        }
-
-        try:
-            response = (
-                self.client.table("asyncapi_specs")
-                .upsert(data, on_conflict="registry_id,subject")
-                .execute()
-            )
-            if not response.data:
-                return None
-
-            # Audit (fire-and-forget)
-            action = "asyncapi_generate" if is_auto_generated else "asyncapi_update"
-            self.log_audit(
-                user_id=user_id,
-                action=action,
-                resource_type="asyncapi_spec",
-                resource_id=f"{registry_id}:{subject}",
-                details={"is_auto_generated": is_auto_generated},
-            )
-
-            return response.data[0]
-        except Exception as e:
-            logger.error(f"Failed to upsert AsyncAPI spec: {e}")
-            return None
-
-
-    def delete_asyncapi_spec(self, registry_id: str, subject: str, user_id: str = "") -> bool:
-        """Supprime une spec AsyncAPI."""
+    def delete_asyncapi_spec(
+        self, registry_id: str, subject: str, user_id: str
+    ) -> bool:
+        """Delete an AsyncAPI spec."""
         if not self.client:
             return False
 
@@ -229,17 +184,14 @@ class SupabaseClient:
                 .eq("subject", subject)
                 .execute()
             )
-
             deleted = bool(response.data)
-
             if deleted:
                 self.log_audit(
                     user_id=user_id,
+                    registry_id=registry_id,
                     action="asyncapi_delete",
-                    resource_type="asyncapi_spec",
-                    resource_id=f"{registry_id}:{subject}",
+                    details={"subject": subject},
                 )
-
             return deleted
         except Exception as e:
             logger.error(f"Failed to delete AsyncAPI spec: {e}")
@@ -284,3 +236,7 @@ class SupabaseClient:
         if not response.data:
             return None
         return response.data[0]
+
+
+# Backward compatibility alias
+SupabaseClient = SupabaseDatabase

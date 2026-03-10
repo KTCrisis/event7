@@ -1,9 +1,49 @@
 -- ============================================
--- event7 - Supabase Database Setup
--- Version: 0.1.0
+-- event7 - Supabase Database Bootstrap
+-- Version: 0.2.0 (post P0+P1)
 -- ============================================
+-- Script DESTRUCTIF: DROP toutes les tables puis recrée.
+-- Utiliser pour un init propre en dev/test.
 -- Exécuter dans Supabase Dashboard > SQL Editor
--- ============================================
+
+-- ========================
+-- 0. CLEANUP (ordre inverse des FK)
+-- ========================
+
+-- Drop policies first (sinon DROP TABLE échoue si RLS est actif)
+DO $$
+DECLARE
+    pol RECORD;
+BEGIN
+    FOR pol IN
+        SELECT policyname, tablename
+        FROM pg_policies
+        WHERE schemaname = 'public'
+          AND tablename IN ('registries', 'enrichments', 'schema_snapshots', 'asyncapi_specs', 'audit_logs')
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON %I', pol.policyname, pol.tablename);
+    END LOOP;
+END $$;
+
+-- Drop triggers
+DROP TRIGGER IF EXISTS trg_registries_updated_at ON registries;
+DROP TRIGGER IF EXISTS trg_enrichments_updated_at ON enrichments;
+DROP TRIGGER IF EXISTS trg_asyncapi_updated_at ON asyncapi_specs;
+
+-- Drop function
+DROP FUNCTION IF EXISTS update_updated_at();
+
+-- Drop tables (ordre: enfants → parents)
+DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS asyncapi_specs CASCADE;
+DROP TABLE IF EXISTS schema_snapshots CASCADE;
+DROP TABLE IF EXISTS enrichments CASCADE;
+DROP TABLE IF EXISTS registries CASCADE;
+
+-- Drop enums
+DROP TYPE IF EXISTS provider_type CASCADE;
+DROP TYPE IF EXISTS schema_format CASCADE;
+DROP TYPE IF EXISTS data_classification CASCADE;
 
 -- ========================
 -- 1. EXTENSIONS
@@ -24,21 +64,20 @@ CREATE TYPE data_classification AS ENUM ('public', 'internal', 'confidential', '
 -- --- Registries (connexions aux Schema Registries) ---
 CREATE TABLE registries (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL,
     name TEXT NOT NULL,
     provider_type provider_type NOT NULL,
     base_url TEXT NOT NULL,
-    credentials_encrypted BYTEA,
+    credentials_encrypted TEXT,             -- TEXT (pas BYTEA) : Fernet produit du base64
     environment TEXT NOT NULL DEFAULT 'DEV',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    -- Un user ne peut pas avoir deux registries avec le même nom
     CONSTRAINT uq_registries_user_name UNIQUE (user_id, name)
 );
 
--- --- Enrichments (metadata business ajoutée par-dessus le registry) ---
+-- --- Enrichments (metadata business par-dessus le registry) ---
 CREATE TABLE enrichments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     registry_id UUID NOT NULL REFERENCES registries(id) ON DELETE CASCADE,
@@ -50,7 +89,6 @@ CREATE TABLE enrichments (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    -- Un enrichissement par subject par registry
     CONSTRAINT uq_enrichments_registry_subject UNIQUE (registry_id, subject)
 );
 
@@ -63,10 +101,9 @@ CREATE TABLE schema_snapshots (
     schema_id INTEGER,
     schema_content JSONB NOT NULL,
     format schema_format NOT NULL DEFAULT 'AVRO',
-    references JSONB NOT NULL DEFAULT '[]'::jsonb,
+    "references" JSONB NOT NULL DEFAULT '[]'::jsonb,
     captured_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    -- Une seule snapshot par subject/version/registry
     CONSTRAINT uq_snapshots_registry_subject_version UNIQUE (registry_id, subject, version)
 );
 
@@ -80,14 +117,13 @@ CREATE TABLE asyncapi_specs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    -- Une spec par subject par registry
     CONSTRAINT uq_asyncapi_registry_subject UNIQUE (registry_id, subject)
 );
 
 -- --- Audit Logs ---
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL,
     registry_id UUID REFERENCES registries(id) ON DELETE SET NULL,
     action TEXT NOT NULL,
     details JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -149,144 +185,63 @@ CREATE TRIGGER trg_asyncapi_updated_at
 -- ========================
 -- 6. ROW LEVEL SECURITY
 -- ========================
+-- Désactivé en dev (le backend utilise service_role key).
+-- Décommenter la section ci-dessous quand Supabase Auth sera activé.
 
--- Enable RLS on all tables
+/*
+-- Enable RLS
 ALTER TABLE registries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE enrichments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE schema_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE asyncapi_specs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Helper : récupère le user_id depuis le JWT Supabase
--- auth.uid() est built-in dans Supabase
-
--- --- Registries : un user voit/modifie uniquement SES registries ---
-CREATE POLICY "registries_select_own"
-    ON registries FOR SELECT
+-- Registries
+CREATE POLICY "registries_select_own" ON registries FOR SELECT
+    USING (auth.uid() = user_id);
+CREATE POLICY "registries_insert_own" ON registries FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "registries_update_own" ON registries FOR UPDATE
+    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "registries_delete_own" ON registries FOR DELETE
     USING (auth.uid() = user_id);
 
-CREATE POLICY "registries_insert_own"
-    ON registries FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
+-- Enrichments (via registry owner)
+CREATE POLICY "enrichments_select_own" ON enrichments FOR SELECT
+    USING (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+CREATE POLICY "enrichments_insert_own" ON enrichments FOR INSERT
+    WITH CHECK (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+CREATE POLICY "enrichments_update_own" ON enrichments FOR UPDATE
+    USING (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+CREATE POLICY "enrichments_delete_own" ON enrichments FOR DELETE
+    USING (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
 
-CREATE POLICY "registries_update_own"
-    ON registries FOR UPDATE
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
+-- Snapshots (via registry owner)
+CREATE POLICY "snapshots_select_own" ON schema_snapshots FOR SELECT
+    USING (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+CREATE POLICY "snapshots_insert_own" ON schema_snapshots FOR INSERT
+    WITH CHECK (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+CREATE POLICY "snapshots_delete_own" ON schema_snapshots FOR DELETE
+    USING (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
 
-CREATE POLICY "registries_delete_own"
-    ON registries FOR DELETE
+-- AsyncAPI (via registry owner)
+CREATE POLICY "asyncapi_select_own" ON asyncapi_specs FOR SELECT
+    USING (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+CREATE POLICY "asyncapi_insert_own" ON asyncapi_specs FOR INSERT
+    WITH CHECK (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+CREATE POLICY "asyncapi_update_own" ON asyncapi_specs FOR UPDATE
+    USING (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+CREATE POLICY "asyncapi_delete_own" ON asyncapi_specs FOR DELETE
+    USING (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+
+-- Audit Logs
+CREATE POLICY "audit_select_own" ON audit_logs FOR SELECT
     USING (auth.uid() = user_id);
-
--- --- Enrichments : via le registry owner ---
-CREATE POLICY "enrichments_select_own"
-    ON enrichments FOR SELECT
-    USING (
-        registry_id IN (
-            SELECT id FROM registries WHERE user_id = auth.uid()
-        )
-    );
-
-CREATE POLICY "enrichments_insert_own"
-    ON enrichments FOR INSERT
-    WITH CHECK (
-        registry_id IN (
-            SELECT id FROM registries WHERE user_id = auth.uid()
-        )
-    );
-
-CREATE POLICY "enrichments_update_own"
-    ON enrichments FOR UPDATE
-    USING (
-        registry_id IN (
-            SELECT id FROM registries WHERE user_id = auth.uid()
-        )
-    );
-
-CREATE POLICY "enrichments_delete_own"
-    ON enrichments FOR DELETE
-    USING (
-        registry_id IN (
-            SELECT id FROM registries WHERE user_id = auth.uid()
-        )
-    );
-
--- --- Snapshots : via le registry owner ---
-CREATE POLICY "snapshots_select_own"
-    ON schema_snapshots FOR SELECT
-    USING (
-        registry_id IN (
-            SELECT id FROM registries WHERE user_id = auth.uid()
-        )
-    );
-
-CREATE POLICY "snapshots_insert_own"
-    ON schema_snapshots FOR INSERT
-    WITH CHECK (
-        registry_id IN (
-            SELECT id FROM registries WHERE user_id = auth.uid()
-        )
-    );
-
-CREATE POLICY "snapshots_delete_own"
-    ON schema_snapshots FOR DELETE
-    USING (
-        registry_id IN (
-            SELECT id FROM registries WHERE user_id = auth.uid()
-        )
-    );
-
--- --- AsyncAPI : via le registry owner ---
-CREATE POLICY "asyncapi_select_own"
-    ON asyncapi_specs FOR SELECT
-    USING (
-        registry_id IN (
-            SELECT id FROM registries WHERE user_id = auth.uid()
-        )
-    );
-
-CREATE POLICY "asyncapi_insert_own"
-    ON asyncapi_specs FOR INSERT
-    WITH CHECK (
-        registry_id IN (
-            SELECT id FROM registries WHERE user_id = auth.uid()
-        )
-    );
-
-CREATE POLICY "asyncapi_update_own"
-    ON asyncapi_specs FOR UPDATE
-    USING (
-        registry_id IN (
-            SELECT id FROM registries WHERE user_id = auth.uid()
-        )
-    );
-
-CREATE POLICY "asyncapi_delete_own"
-    ON asyncapi_specs FOR DELETE
-    USING (
-        registry_id IN (
-            SELECT id FROM registries WHERE user_id = auth.uid()
-        )
-    );
-
--- --- Audit Logs : un user voit uniquement SES logs ---
-CREATE POLICY "audit_select_own"
-    ON audit_logs FOR SELECT
-    USING (auth.uid() = user_id);
-
-CREATE POLICY "audit_insert_own"
-    ON audit_logs FOR INSERT
+CREATE POLICY "audit_insert_own" ON audit_logs FOR INSERT
     WITH CHECK (auth.uid() = user_id);
+*/
 
 -- ========================
--- 7. SERVICE ROLE BYPASS
+-- 7. VERIFICATION
 -- ========================
--- Le backend utilise la service_role key pour bypasser le RLS
--- quand nécessaire (ex: audit logs, snapshots batch)
--- C'est le comportement par défaut de Supabase avec service_role
-
--- ========================
--- 8. VERIFICATION
--- ========================
--- Vérifier que tout est créé
 SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;
