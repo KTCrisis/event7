@@ -126,3 +126,12 @@
     @apply font-sans;
     }
 }
+
+/* AsyncAPI component — force light mode */
+.asyncapi-custom-container {
+  color: #1a1a1a;
+  background: white;
+}
+.asyncapi-custom-container * {
+  color: inherit;
+}

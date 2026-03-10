@@ -46,7 +46,7 @@ export function AsyncApiViewer({
 }: AsyncApiViewerProps) {
   const [activeTab, setActiveTab] = useState<"docs" | "raw">("docs");
   const [copied, setCopied] = useState(false);
-
+  console.log("VIEWER RECEIVED:", typeof schema, schema ? Object.keys(schema) : "null")
   const rawSpec = JSON.stringify(schema, null, 2);
 
   const handleCopy = useCallback(async () => {
