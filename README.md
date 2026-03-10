@@ -1,43 +1,66 @@
 # event7
 
-**Universal Schema Registry Governance Platform**
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776AB.svg?logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Next.js](https://img.shields.io/badge/Next.js-000000.svg?logo=next.js&logoColor=white)](https://nextjs.org)
+[![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)](docker-compose.gke.yml)
+[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-> One platform to explore, govern, and document your schemas — regardless of your registry provider.
+**Cross-registry schema governance platform for exploring, comparing, enriching, and governing event schemas.**
 
-event7 is a provider-agnostic governance layer for Schema Registries. It connects to your existing registry (Confluent, Apicurio, or any custom implementation), and gives your team a unified interface for schema exploration, visual diffing, event cataloging, and AsyncAPI documentation — all without vendor lock-in.
-
-Deploy it as a **SaaS** (Cloudflare Pages + Railway + Supabase) or **on-prem** on your own Kubernetes cluster. Same codebase, same features, one environment variable to switch.
+> One platform to govern your schemas — regardless of your registry provider.  
+> Deploy as SaaS or on-prem. Same codebase, one env var to switch.
 
 ---
 
 ## Why event7?
 
-Schema registries are great at storing schemas. They're not great at answering questions like:
+Schema registries are great at storing schemas. They're not great at governance.
 
-- *"Who owns this event? What does it contain? Is it safe to evolve?"*
-- *"Show me the diff between v3 and v5 — field by field."*
-- *"Generate an AsyncAPI spec from my registry, not by hand."*
-- *"Give me a business-friendly catalog of all events, with tags and ownership."*
+In practice, teams building event-driven systems run into the same problems: schemas scattered across registries and environments, no connection between technical metadata and business meaning, painful version comparison, drifting event contracts, and governance fragmented across vendor-specific tools.
 
-event7 bridges the gap between **infrastructure** (your registry) and **governance** (your team's understanding of the data).
+event7 solves this by adding a **cross-registry governance layer** above your registries — with business metadata, visual diffing, dependency analysis, catalog capabilities, and AsyncAPI alignment.
 
 ---
 
-## Features
+## What you can do with event7
 
-**Schema Explorer** — Browse subjects, versions, and schema content across all connected registries. Supports Avro and JSON Schema formats.
+- **Connect registries** — Register external schema registries, validate connectivity, manage access from one place
+- **Explore schemas** — Browse subjects, versions, formats, and compatibility settings across all connected registries
+- **Diff versions visually** — Compare any two schema versions with a precise, field-by-field diff (additions, removals, modifications, breaking change detection)
+- **Trace references** — Inspect inter-schema dependencies (e.g., `Order` → `Address`), detect shared components, support impact analysis
+- **Enrich with business context** — Attach descriptions, ownership, tags, and data classification to schemas — stored in event7, not in your registry
+- **Build an event catalog** — A business-friendly view of your event landscape for both developers and stakeholders
+- **Generate AsyncAPI specs** — Auto-generate AsyncAPI 3.0 documentation from registry schemas, with Avro-to-JSON-Schema conversion built in
+- **Secure credentials** — Registry credentials encrypted at rest with AES-256 (Fernet). event7 never stores plaintext secrets
 
-**Visual Field-Level Diff** — Compare any two versions of a schema with a precise, field-by-field diff. See what was added, removed, modified, and whether changes are breaking.
+---
 
-**Inter-Schema References** — Visualize which schemas reference others (e.g., `Order` → `Address`), detect shared components, and understand your dependency graph.
+## Current focus
 
-**Event Catalog** — A business-friendly view of your event landscape. Enrich schemas with descriptions, ownership, tags, and data classification — stored in event7's database, not in your registry.
+event7 is built for **multi-provider evolution**, with a first concrete implementation centered on **Confluent Schema Registry** — fully implemented and tested in production conditions.
 
-**AsyncAPI Generation** — Auto-generate AsyncAPI 3.0 specs from your registry schemas, with Avro-to-JSON-Schema conversion built in.
+| Provider | Status |
+|----------|--------|
+| Confluent Schema Registry | ✅ Implemented |
+| Apicurio Registry | 🔜 Planned |
+| AWS Glue Schema Registry | 🔜 Planned |
+| Custom / compatible backends | Extensible by design |
 
-**Compatibility Tracking** — View and monitor compatibility modes (BACKWARD, FORWARD, FULL, NONE) at subject and global levels.
+Adding a new provider means creating **one file** — no changes to services, routes, or frontend. See [Adding a New Provider](#adding-a-new-provider).
 
-**Encrypted Credentials** — Registry credentials are encrypted at rest with AES-256 (Fernet). event7 never stores plaintext secrets.
+---
+
+## Who is event7 for?
+
+- **Platform engineering teams** managing Kafka infrastructure and schema standards
+- **Event-driven architecture teams** who need visibility across domains and registries
+- **Data platform teams** governing event contracts at scale
+- **Integration / middleware teams** bridging producers and consumers across environments
+- **Architecture governance teams** enforcing schema standards and compatibility policies
+
+Two primary personas drive the product: **developers** (schema explorer, diff, references) and **business stakeholders** (catalog, tags, ownership, event documentation).
 
 ---
 
@@ -52,7 +75,7 @@ HTTP Request → API Routes → Services → Providers + Cache + DB
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    Frontend                          │
-│              Next.js / React                         │
+│            Next.js / React / TypeScript              │
 ├─────────────────────────────────────────────────────┤
 │                   API Layer                          │
 │         FastAPI routers + dependency injection       │
@@ -62,33 +85,34 @@ HTTP Request → API Routes → Services → Providers + Cache + DB
 ├──────────┬──────────────┬───────────────────────────┤
 │ Providers│    Cache      │        Database           │
 │ (Adapter)│   Redis       │  Supabase OR PostgreSQL   │
-│          │               │     (Factory pattern)     │
+│ pattern  │               │   (Factory pattern)       │
 ├──────────┴──────────────┴───────────────────────────┤
 │           External Schema Registries                 │
-│     Confluent  ·  Apicurio (planned)  ·  Custom     │
+│    Confluent  ·  Apicurio (planned)  ·  Glue  ·  …  │
 └─────────────────────────────────────────────────────┘
 ```
 
-**Providers** implement an abstract `SchemaRegistryProvider` interface. Adding support for a new registry means creating a single file — no changes to services, routes, or frontend.
+**Two adapter patterns** power the extensibility:
 
-**Database** uses a factory pattern with a `DatabaseProvider` abstraction. Switch between Supabase (SaaS) and PostgreSQL (on-prem) with one env var.
+1. **SchemaRegistryProvider** — Abstract interface for registry access. Each provider (Confluent, Apicurio, …) implements it. Factory in `providers/factory.py`.
+2. **DatabaseProvider** — Abstract interface for persistence. Supabase for SaaS, PostgreSQL (psycopg2) for on-prem. Factory in `db/factory.py`, switched via `DB_PROVIDER` env var.
+
+Enrichments (tags, ownership, descriptions, classification) are stored in event7's own database — not pushed to the registry. This keeps the platform **provider-agnostic by design**.
 
 ---
 
 ## Dual-Mode Deployment
 
-event7 runs anywhere — from a fully managed SaaS stack to an air-gapped Kubernetes cluster.
+event7 runs anywhere — from a fully managed SaaS stack to an air-gapped Kubernetes cluster. Same codebase, same features.
 
 | Component | SaaS Mode | On-Prem / GKE Mode |
 |-----------|-----------|---------------------|
-| Frontend  | Cloudflare Pages | Docker (Node 22 Alpine) |
+| Frontend  | Cloudflare Pages | Docker (Node 22 Alpine, standalone) |
 | Backend   | Railway | Docker (Python 3.12 slim) |
 | Database  | Supabase Cloud | PostgreSQL 15 |
 | Cache     | Managed Redis | Redis 7 Alpine |
-| Auth      | Supabase Auth | OIDC / LDAP (planned) |
+| Auth      | Supabase Auth (RLS + JWT) | OIDC / LDAP (planned) |
 | Switch    | `DB_PROVIDER=supabase` | `DB_PROVIDER=postgresql` |
-
-Both modes share the exact same application code. The `DB_PROVIDER` environment variable is the only difference.
 
 On-prem deployment is fully containerized with multi-stage Dockerfiles and a ready-to-use `docker-compose.gke.yml`.
 
@@ -111,31 +135,48 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# Configure
 cp .env.example .env
-# Edit .env with your settings (Redis, DB, encryption key)
+# Edit .env: Redis, DB provider, encryption key
 
-# Run
 uvicorn app.main:app --reload --port 8000
 ```
+
+Health check: `curl http://localhost:8000/health`
 
 ### Frontend
 
 ```bash
 cd frontend
+cp .env.example .env.local
+# Edit .env.local: NEXT_PUBLIC_API_URL, Supabase keys (if SaaS mode)
+
 npm install
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) and connect your first registry.
 
-### Docker (On-Prem)
+### Docker (fully local, on-prem mode)
 
 ```bash
 docker compose -f docker-compose.gke.yml up
 ```
 
-This starts PostgreSQL, Redis, backend, and frontend — all wired together.
+Starts PostgreSQL 15, Redis 7, backend, and frontend — all wired together.
+
+---
+
+## Typical workflow
+
+1. Sign in (Supabase Auth or dev mode)
+2. Register a schema registry connection (Confluent Cloud, etc.)
+3. Validate connectivity (health check)
+4. Browse subjects, versions, and schema content
+5. Compare versions with the visual diff viewer
+6. Inspect references and dependencies
+7. Enrich schemas with business metadata (owner, tags, classification)
+8. Generate AsyncAPI specs from your registry
+9. Use the event catalog for cross-team visibility
 
 ---
 
@@ -147,15 +188,20 @@ event7/
 │   ├── app/
 │   │   ├── api/            # FastAPI routers (registries, schemas, governance, asyncapi)
 │   │   ├── services/       # Business logic, diff engine, AsyncAPI generation
-│   │   ├── providers/      # Registry adapters (Confluent, + future providers)
+│   │   ├── providers/      # Registry adapters (Confluent + future providers)
 │   │   ├── models/         # Pydantic v2 data contracts (shared across all layers)
-│   │   ├── db/             # Database abstraction (Supabase + PostgreSQL)
-│   │   ├── cache/          # Redis cache with TTL
-│   │   └── utils/          # Encryption, helpers
-│   ├── tests/
-│   └── migrations/
-├── frontend/               # Next.js application
-├── docker-compose.gke.yml  # On-prem deployment
+│   │   ├── db/             # Database abstraction (Supabase + PostgreSQL via factory)
+│   │   ├── cache/          # Redis cache with TTL and hierarchical keys
+│   │   └── utils/          # AES-256 encryption, helpers
+│   ├── tests/              # pytest + pytest-asyncio
+│   ├── migrations/         # SQL schema (bootstrap.sql)
+│   └── scripts/            # Seed data, test scripts
+├── frontend/               # Next.js 14+ application
+│   ├── src/app/            # App Router pages
+│   ├── src/components/     # UI components
+│   ├── src/lib/            # API clients and utilities
+│   └── src/providers/      # React context providers
+├── docker-compose.gke.yml  # On-prem deployment (PG + Redis + backend + frontend)
 └── docker-compose.yml      # Dev (Redis only)
 ```
 
@@ -171,48 +217,42 @@ event7 is designed to be extended. To add support for a new schema registry:
 
 That's it. No changes to services, routes, or frontend. The adapter pattern handles the rest.
 
----
-
-## Roadmap
-
-**Current (MVP)**
-- Confluent Cloud provider (fully implemented and tested)
-- Schema CRUD, visual diff, references, catalog, AsyncAPI generation
-- Dual-mode database (Supabase + PostgreSQL)
-- Freemium model: free tier with 1 registry, 50 schemas
-
-**Next**
-- Apicurio Registry provider
-- Protobuf format support
-- Reference dependency graph visualization
-- Dashboard with KPI metrics
-- CI/CD pipelines (GitHub Actions)
-
-**Future**
-- RBAC and multi-tenant workspaces
-- Enterprise SSO (SAML / OIDC)
-- Public REST API
-- Breaking change notifications
-- Schema health scoring
-- Snapshot and historical comparison
+The abstract interface covers: `health_check`, `list_subjects`, `get_schema`, `create_schema`, `delete_subject`, `get_versions`, `diff_versions`, `get_references`, `get_dependents`, `get_compatibility`, and `check_compatibility`.
 
 ---
 
 ## Tech Stack
 
-**Backend** — Python 3.12, FastAPI, Pydantic v2, httpx, Redis, Fernet (AES-256)
+| Layer | Technologies |
+|-------|-------------|
+| Frontend | Next.js, React, TypeScript, Tailwind CSS, Supabase SSR Auth |
+| Backend | Python 3.12, FastAPI, Pydantic v2, httpx, loguru |
+| Database | Supabase Cloud or PostgreSQL 15 (dual-mode via factory) |
+| Cache | Redis 7 with TTL and hierarchical key strategy |
+| Security | AES-256 Fernet encryption, JWT auth, RLS policies |
+| Infrastructure | Docker multi-stage builds, docker-compose, Kubernetes-ready |
 
-**Frontend** — Next.js, React, TypeScript, Tailwind CSS
+---
 
-**Database** — Supabase (SaaS) or PostgreSQL 15 (on-prem), with full migration scripts
+## Roadmap
 
-**Infrastructure** — Docker multi-stage builds, docker-compose, Kubernetes-ready
+| Phase | Scope | Status |
+|-------|-------|--------|
+| **MVP** | Confluent provider, schema CRUD, visual diff, references, catalog, AsyncAPI generation, dual-mode DB, freemium model (1 registry / 50 schemas free) | ✅ Core done |
+| **Next** | Apicurio provider, Protobuf support, reference graph visualization, dashboard KPIs, CI/CD (GitHub Actions) | 🔜 In progress |
+| **Future** | RBAC & multi-tenant workspaces, enterprise SSO (SAML/OIDC), public REST API, breaking change notifications, schema health scoring, AI-assisted governance & contract analysis | 📋 Planned |
+
+---
+
+## Screenshots
+
+> Coming soon — schema explorer, diff viewer, event catalog, AsyncAPI generation.
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Whether it's a new provider, a bug fix, or documentation improvements.
+Contributions, feedback, and architecture discussions are welcome.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/apicurio-provider`)
@@ -225,7 +265,7 @@ Please open an issue first for major changes so we can discuss the approach.
 
 ## License
 
-MIT
+[MIT](LICENSE)
 
 ---
 
