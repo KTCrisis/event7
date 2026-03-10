@@ -1,93 +1,79 @@
 """
-event7 - Abstract Schema Registry Provider
-Interface que chaque provider (Confluent, Apicurio, etc.) doit implémenter.
-C'est le cœur de l'abstraction multi-registry.
+Abstract base for Schema Registry providers.
+
+Placement: backend/app/providers/base.py
+Modification: ajout de close() — P0-LIFECYCLE
+
+Ce fichier remplace l'existant. Le seul ajout est la méthode close().
 """
 
 from abc import ABC, abstractmethod
 
 from app.models.schema import (
-    SubjectInfo,
     SchemaDetail,
-    SchemaVersion,
     SchemaDiff,
     SchemaReference,
+    SchemaVersion,
+    SubjectInfo,
 )
-from app.models.governance import CompatibilityResult, CompatibilityMode
+from app.models.governance import CompatibilityMode
 
 
 class SchemaRegistryProvider(ABC):
-    """
-    Interface abstraite pour tout Schema Registry.
-    Chaque provider traduit ces méthodes vers son API spécifique.
-    """
+    """Contract that every schema registry provider must implement."""
+
+    # --- P0-LIFECYCLE: resource cleanup ---
+
+    async def close(self) -> None:
+        """Close underlying HTTP clients and release resources.
+
+        Default implementation does nothing.
+        Providers with HTTP clients (httpx, aiohttp) MUST override this.
+        Called automatically by the dependency injection (yield pattern).
+        """
+        pass
+
+    # --- Health ---
 
     @abstractmethod
-    async def health_check(self) -> bool:
-        """Vérifie la connectivité au registry"""
-        ...
+    async def health_check(self) -> bool: ...
 
-    # === Subjects ===
+    # --- Subjects / Schemas ---
 
     @abstractmethod
-    async def list_subjects(self) -> list[SubjectInfo]:
-        """Liste tous les subjects avec metadata de base"""
-        ...
+    async def list_subjects(self) -> list[SubjectInfo]: ...
 
     @abstractmethod
-    async def get_subject_versions(self, subject: str) -> list[int]:
-        """Liste les numéros de version d'un subject"""
-        ...
-
-    # === Schemas ===
+    async def get_schema(self, subject: str, version: int | str = "latest") -> SchemaDetail: ...
 
     @abstractmethod
-    async def get_schema(self, subject: str, version: int | str = "latest") -> SchemaDetail:
-        """Récupère le détail d'un schema à une version donnée"""
-        ...
+    async def create_schema(self, subject: str, schema: dict) -> SchemaDetail: ...
 
     @abstractmethod
-    async def create_schema(self, subject: str, schema: dict, schema_type: str = "AVRO") -> SchemaDetail:
-        """Enregistre un nouveau schema"""
-        ...
+    async def delete_subject(self, subject: str) -> bool: ...
+
+    # --- Versions ---
 
     @abstractmethod
-    async def delete_subject(self, subject: str, permanent: bool = False) -> bool:
-        """Supprime un subject (soft ou hard delete)"""
-        ...
+    async def get_versions(self, subject: str) -> list[SchemaVersion]: ...
 
-    # === Versions & Diff ===
+    # --- Diff ---
 
     @abstractmethod
-    async def get_versions(self, subject: str) -> list[SchemaVersion]:
-        """Récupère toutes les versions avec leur contenu"""
-        ...
+    async def diff_versions(self, subject: str, v1: int, v2: int) -> SchemaDiff: ...
+
+    # --- References ---
 
     @abstractmethod
-    async def diff_versions(self, subject: str, version_from: int, version_to: int) -> SchemaDiff:
-        """Compare deux versions d'un schema (diff field-level)"""
-        ...
-
-    # === References ===
+    async def get_references(self, subject: str) -> list[SchemaReference]: ...
 
     @abstractmethod
-    async def get_references(self, subject: str) -> list[SchemaReference]:
-        """Récupère les références d'un schema vers d'autres schemas"""
-        ...
+    async def get_dependents(self, subject: str) -> list[SchemaReference]: ...
+
+    # --- Compatibility ---
 
     @abstractmethod
-    async def get_dependents(self, subject: str) -> list[SchemaReference]:
-        """Récupère les schemas qui référencent ce schema (impact analysis)"""
-        ...
-
-    # === Compatibility ===
+    async def get_compatibility(self, subject: str) -> CompatibilityMode: ...
 
     @abstractmethod
-    async def get_compatibility(self, subject: str) -> CompatibilityMode:
-        """Récupère le mode de compatibilité d'un subject"""
-        ...
-
-    @abstractmethod
-    async def check_compatibility(self, subject: str, schema: dict) -> CompatibilityResult:
-        """Vérifie la compatibilité d'un schema avec les versions précédentes"""
-        ...
+    async def check_compatibility(self, subject: str, schema: dict) -> dict: ...

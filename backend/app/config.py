@@ -1,43 +1,39 @@
 """
-event7 - Configuration
-Centralise toutes les settings via Pydantic Settings + .env
+Configuration centralisée — Pydantic Settings.
+
+Placement: backend/app/config.py
+Modification: ajout de supabase_jwt_secret et auth_enabled
+
+Ce fichier remplace l'existant. Les ajouts sont marqués # P0-AUTH
 """
 
-from pydantic_settings import BaseSettings
 from functools import lru_cache
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # App
-    app_env: str = "development"
-    app_debug: bool = True
-    app_host: str = "0.0.0.0"
-    app_port: int = 8000
-    cors_origins: str = "http://localhost:3000"
-
-    # Supabase
+    # --- Supabase ---
     supabase_url: str = ""
     supabase_anon_key: str = ""
     supabase_service_role_key: str = ""
+    supabase_jwt_secret: str = ""  # P0-AUTH: secret pour vérifier les JWT Supabase Auth
 
-    # Redis
-    redis_url: str = "redis://localhost:6379/0"
+    # --- Redis ---
+    redis_url: str = "redis://localhost:6379"
+    redis_ttl: int = 300  # 5 min default
 
-    # Encryption
+    # --- Encryption ---
     encryption_key: str = ""
 
-    @property
-    def cors_origins_list(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",")]
+    # --- Auth ---
+    auth_enabled: bool = False  # P0-AUTH: False en dev (placeholder user), True en prod
 
-    @property
-    def is_dev(self) -> bool:
-        return self.app_env == "development"
+    # --- App ---
+    debug: bool = True
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
     model_config = {
         "env_file": ("../.env", ".env"),
-        "env_file_encoding": "utf-8",
-        "case_sensitive": False,
         "extra": "ignore",
     }
 

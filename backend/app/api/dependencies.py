@@ -1,82 +1,109 @@
 """
-event7 - FastAPI Dependencies
-Injection de dépendances pour résoudre registry → provider → service.
+FastAPI dependency injection.
+
+Placement: backend/app/api/dependencies.py
+Modifications:
+  - P0-AUTH: injection du UserContext via get_current_user
+  - P0-LIFECYCLE: get_schema_service est maintenant un async generator (yield)
+    qui ferme le provider après la réponse
+
+Usage dans les routes:
+    @router.get("/{registry_id}/subjects")
+    async def list_subjects(
+        service: SchemaService = Depends(get_schema_service),
+        user: UserContext = Depends(get_current_user),  # si besoin direct du user
+    ):
+        ...
 """
 
-from fastapi import Depends, HTTPException, Path
+from uuid import UUID
+from typing import AsyncGenerator
+
+from fastapi import Depends, HTTPException, Path, status
+from loguru import logger
 
 from app.config import get_settings
-from app.main import redis_cache, supabase_client
-from app.models.registry import ProviderType
+from app.models.auth import UserContext
 from app.providers.factory import create_provider
 from app.services.schema_service import SchemaService
-from app.utils.encryption import decrypt_credentials
+from app.utils.auth import get_current_user
+
+# --- Global instances (initialisées dans main.py lifespan) ---
+# Ces imports seront résolus au runtime après le startup de l'app
+from app.main import redis_cache, supabase_client
 
 
 async def get_schema_service(
-    registry_id: str = Path(..., description="Registry UUID"),
-) -> SchemaService:
-    """
-    Résout un registry_id en SchemaService prêt à l'emploi.
-    Flow: registry_id → DB lookup → decrypt credentials → create provider → wrap in service
-    """
-    # 1. Fetch registry from Supabase
-    if not supabase_client.client:
-        raise HTTPException(status_code=503, detail="Database not available")
+    registry_id: UUID = Path(..., description="Registry UUID"),
+    user: UserContext = Depends(get_current_user),
+) -> AsyncGenerator[SchemaService, None]:
+    """Build a SchemaService for the given registry, then clean up.
 
-    response = (
-        supabase_client.client.table("registries")
-        .select("*")
-        .eq("id", registry_id)
-        .eq("is_active", True)
-        .execute()
+    Flow:
+    1. Fetch registry from Supabase (filtered by user_id)
+    2. Decrypt credentials
+    3. Create provider (httpx client)
+    4. Wrap in SchemaService
+    5. yield → route handler executes
+    6. finally → close provider (release HTTP connections)
+    """
+    settings = get_settings()
+
+    # --- Fetch registry (scoped to user) ---
+    if not supabase_client:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database not available",
+        )
+
+    registry = supabase_client.get_registry_by_id(
+        registry_id=str(registry_id),
+        user_id=str(user.user_id),
     )
 
-    if not response.data:
-        raise HTTPException(status_code=404, detail=f"Registry {registry_id} not found")
+    if not registry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Registry {registry_id} not found",
+        )
 
-    registry = response.data[0]
+    if not registry.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail=f"Registry {registry_id} is deactivated",
+        )
 
-    # 2. Create provider
+    # --- Create provider ---
+    provider = None
     try:
         provider = create_provider(
-            provider_type=ProviderType(registry["provider_type"]),
+            provider_type=registry["provider_type"],
             base_url=registry["base_url"],
-            credentials_encrypted=registry["credentials_encrypted"].encode()
-            if isinstance(registry["credentials_encrypted"], str)
-            else registry["credentials_encrypted"],
+            credentials_encrypted=registry.get("credentials_encrypted"),
         )
+
+        service = SchemaService(
+            provider=provider,
+            cache=redis_cache,
+            db=supabase_client,
+            registry_id=str(registry_id),
+        )
+
+        yield service  # P0-LIFECYCLE: route handler runs here
+
+    except HTTPException:
+        raise  # Re-raise FastAPI exceptions as-is
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create provider: {e}")
-
-    # 3. Wrap in service
-    return SchemaService(
-        provider=provider,
-        cache=redis_cache,
-        db=supabase_client,
-        registry_id=registry_id,
-    )
-
-
-async def get_schema_service_direct(
-    registry_id: str,
-    base_url: str,
-    provider_type: ProviderType,
-    api_key: str | None = None,
-    api_secret: str | None = None,
-) -> SchemaService:
-    """
-    Crée un SchemaService directement sans DB lookup.
-    Utile pour le health check et les tests.
-    """
-    provider = create_provider(
-        provider_type=provider_type,
-        base_url=base_url,
-        credentials_plain={"api_key": api_key, "api_secret": api_secret},
-    )
-    return SchemaService(
-        provider=provider,
-        cache=redis_cache,
-        db=supabase_client,
-        registry_id=registry_id,
-    )
+        logger.error(f"Error creating service for registry {registry_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to connect to schema registry",
+        )
+    finally:
+        # P0-LIFECYCLE: always close the provider's HTTP client
+        if provider is not None:
+            try:
+                await provider.close()
+                logger.debug(f"Provider closed for registry {registry_id}")
+            except Exception as e:
+                logger.warning(f"Error closing provider for registry {registry_id}: {e}")
