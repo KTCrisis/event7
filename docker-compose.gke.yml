@@ -69,9 +69,9 @@ services:
       # CONFLUENT_SR_KEY: xxx
       # CONFLUENT_SR_SECRET: xxx
 
-      # Proxy (uncomment for Renault network)
-      # HTTPS_PROXY: http://cosmos2.mc2.renault.fr:3128
-      # HTTP_PROXY: http://cosmos2.mc2.renault.fr:3128
+      # Proxy (uncomment proxy)
+      # HTTPS_PROXY: 
+      # HTTP_PROXY:
       # NO_PROXY: localhost,127.0.0.1,postgres,redis
 
       # CORS
