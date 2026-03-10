@@ -47,7 +47,7 @@ async def create_registry(
         provider = create_provider(
             provider_type=payload.provider_type,
             base_url=payload.base_url,
-            credentials_plain=payload.credentials.model_dump() if payload.credentials else {},
+            credentials_plain={"api_key": payload.api_key, "api_secret": payload.api_secret},
         )
         healthy = await provider.health_check()
         if not healthy:
@@ -69,14 +69,15 @@ async def create_registry(
 
     # --- Encrypt credentials ---
     creds_encrypted = encrypt_credentials(
-        payload.credentials.model_dump() if payload.credentials else {}
+        {"api_key": payload.api_key, "api_secret": payload.api_secret}
     )
-
+    if isinstance(creds_encrypted, bytes):
+        creds_encrypted = creds_encrypted.decode("utf-8")
     # --- Store in Supabase ---
     registry_data = {
         "user_id": str(user.user_id),  # P0-AUTH: real user_id
         "name": payload.name,
-        "provider_type": payload.provider_type,
+        "provider_type": payload.provider_type.value,
         "base_url": payload.base_url,
         "credentials_encrypted": creds_encrypted,
         "environment": payload.environment or "DEV",

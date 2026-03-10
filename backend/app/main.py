@@ -14,19 +14,18 @@ from app.cache.redis_cache import RedisCache
 from app.db.supabase_client import SupabaseClient
 
 # Instances globales
+settings = get_settings()
 redis_cache = RedisCache()
-supabase_client = SupabaseClient()
+supabase_client = SupabaseClient(url=settings.supabase_url, key=settings.supabase_service_role_key)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / Shutdown lifecycle"""
-    settings = get_settings()
-    logger.info(f"Starting event7 [{settings.app_env}]")
+    logger.info(f"Starting event7 [debug={settings.debug}]")
 
     # Startup
     await redis_cache.connect()
-    supabase_client.connect()
     logger.info("All services connected")
 
     yield
@@ -44,10 +43,9 @@ app = FastAPI(
 )
 
 # CORS
-settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

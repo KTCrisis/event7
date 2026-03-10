@@ -11,7 +11,7 @@ venv/
 # Environment
 .env
 .env.local
-.env.example
+.env.*.local
 
 # IDE
 .vscode/
@@ -30,6 +30,10 @@ node_modules/
 .next/
 out/
 
+# Cloudflare / OpenNext
+.open-next/
+.wrangler/
+
 # Testing
 .coverage
 htmlcov/
@@ -38,4 +42,5 @@ htmlcov/
 # Logs
 *.log
 
+# Dev scripts
 setup.sh
