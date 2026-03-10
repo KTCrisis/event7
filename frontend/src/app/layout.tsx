@@ -9,6 +9,9 @@ const outfit = Outfit({
 export const metadata = {
   title: "event7",
   description: "Universal Schema Registry Governance",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
