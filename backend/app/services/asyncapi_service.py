@@ -2,8 +2,17 @@
 event7 - AsyncAPI Service
 Génère des specs AsyncAPI 3.0 à partir des schemas + enrichments.
 Supporte Avro et JSON Schema.
+
+Placement: backend/app/services/asyncapi_service.py
+
+Corrections P1 vs version précédente:
+- Cache Redis sur get_spec() et generate()
+- Accès DB délégué à SupabaseClient (plus d'accès direct .client.table())
+- user_id propagé dans les mutations (cohérence P0 auth)
+- Méthodes get_spec / update_spec passées en async pour cohérence
 """
 
+import json
 from datetime import datetime, timezone
 
 from loguru import logger
@@ -21,6 +30,8 @@ class AsyncAPIService:
     Combine les données du provider (schema) avec les enrichissements Supabase.
     """
 
+    CACHE_TTL = 300  # 5 minutes, cohérent avec le reste de l'app
+
     def __init__(
         self,
         provider: SchemaRegistryProvider,
@@ -35,8 +46,18 @@ class AsyncAPIService:
         self.registry_id = registry_id
         self.registry_url = registry_url
 
+    # === Cache helpers ===
+
+    def _cache_key(self, subject: str) -> str:
+        return f"event7:{self.registry_id}:asyncapi:{subject}"
+
+    # === Generate ===
+
     async def generate(
-        self, subject: str, params: AsyncAPIGenerateRequest | None = None
+        self,
+        subject: str,
+        params: AsyncAPIGenerateRequest | None = None,
+        user_id: str = "",
     ) -> AsyncAPISpec:
         """
         Génère une spec AsyncAPI 3.0 complète depuis un schema + enrichments.
@@ -46,7 +67,7 @@ class AsyncAPIService:
         # 1. Fetch schema from provider
         schema = await self.provider.get_schema(subject, "latest")
 
-        # 2. Fetch enrichment from Supabase
+        # 2. Fetch enrichment from Supabase (méthode dédiée du client)
         enrichment = self.db.get_enrichment(self.registry_id, subject)
 
         # 3. Fetch references
@@ -61,74 +82,108 @@ class AsyncAPIService:
             params=params,
         )
 
-        # 5. Store in Supabase
-        spec_data = {
-            "registry_id": self.registry_id,
-            "subject": subject,
-            "spec_content": spec_content,
-            "is_auto_generated": True,
-        }
+        # 5. Store in Supabase via méthode dédiée
+        self.db.upsert_asyncapi_spec(
+            registry_id=self.registry_id,
+            subject=subject,
+            spec_content=spec_content,
+            is_auto_generated=True,
+            user_id=user_id,
+        )
 
-        if self.db.client:
-            self.db.client.table("asyncapi_specs").upsert(
-                spec_data, on_conflict="registry_id,subject"
-            ).execute()
+        # 6. Invalide le cache pour ce subject
+        await self.cache.delete(self._cache_key(subject))
 
-        return AsyncAPISpec(
+        result = AsyncAPISpec(
             subject=subject,
             spec_content=spec_content,
             is_auto_generated=True,
             updated_at=datetime.now(timezone.utc),
         )
 
-    def get_spec(self, subject: str) -> AsyncAPISpec | None:
-        """Récupère une spec existante depuis Supabase"""
-        if not self.db.client:
-            return None
-
-        response = (
-            self.db.client.table("asyncapi_specs")
-            .select("*")
-            .eq("registry_id", self.registry_id)
-            .eq("subject", subject)
-            .execute()
+        # 7. Met en cache le résultat frais
+        await self.cache.set(
+            self._cache_key(subject),
+            result.model_dump(mode="json"),
+            ttl=self.CACHE_TTL,
         )
 
-        if not response.data:
+        logger.info(f"AsyncAPI spec generated for {subject}")
+        return result
+
+    # === Get ===
+
+    async def get_spec(self, subject: str) -> AsyncAPISpec | None:
+        """Récupère une spec existante (cache → Supabase)."""
+
+        # 1. Check cache
+        cached = await self.cache.get(self._cache_key(subject))
+        if cached:
+            logger.debug(f"AsyncAPI cache hit for {subject}")
+            return AsyncAPISpec(**cached)
+
+        # 2. Fetch from Supabase
+        data = self.db.get_asyncapi_spec(self.registry_id, subject)
+        if not data:
             return None
 
-        data = response.data[0]
-        return AsyncAPISpec(
+        spec = AsyncAPISpec(
             subject=data["subject"],
             spec_content=data["spec_content"],
             is_auto_generated=data["is_auto_generated"],
             updated_at=data.get("updated_at"),
         )
 
-    def update_spec(self, subject: str, spec_content: dict) -> AsyncAPISpec:
-        """Met à jour manuellement une spec (passe is_auto_generated à False)"""
-        if not self.db.client:
-            raise ValueError("Database not available")
+        # 3. Populate cache
+        await self.cache.set(
+            self._cache_key(subject),
+            spec.model_dump(mode="json"),
+            ttl=self.CACHE_TTL,
+        )
 
-        data = {
-            "registry_id": self.registry_id,
-            "subject": subject,
-            "spec_content": spec_content,
-            "is_auto_generated": False,
-        }
+        return spec
 
-        self.db.client.table("asyncapi_specs").upsert(
-            data, on_conflict="registry_id,subject"
-        ).execute()
+    # === Update ===
 
-        return AsyncAPISpec(
+    async def update_spec(
+        self,
+        subject: str,
+        spec_content: dict,
+        user_id: str = "",
+    ) -> AsyncAPISpec:
+        """Met à jour manuellement une spec (passe is_auto_generated à False)."""
+
+        result = self.db.upsert_asyncapi_spec(
+            registry_id=self.registry_id,
+            subject=subject,
+            spec_content=spec_content,
+            is_auto_generated=False,
+            user_id=user_id,
+        )
+
+        if not result:
+            raise ValueError("Failed to update AsyncAPI spec in database")
+
+        spec = AsyncAPISpec(
             subject=subject,
             spec_content=spec_content,
             is_auto_generated=False,
             updated_at=datetime.now(timezone.utc),
         )
 
-    # === Spec Builder ===
+        # Invalide + remet en cache
+        await self.cache.set(
+            self._cache_key(subject),
+            spec.model_dump(mode="json"),
+            ttl=self.CACHE_TTL,
+        )
+
+        logger.info(f"AsyncAPI spec manually updated for {subject}")
+        return spec
+
+    # =========================================================================
+    # Spec Builder
+    # =========================================================================
 
     def _build_spec(
         self,
@@ -138,7 +193,7 @@ class AsyncAPIService:
         references: list,
         params: AsyncAPIGenerateRequest,
     ) -> dict:
-        """Construit la spec AsyncAPI 3.0"""
+        """Construit la spec AsyncAPI 3.0."""
 
         # Extract info from enrichment
         description = (
@@ -260,20 +315,23 @@ class AsyncAPIService:
 
         return spec
 
+    # =========================================================================
+    # Schema Conversion (Avro → JSON Schema, JSON Schema passthrough)
+    # =========================================================================
+
     def _convert_schema(self, schema: SchemaDetail) -> dict:
-        """Convertit un schema Avro ou JSON Schema en format AsyncAPI components/schemas"""
+        """Convertit un schema Avro ou JSON Schema en format AsyncAPI components/schemas."""
         content = schema.schema_content
 
         if schema.format == SchemaFormat.AVRO:
             return self._avro_to_jsonschema(content)
         elif schema.format == SchemaFormat.JSON_SCHEMA:
-            # JSON Schema est déjà compatible AsyncAPI
             return content
         else:
             return content
 
     def _avro_to_jsonschema(self, avro_schema: dict) -> dict:
-        """Convertit un schema Avro en JSON Schema (pour le payload AsyncAPI)"""
+        """Convertit un schema Avro en JSON Schema (pour le payload AsyncAPI)."""
         if isinstance(avro_schema, str):
             return {"type": self._avro_type_to_json(avro_schema)}
 
@@ -373,7 +431,7 @@ class AsyncAPIService:
             return {"type": "string", "format": "date-time"}
         if logical_type == "date":
             return {"type": "string", "format": "date"}
-        if logical_type == "time-millis" or logical_type == "time-micros":
+        if logical_type in ("time-millis", "time-micros"):
             return {"type": "string", "format": "time"}
         if logical_type == "decimal":
             return {"type": "number", "format": "decimal"}
@@ -381,8 +439,12 @@ class AsyncAPIService:
             return {"type": "string", "format": "uuid"}
         return {"type": "string"}
 
+    # =========================================================================
+    # Example Generation
+    # =========================================================================
+
     def _generate_example(self, schema: SchemaDetail) -> dict | None:
-        """Génère un exemple basique depuis le schema"""
+        """Génère un exemple basique depuis le schema."""
         content = schema.schema_content
 
         if schema.format == SchemaFormat.AVRO and content.get("type") == "record":
@@ -392,7 +454,7 @@ class AsyncAPIService:
         return None
 
     def _avro_example(self, schema: dict) -> dict:
-        """Génère un exemple depuis un schema Avro record"""
+        """Génère un exemple depuis un schema Avro record."""
         example = {}
         for field in schema.get("fields", []):
             name = field["name"]
@@ -403,7 +465,7 @@ class AsyncAPIService:
         return example
 
     def _example_value_avro(self, avro_type, field_name: str = ""):
-        """Produit une valeur d'exemple pour un type Avro"""
+        """Produit une valeur d'exemple pour un type Avro."""
         if isinstance(avro_type, str):
             return self._primitive_example(avro_type, field_name)
         if isinstance(avro_type, list):
@@ -461,7 +523,7 @@ class AsyncAPIService:
         return mapping.get(avro_type, "example")
 
     def _json_schema_example(self, schema: dict) -> dict:
-        """Génère un exemple depuis un JSON Schema"""
+        """Génère un exemple depuis un JSON Schema."""
         example = {}
         for name, prop in schema.get("properties", {}).items():
             if "default" in prop:
@@ -484,14 +546,15 @@ class AsyncAPIService:
                 example[name] = "example"
         return example
 
-    # === Naming Helpers ===
+    # =========================================================================
+    # Naming Helpers
+    # =========================================================================
 
     @staticmethod
     def _subject_to_title(subject: str) -> str:
         """com.event7.orders.OrderPlaced-value → Order Placed"""
         name = subject.split(".")[-1]
         name = name.replace("-value", "").replace("-key", "")
-        # CamelCase → spaced
         result = ""
         for i, c in enumerate(name):
             if c.isupper() and i > 0 and name[i - 1].islower():
@@ -506,7 +569,6 @@ class AsyncAPIService:
         if len(parts) >= 3:
             domain = parts[-2]
             name = parts[-1].replace("-value", "").replace("-key", "")
-            # CamelCase → kebab-case
             kebab = ""
             for i, c in enumerate(name):
                 if c.isupper() and i > 0:

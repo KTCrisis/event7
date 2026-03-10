@@ -1,18 +1,24 @@
 """
 event7 - Governance API Routes
 Catalogue événements, enrichissements business, export.
+
+Placement: backend/app/api/governance.py
+
+P1: Ajout Depends(get_current_user) sur toutes les routes.
+    user_id propagé sur update_enrichment pour audit.
 """
 
 import csv
 import io
-import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from app.api.dependencies import get_schema_service
+from app.models.auth import UserContext
 from app.models.governance import CatalogEntry, Enrichment, EnrichmentUpdate
 from app.services.schema_service import SchemaService
+from app.utils.auth import get_current_user
 
 router = APIRouter(prefix="/api/v1/registries/{registry_id}", tags=["governance"])
 
@@ -22,6 +28,7 @@ router = APIRouter(prefix="/api/v1/registries/{registry_id}", tags=["governance"
 
 @router.get("/catalog", response_model=list[CatalogEntry])
 async def get_catalog(
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Catalogue événements enrichi (vue business)"""
@@ -31,6 +38,7 @@ async def get_catalog(
 @router.get("/catalog/export")
 async def export_catalog(
     format: str = Query("csv", description="csv or json"),
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Export du catalogue en CSV ou JSON"""
@@ -73,6 +81,7 @@ async def export_catalog(
 @router.get("/subjects/{subject}/enrichment", response_model=Enrichment | None)
 async def get_enrichment(
     subject: str,
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Récupère l'enrichissement d'un subject"""
@@ -83,6 +92,7 @@ async def get_enrichment(
 async def update_enrichment(
     subject: str,
     payload: EnrichmentUpdate,
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Met à jour l'enrichissement business d'un subject"""

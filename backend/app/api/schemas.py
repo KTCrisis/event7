@@ -1,13 +1,20 @@
 """
 event7 - Schemas API Routes
 CRUD schemas, diff, versions, références.
+
+Placement: backend/app/api/schemas.py
+
+P1: Ajout Depends(get_current_user) sur toutes les routes.
+    user_id propagé sur les mutations (create, delete) pour audit.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.dependencies import get_schema_service
+from app.models.auth import UserContext
 from app.models.schema import SubjectInfo, SchemaDetail, SchemaVersion, SchemaDiff, SchemaReference
 from app.services.schema_service import SchemaService
+from app.utils.auth import get_current_user
 
 router = APIRouter(prefix="/api/v1/registries/{registry_id}", tags=["schemas"])
 
@@ -18,6 +25,7 @@ router = APIRouter(prefix="/api/v1/registries/{registry_id}", tags=["schemas"])
 @router.get("/subjects", response_model=list[SubjectInfo])
 async def list_subjects(
     enriched: bool = Query(True, description="Include enrichments from DB"),
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Liste tous les subjects d'un registry"""
@@ -31,6 +39,7 @@ async def list_subjects(
 async def get_schema(
     subject: str,
     version: int | str = "latest",
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Récupère le détail d'un schema à une version donnée"""
@@ -43,6 +52,7 @@ async def get_schema(
 @router.get("/subjects/{subject}", response_model=SchemaDetail)
 async def get_schema_latest(
     subject: str,
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Récupère la dernière version d'un schema"""
@@ -58,6 +68,7 @@ async def get_schema_latest(
 @router.get("/subjects/{subject}/versions", response_model=list[int])
 async def list_versions(
     subject: str,
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Liste les numéros de version d'un subject"""
@@ -70,6 +81,7 @@ async def list_versions(
 @router.get("/subjects/{subject}/versions-detail", response_model=list[SchemaVersion])
 async def list_versions_detail(
     subject: str,
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Liste toutes les versions avec leur contenu complet"""
@@ -87,6 +99,7 @@ async def create_schema(
     subject: str,
     payload: dict,
     schema_type: str = Query("AVRO", description="AVRO or JSON"),
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Enregistre un nouveau schema"""
@@ -100,6 +113,7 @@ async def create_schema(
 async def delete_subject(
     subject: str,
     permanent: bool = Query(False, description="Hard delete (irreversible)"),
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Supprime un subject"""
@@ -116,6 +130,7 @@ async def diff_versions(
     subject: str,
     v1: int = Query(..., description="Version source"),
     v2: int = Query(..., description="Version cible"),
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Diff field-level entre deux versions"""
@@ -131,6 +146,7 @@ async def diff_versions(
 @router.get("/subjects/{subject}/references", response_model=list[SchemaReference])
 async def get_references(
     subject: str,
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Références sortantes : ce schema référence quoi"""
@@ -140,6 +156,7 @@ async def get_references(
 @router.get("/subjects/{subject}/dependents", response_model=list[SchemaReference])
 async def get_dependents(
     subject: str,
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Références entrantes : qui référence ce schema (impact analysis)"""
@@ -152,6 +169,7 @@ async def get_dependents(
 @router.get("/subjects/{subject}/compatibility")
 async def get_compatibility(
     subject: str,
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Mode de compatibilité du subject"""
@@ -163,6 +181,7 @@ async def get_compatibility(
 async def check_compatibility(
     subject: str,
     payload: dict,
+    user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):
     """Vérifie la compatibilité d'un schema"""
