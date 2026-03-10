@@ -11,6 +11,7 @@
     "preview": "npm run pages:build && wrangler pages dev"
   },
   "dependencies": {
+    "@asyncapi/react-component": "^3.0.2",
     "@phosphor-icons/react": "^2.1.10",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.98.0",

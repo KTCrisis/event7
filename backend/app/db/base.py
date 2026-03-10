@@ -91,8 +91,19 @@ class DatabaseProvider(ABC):
         self, registry_id: str, subject: str, user_id: str
     ) -> bool:
         """Delete an AsyncAPI spec. Returns True if deleted."""
+        
         ...
-
+    @abstractmethod
+    def upsert_asyncapi_spec(
+        self,
+        registry_id: str,
+        subject: str,
+        spec_content: dict,
+        is_auto_generated: bool = True,
+        user_id: str = "",
+    ) -> dict | None:
+        """Create or update an AsyncAPI spec."""
+        ...
     # ================================================================
     # AUDIT LOG
     # ================================================================

@@ -196,7 +196,47 @@ class SupabaseDatabase(DatabaseProvider):
         except Exception as e:
             logger.error(f"Failed to delete AsyncAPI spec: {e}")
             return False
+            
+    def upsert_asyncapi_spec(
+        self,
+        registry_id: str,
+        subject: str,
+        spec_content: dict,
+        is_auto_generated: bool = True,
+        user_id: str = "",
+    ) -> dict | None:
+        """Create or update an AsyncAPI spec."""
+        if not self.client:
+            return None
 
+        data = {
+            "registry_id": registry_id,
+            "subject": subject,
+            "spec_content": spec_content,
+            "is_auto_generated": is_auto_generated,
+        }
+
+        try:
+            response = (
+                self.client.table("asyncapi_specs")
+                .upsert(data, on_conflict="registry_id,subject")
+                .execute()
+            )
+            if not response.data:
+                return None
+
+            action = "asyncapi_generate" if is_auto_generated else "asyncapi_update"
+            self.log_audit(
+                user_id=user_id,
+                registry_id=registry_id,
+                action=action,
+                details={"subject": subject, "is_auto_generated": is_auto_generated},
+            )
+
+            return response.data[0]
+        except Exception as e:
+            logger.error(f"Failed to upsert AsyncAPI spec: {e}")
+            return None
     # ================================================================
     # AUDIT LOG
     # ================================================================

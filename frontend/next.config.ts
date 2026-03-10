@@ -3,8 +3,35 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactCompiler: true,
 
+  transpilePackages: [
+    "@asyncapi/react-component",
+    "@asyncapi/parser",
+    "@stoplight/spectral-core",
+    "@stoplight/spectral-functions",
+  ],
+
+
   turbopack: {
     root: import.meta.dirname,
+    resolveAlias: {
+      fs: { browser: "" },
+      path: { browser: "" },
+      os: { browser: "" },
+      util: { browser: "" },
+    },
+  },
+
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        os: false,
+        util: false,
+      };
+    }
+    return config;
   },
 
   async rewrites() {

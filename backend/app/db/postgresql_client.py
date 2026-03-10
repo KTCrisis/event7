@@ -191,7 +191,48 @@ class PostgreSQLDatabase(DatabaseProvider):
                 details={"subject": subject},
             )
         return affected > 0
-
+        
+    def upsert_asyncapi_spec(
+        self,
+        registry_id: str,
+        subject: str,
+        spec_content: dict,
+        is_auto_generated: bool = True,
+        user_id: str = "",
+    ) -> dict | None:
+        """Create or update an AsyncAPI spec."""
+        import json
+        try:
+            with self._conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO asyncapi_specs (registry_id, subject, spec_content, is_auto_generated)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (registry_id, subject)
+                    DO UPDATE SET spec_content = EXCLUDED.spec_content,
+                                is_auto_generated = EXCLUDED.is_auto_generated,
+                                updated_at = NOW()
+                    RETURNING *
+                """, (registry_id, subject, json.dumps(spec_content), is_auto_generated))
+                self._conn.commit()
+                row = cur.fetchone()
+                if not row:
+                    return None
+                cols = [desc[0] for desc in cur.description]
+                result = dict(zip(cols, row))
+                # Parse spec_content back if it's a string
+                if isinstance(result.get("spec_content"), str):
+                    result["spec_content"] = json.loads(result["spec_content"])
+                self.log_audit(
+                    user_id=user_id,
+                    registry_id=registry_id,
+                    action="asyncapi_generate" if is_auto_generated else "asyncapi_update",
+                    details={"subject": subject},
+                )
+                return result
+        except Exception as e:
+            logger.error(f"Failed to upsert AsyncAPI spec: {e}")
+            self._conn.rollback()
+            return None
     # ================================================================
     # AUDIT LOG
     # ================================================================

@@ -141,14 +141,14 @@ async def check_health(
         healthy = await provider.health_check()
         return RegistryHealth(
             registry_id=str(registry_id),
-            healthy=healthy,
+            is_healthy=healthy,
             provider_type=registry["provider_type"],
         )
     except Exception as e:
         logger.warning(f"Health check failed for registry {registry_id}: {e}")
         return RegistryHealth(
             registry_id=str(registry_id),
-            healthy=False,
+            is_healthy=False,
             provider_type=registry["provider_type"],
             error=str(e),
         )

@@ -50,9 +50,8 @@ class RegistryResponse(BaseModel):
 
 
 class RegistryHealth(BaseModel):
-    """Résultat du health check d'un registry"""
-
     registry_id: str
     is_healthy: bool
     response_time_ms: float | None = None
     error: str | None = None
+    provider_type: str | None = None    
