@@ -1,73 +1,125 @@
-// src/app/(dashboard)/settings/page.tsx
+// Placement: frontend/src/app/(dashboard)/settings/page.tsx
 "use client";
 
 import { useState } from "react";
+import { Plus, Settings2 } from "lucide-react";
 import { useRegistry } from "@/providers/registry-provider";
 import { RegistryCard } from "@/components/settings/registry-card";
+import { RegistryChooser } from "@/components/settings/registry-chooser";
 import { RegistryForm } from "@/components/settings/registry-form";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Plus, Settings } from "lucide-react";
+import { HostedRegistryForm } from "@/components/settings/hosted-registry-form";
+
+type DialogStep = "closed" | "choose" | "connect" | "hosted";
 
 export default function SettingsPage() {
-  const { registries, refresh, loading } = useRegistry();
-  const [open, setOpen] = useState(false);
+  const { registries, selected, select, refresh, loading } = useRegistry();
+  const [step, setStep] = useState<DialogStep>("closed");
 
-  const handleCreated = async () => {
-    setOpen(false);
-    await refresh();
+  const handleSuccess = () => {
+    setStep("closed");
+    refresh();
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Settings size={24} />
-            Settings
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Manage your Schema Registry connections
-          </p>
-        </div>
+  const openDialog = () => setStep("choose");
+  const closeDialog = () => setStep("closed");
 
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus size={16} className="mr-2" />
-              Add Registry
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Connect a Schema Registry</DialogTitle>
-            </DialogHeader>
-            <RegistryForm onSuccess={handleCreated} />
-          </DialogContent>
-        </Dialog>
+  return (
+    <div className="min-h-screen p-6 md:p-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <Settings2 size={20} className="text-slate-400" />
+          <h1 className="text-lg font-semibold text-slate-100">
+            Registry Connections
+          </h1>
+        </div>
+        <button
+          onClick={openDialog}
+          className="flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500 transition-colors"
+        >
+          <Plus size={16} />
+          Add Registry
+        </button>
       </div>
 
+      {/* Registry list */}
       {loading ? (
-        <p className="text-muted-foreground">Loading registries...</p>
+        <div className="text-center py-12 text-sm text-slate-400">
+          Loading registries...
+        </div>
       ) : registries.length === 0 ? (
-        <div className="text-center py-12 space-y-3">
-          <p className="text-muted-foreground">No registries connected yet.</p>
-          <Button variant="outline" onClick={() => setOpen(true)}>
-            <Plus size={16} className="mr-2" />
-            Connect your first registry
-          </Button>
+        <div className="text-center py-16">
+          <p className="text-sm text-slate-400 mb-6">
+            No registry connected yet. Get started by connecting your existing
+            registry or creating a free one.
+          </p>
+          <RegistryChooser
+            onSelect={(mode) => setStep(mode === "connect" ? "connect" : "hosted")}
+            variant="full"
+          />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {registries.map((r) => (
-            <RegistryCard key={r.id} registry={r} onDeleted={refresh} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {registries.map((reg) => (
+            <RegistryCard
+              key={reg.id}
+              registry={reg}
+              isSelected={selected?.id === reg.id}
+              onSelect={select}
+              onDeleted={refresh}
+            />
           ))}
+        </div>
+      )}
+
+      {/* ── Dialog overlay ── */}
+      {step !== "closed" && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeDialog();
+          }}
+        >
+          <div className="w-full max-w-lg rounded-xl border border-slate-700/50 bg-slate-900 p-6 shadow-2xl">
+            {/* Step indicator */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-base font-semibold text-slate-100">
+                {step === "choose" && "Add Registry"}
+                {step === "connect" && "Connect Registry"}
+                {step === "hosted" && "Create Hosted Registry"}
+              </h2>
+              <button
+                onClick={closeDialog}
+                className="text-slate-500 hover:text-slate-300 text-sm transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+
+            {/* Step content */}
+            {step === "choose" && (
+              <RegistryChooser
+                onSelect={(mode) =>
+                  setStep(mode === "connect" ? "connect" : "hosted")
+                }
+                variant="compact"
+              />
+            )}
+
+            {step === "connect" && (
+              <RegistryForm
+                onSuccess={handleSuccess}
+                onBack={() => setStep("choose")}
+              />
+            )}
+
+            {step === "hosted" && (
+              <HostedRegistryForm
+                onSuccess={handleSuccess}
+                onBack={() => setStep("choose")}
+              />
+            )}
+          </div>
         </div>
       )}
     </div>

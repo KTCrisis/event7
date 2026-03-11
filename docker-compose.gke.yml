@@ -42,6 +42,19 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+  # --- Apicurio Registry (hosted demo) ---  
+  apicurio:
+    image: apicurio/apicurio-registry:latest-release
+    ports:
+      - "8081:8080"
+    environment:
+      APICURIO_STORAGE_KIND: "mem"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   # --- Backend (FastAPI) ---
   backend:
@@ -61,18 +74,11 @@ services:
       # Auth (disabled for local dev)
       AUTH_ENABLED: "false"
 
-      # Encryption key (generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+      # Encryption key
       ENCRYPTION_KEY: "${ENCRYPTION_KEY:-}"
 
-      # Schema Registry (your Confluent Cloud or local)
-      # CONFLUENT_SR_URL: https://psrc-xxx.europe-west9.gcp.confluent.cloud
-      # CONFLUENT_SR_KEY: xxx
-      # CONFLUENT_SR_SECRET: xxx
-
-      # Proxy (uncomment proxy)
-      # HTTPS_PROXY: 
-      # HTTP_PROXY:
-      # NO_PROXY: localhost,127.0.0.1,postgres,redis
+      # Hosted Apicurio (internal URL for provisioning)
+      HOSTED_APICURIO_URL: http://apicurio:8080
 
       # CORS
       CORS_ORIGINS: '["http://localhost:3000"]'
@@ -81,7 +87,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      apicurio:
+        condition: service_healthy
     restart: unless-stopped
+
 
   # --- Frontend (Next.js standalone) ---
   frontend:

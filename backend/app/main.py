@@ -60,7 +60,8 @@ from app.api.registries import router as registries_router
 from app.api.schemas import router as schemas_router
 from app.api.governance import router as governance_router
 from app.api.asyncapi import router as asyncapi_router
-
+from app.api.hosted import router as hosted_router
+app.include_router(hosted_router)
 app.include_router(registries_router)
 app.include_router(schemas_router)
 app.include_router(governance_router)

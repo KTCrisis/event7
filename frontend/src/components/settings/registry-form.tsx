@@ -1,4 +1,4 @@
-// src/components/settings/registry-form.tsx
+// Placement: frontend/src/components/settings/registry-form.tsx
 "use client";
 
 import { useState } from "react";
@@ -12,12 +12,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import type { ProviderType } from "@/types/registry";
 
 interface RegistryFormProps {
   onSuccess: () => void;
+  onBack?: () => void;
 }
 
 const PROVIDERS: { value: ProviderType; label: string }[] = [
@@ -28,7 +29,7 @@ const PROVIDERS: { value: ProviderType; label: string }[] = [
 
 const ENVIRONMENTS = ["DEV", "STAGING", "PPROD", "PROD"];
 
-export function RegistryForm({ onSuccess }: RegistryFormProps) {
+export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
   const [name, setName] = useState("");
   const [providerType, setProviderType] = useState<ProviderType>("confluent");
   const [baseUrl, setBaseUrl] = useState("");
@@ -37,7 +38,7 @@ export function RegistryForm({ onSuccess }: RegistryFormProps) {
   const [environment, setEnvironment] = useState("DEV");
   const [loading, setLoading] = useState(false);
 
-const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -61,6 +62,18 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Back button (shown when inside stepper dialog) */}
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+        >
+          <ArrowLeft size={14} />
+          Back to options
+        </button>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="name">Name</Label>
         <Input
