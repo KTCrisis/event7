@@ -1,4 +1,4 @@
-// src/components/settings/registry-form.tsx
+// Placement: frontend/src/components/settings/registry-form.tsx
 "use client";
 
 import { useState } from "react";
@@ -12,23 +12,27 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import type { ProviderType } from "@/types/registry";
 
 interface RegistryFormProps {
   onSuccess: () => void;
+  onBack?: () => void;
 }
 
-const PROVIDERS: { value: ProviderType; label: string }[] = [
-  { value: "confluent", label: "Confluent Cloud" },
-  { value: "apicurio", label: "Apicurio (coming soon)" },
-  { value: "glue", label: "AWS Glue (coming soon)" },
+const PROVIDERS: { value: ProviderType; label: string; enabled: boolean }[] = [
+  { value: "confluent", label: "Confluent Cloud", enabled: true },
+  { value: "apicurio", label: "Apicurio Registry", enabled: true },
+  { value: "glue", label: "AWS Glue (coming soon)", enabled: false },
 ];
 
 const ENVIRONMENTS = ["DEV", "STAGING", "PPROD", "PROD"];
 
-export function RegistryForm({ onSuccess }: RegistryFormProps) {
+/** Providers that require API key/secret */
+const NEEDS_CREDENTIALS: ProviderType[] = ["confluent", "glue"];
+
+export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
   const [name, setName] = useState("");
   const [providerType, setProviderType] = useState<ProviderType>("confluent");
   const [baseUrl, setBaseUrl] = useState("");
@@ -37,7 +41,9 @@ export function RegistryForm({ onSuccess }: RegistryFormProps) {
   const [environment, setEnvironment] = useState("DEV");
   const [loading, setLoading] = useState(false);
 
-const handleSubmit = async (e: React.FormEvent) => {
+  const needsCreds = NEEDS_CREDENTIALS.includes(providerType);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -46,8 +52,8 @@ const handleSubmit = async (e: React.FormEvent) => {
         name,
         provider_type: providerType,
         base_url: baseUrl,
-        api_key: apiKey,
-        api_secret: apiSecret,
+        api_key: needsCreds ? apiKey : undefined,
+        api_secret: needsCreds ? apiSecret : undefined,
         environment,
       });
       toast.success(`Registry "${name}" connected successfully`);
@@ -61,6 +67,18 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Back button (shown when inside stepper dialog) */}
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+        >
+          <ArrowLeft size={14} />
+          Back to options
+        </button>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="name">Name</Label>
         <Input
@@ -87,7 +105,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <DropdownMenuItem
                   key={p.value}
                   onClick={() => setProviderType(p.value)}
-                  disabled={p.value !== "confluent"}
+                  disabled={!p.enabled}
                 >
                   {p.label}
                 </DropdownMenuItem>
@@ -123,36 +141,47 @@ const handleSubmit = async (e: React.FormEvent) => {
         <Label htmlFor="url">Schema Registry URL</Label>
         <Input
           id="url"
-          placeholder="https://psrc-xxxxx.europe-west9.gcp.confluent.cloud"
+          placeholder={
+            providerType === "apicurio"
+              ? "http://apicurio:8080"
+              : "https://psrc-xxxxx.europe-west9.gcp.confluent.cloud"
+          }
           value={baseUrl}
           onChange={(e) => setBaseUrl(e.target.value)}
           required
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="key">API Key</Label>
-          <Input
-            id="key"
-            placeholder="API Key"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            required
-          />
+      {/* Credentials — only for providers that need them */}
+      {needsCreds ? (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="key">API Key</Label>
+            <Input
+              id="key"
+              placeholder="API Key"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="secret">API Secret</Label>
+            <Input
+              id="secret"
+              type="password"
+              placeholder="••••••••"
+              value={apiSecret}
+              onChange={(e) => setApiSecret(e.target.value)}
+              required
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="secret">API Secret</Label>
-          <Input
-            id="secret"
-            type="password"
-            placeholder="••••••••"
-            value={apiSecret}
-            onChange={(e) => setApiSecret(e.target.value)}
-            required
-          />
-        </div>
-      </div>
+      ) : (
+        <p className="text-xs text-zinc-500">
+          No credentials needed — Apicurio will be accessed without authentication.
+        </p>
+      )}
 
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? "Testing connection..." : "Connect Registry"}

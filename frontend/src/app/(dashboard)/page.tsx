@@ -1,9 +1,11 @@
-// app/(dashboard)/page.tsx
+// Placement: frontend/src/app/(dashboard)/page.tsx
 // Phase 6 — Enriched Dashboard with KPIs, charts, governance coverage, quick links
+// Updated: Connect/Hosted empty state via RegistryChooser
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   LayoutDashboard, Database, FileCode, GitBranch, AlertCircle,
   Loader2, RefreshCw, Search, Library, ExternalLink, ArrowRight,
@@ -13,6 +15,7 @@ import { useRegistry } from "@/providers/registry-provider";
 import { listSubjects } from "@/lib/api/schemas";
 import { getCatalog } from "@/lib/api/governance";
 import { buildGraph, extractNamespace, computeStats } from "@/lib/api/references";
+import { RegistryChooser } from "@/components/settings/registry-chooser";
 import type { SubjectInfo } from "@/types/schema";
 import type { CatalogEntry } from "@/types/governance";
 
@@ -121,6 +124,7 @@ function computeDashboardStats(data: DashboardData): DashboardStats {
 
 export default function DashboardPage() {
   const { selected } = useRegistry();
+  const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -152,22 +156,21 @@ export default function DashboardPage() {
     return computeDashboardStats(data);
   }, [data]);
 
-  // --- No registry ---
+  // --- No registry: Connect / Hosted chooser ---
   if (!selected) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-center max-w-sm">
+        <div className="text-center max-w-xl">
           <LayoutDashboard size={40} className="mx-auto text-zinc-700 mb-4" />
           <h2 className="text-lg font-semibold text-white mb-2">Welcome to event7</h2>
-          <p className="text-sm text-zinc-500 mb-4">
-            Connect a Schema Registry to start exploring your schemas and events.
+          <p className="text-sm text-zinc-500 mb-6">
+            Connect your existing Schema Registry or create a free hosted one
+            to start exploring your schemas and events.
           </p>
-          <Link
-            href="/settings"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-cyan-500/10 text-cyan-400 rounded-md border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors"
-          >
-            Go to Settings <ArrowRight size={14} />
-          </Link>
+          <RegistryChooser
+            onSelect={(mode) => router.push(`/settings?action=${mode}`)}
+            variant="full"
+          />
         </div>
       </div>
     );
