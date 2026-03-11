@@ -31,7 +31,6 @@ COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.
 COPY --from=deps /usr/local/bin /usr/local/bin
 
 COPY app/ ./app/
-COPY migrations/ ./migrations/
 
 RUN groupadd -r event7 && useradd -r -g event7 -d /app event7
 RUN chown -R event7:event7 /app
