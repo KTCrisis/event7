@@ -5,4 +5,4 @@ pages_build_output_dir = ".open-next"
 [vars]
 NEXT_PUBLIC_SUPABASE_URL = "https://kvixwzjubpkyeesnsfol.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2aXh3emp1YnBreWVlc25zZm9sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwODUwMjIsImV4cCI6MjA4ODY2MTAyMn0.KgzQEzCP8dQZcoVYR8yBUvx8BC1GiiSwrdXo7nZgcYk"
-NEXT_PUBLIC_API_URL = ""
+NEXT_PUBLIC_API_URL = "https://event7-production.up.railway.app"
