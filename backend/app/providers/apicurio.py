@@ -320,12 +320,31 @@ class ApicurioProvider(SchemaRegistryProvider):
 
         return sorted(versions, key=lambda v: v.version)
 
+
+    async def get_subject_versions(self, subject: str) -> list[int]:
+        """Return just version numbers (used by SchemaService.get_versions)."""
+        result = await self._get(
+            f"{self._artifact_path(subject)}/versions",
+            params={"limit": 500},
+        )
+        return sorted([
+            int(v.get("version", v.get("versionOrder", 1)))
+            for v in result.get("versions", [])
+        ])
+
     # ── Diff ──
 
     async def diff_versions(self, subject: str, v1: int, v2: int) -> SchemaDiff:
         schema1 = await self.get_schema(subject, v1)
         schema2 = await self.get_schema(subject, v2)
-        return compute_schema_diff(schema1, schema2)
+        return compute_schema_diff(
+            subject=subject,
+            version_from=v1,
+            version_to=v2,
+            schema_from=schema1.schema_content,
+            schema_to=schema2.schema_content,
+            schema_format=schema1.format,
+        )
     # ── References ──
 
     async def get_references(self, subject: str) -> list[SchemaReference]:
@@ -384,7 +403,7 @@ class ApicurioProvider(SchemaRegistryProvider):
                 f"{self._artifact_path(subject)}/rules/COMPATIBILITY"
             )
             config = rule.get("config", "BACKWARD")
-            return CompatibilityMode(compatibility=config)
+            return CompatibilityMode(config)
         except ApicurioError as e:
             if e.status_code == 404:
                 # No artifact-level rule, try group-level
@@ -393,15 +412,15 @@ class ApicurioProvider(SchemaRegistryProvider):
                         f"{BASE_PATH}/groups/{GROUP_ID}/rules/COMPATIBILITY"
                     )
                     config = rule.get("config", "BACKWARD")
-                    return CompatibilityMode(compatibility=config)
+                    return CompatibilityMode(config)
                 except ApicurioError:
                     # No group-level rule, try global
                     try:
                         rule = await self._get(f"{BASE_PATH}/admin/rules/COMPATIBILITY")
                         config = rule.get("config", "BACKWARD")
-                        return CompatibilityMode(compatibility=config)
+                        return CompatibilityMode(config)
                     except ApicurioError:
-                        return CompatibilityMode(compatibility="NONE")
+                        return CompatibilityMode("NONE")
             raise
 
     async def check_compatibility(self, subject: str, schema: dict) -> dict:

@@ -54,6 +54,9 @@ services:
       APICURIO_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/event7"
       APICURIO_DATASOURCE_USERNAME: "event7"
       APICURIO_DATASOURCE_PASSWORD: "event7_dev_password"
+      APICURIO_REST_DELETION_ARTIFACT_ENABLED: "true"
+      APICURIO_REST_DELETION_GROUP_ENABLED: "true"
+      APICURIO_REST_DELETION_VERSION_ENABLED: "true"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
       interval: 10s
