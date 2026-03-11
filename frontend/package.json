@@ -2,6 +2,11 @@
   "name": "event7",
   "version": "0.1.0",
   "private": true,
+  "browser": {
+    "fs": false,
+    "os": false,
+    "path": false
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

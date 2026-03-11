@@ -1,4 +1,5 @@
 import { Outfit } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -21,7 +22,19 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`dark ${outfit.variable}`}>
-      <body className={outfit.className}>{children}</body>
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://unpkg.com/@asyncapi/react-component@3.0.2/styles/default.min.css"
+        />
+      </head>
+      <body className={outfit.className}>
+        {children}
+        <Script
+          src="https://unpkg.com/@asyncapi/react-component@3.0.2/browser/standalone/index.js"
+          strategy="beforeInteractive"
+        />
+      </body>
     </html>
   );
 }
