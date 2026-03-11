@@ -40,5 +40,5 @@ def create_database() -> DatabaseProvider:
         logger.info("Database provider: Supabase")
         return SupabaseDatabase(
             url=settings.supabase_url,
-            key=settings.supabase_key,
+            key=settings.supabase_service_role_key,
         )
