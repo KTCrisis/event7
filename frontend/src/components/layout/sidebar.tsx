@@ -1,4 +1,5 @@
 // src/components/layout/sidebar.tsx
+// Cleanup — only active routes, dead links removed
 "use client";
 
 import Link from "next/link";
@@ -7,9 +8,9 @@ import {
   LayoutDashboard,
   Search,
   GitCompare,
+  Share2,
   Library,
   FileCode,
-  Share2,
   Settings,
 } from "lucide-react";
 

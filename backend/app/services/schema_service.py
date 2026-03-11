@@ -7,7 +7,7 @@ Les routes API délèguent ici toute la logique métier.
 from loguru import logger
 
 from app.cache.redis_cache import RedisCache
-from app.db.supabase_client import SupabaseClient
+from app.db.base import DatabaseProvider
 from app.models.schema import SubjectInfo, SchemaDetail, SchemaVersion, SchemaDiff, SchemaReference
 from app.models.governance import (
     CatalogEntry,
@@ -22,7 +22,7 @@ from app.providers.base import SchemaRegistryProvider
 class SchemaService:
     """
     Couche métier principale.
-    Flow: Route → Service → Provider (live) + Cache (Redis) + DB (Supabase enrichments)
+    Flow: Route → Service → Provider (live) + Cache (Redis) + DB 
     """
 
     CACHE_TTL = 300  # 5 min
@@ -31,7 +31,7 @@ class SchemaService:
         self,
         provider: SchemaRegistryProvider,
         cache: RedisCache,
-        db: SupabaseClient,
+        db: DatabaseProvider,
         registry_id: str,
     ):
         self.provider = provider

@@ -93,7 +93,7 @@ class TestDependencyLifecycle:
     async def test_close_called_on_success(self, mock_provider, mock_supabase, mock_cache):
         mock_supabase.get_registry_by_id.return_value = self._make_registry_row()
 
-        with patch("app.api.dependencies.supabase_client", mock_supabase), \
+        with patch("app.api.dependencies.db_client", mock_supabase), \
              patch("app.api.dependencies.redis_cache", mock_cache), \
              patch("app.api.dependencies.create_provider", return_value=mock_provider):
 
@@ -123,7 +123,7 @@ class TestDependencyLifecycle:
         """
         mock_supabase.get_registry_by_id.return_value = self._make_registry_row()
 
-        with patch("app.api.dependencies.supabase_client", mock_supabase), \
+        with patch("app.api.dependencies.db_client", mock_supabase), \
              patch("app.api.dependencies.redis_cache", mock_cache), \
              patch("app.api.dependencies.create_provider", return_value=mock_provider):
 
@@ -149,7 +149,7 @@ class TestDependencyLifecycle:
     async def test_registry_not_found_returns_404(self, mock_supabase, mock_cache):
         mock_supabase.get_registry_by_id.return_value = None
 
-        with patch("app.api.dependencies.supabase_client", mock_supabase), \
+        with patch("app.api.dependencies.db_client", mock_supabase), \
              patch("app.api.dependencies.redis_cache", mock_cache):
 
             from app.api.dependencies import get_schema_service
@@ -169,7 +169,7 @@ class TestDependencyLifecycle:
         row["is_active"] = False
         mock_supabase.get_registry_by_id.return_value = row
 
-        with patch("app.api.dependencies.supabase_client", mock_supabase), \
+        with patch("app.api.dependencies.db_client", mock_supabase), \
              patch("app.api.dependencies.redis_cache", mock_cache):
 
             from app.api.dependencies import get_schema_service
@@ -185,7 +185,7 @@ class TestDependencyLifecycle:
 
     @pytest.mark.asyncio
     async def test_no_supabase_returns_503(self, mock_cache):
-        with patch("app.api.dependencies.supabase_client", None), \
+        with patch("app.api.dependencies.db_client", None), \
              patch("app.api.dependencies.redis_cache", mock_cache):
 
             from app.api.dependencies import get_schema_service
@@ -204,7 +204,7 @@ class TestDependencyLifecycle:
         mock_supabase.get_registry_by_id.return_value = self._make_registry_row()
         mock_provider.close.side_effect = ConnectionError("close failed")
 
-        with patch("app.api.dependencies.supabase_client", mock_supabase), \
+        with patch("app.api.dependencies.db_client", mock_supabase), \
              patch("app.api.dependencies.redis_cache", mock_cache), \
              patch("app.api.dependencies.create_provider", return_value=mock_provider):
 
@@ -242,7 +242,7 @@ class TestLifecycleRegression:
             "is_active": True,
         }
 
-        with patch("app.api.dependencies.supabase_client", mock_supabase), \
+        with patch("app.api.dependencies.db_client", mock_supabase), \
              patch("app.api.dependencies.redis_cache", mock_cache), \
              patch("app.api.dependencies.create_provider", return_value=mock_provider):
 

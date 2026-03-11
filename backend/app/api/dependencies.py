@@ -30,7 +30,7 @@ from app.utils.auth import get_current_user
 
 # --- Global instances (initialisées dans main.py lifespan) ---
 # Ces imports seront résolus au runtime après le startup de l'app
-from app.main import redis_cache, supabase_client
+from app.main import redis_cache, db_client
 
 
 async def get_schema_service(
@@ -40,7 +40,7 @@ async def get_schema_service(
     """Build a SchemaService for the given registry, then clean up.
 
     Flow:
-    1. Fetch registry from Supabase (filtered by user_id)
+    1. Fetch registry from db (filtered by user_id)
     2. Decrypt credentials
     3. Create provider (httpx client)
     4. Wrap in SchemaService
@@ -50,13 +50,13 @@ async def get_schema_service(
     settings = get_settings()
 
     # --- Fetch registry (scoped to user) ---
-    if not supabase_client:
+    if not db_client:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database not available",
         )
 
-    registry = supabase_client.get_registry_by_id(
+    registry = db_client.get_registry_by_id(
         registry_id=str(registry_id),
         user_id=str(user.user_id),
     )
@@ -85,7 +85,7 @@ async def get_schema_service(
         service = SchemaService(
             provider=provider,
             cache=redis_cache,
-            db=supabase_client,
+            db=db_client,
             registry_id=str(registry_id),
         )
 

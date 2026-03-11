@@ -65,7 +65,7 @@ class TestDeleteRegistryRoute:
         mock_db = MagicMock()
         mock_db.delete_registry.return_value = False
 
-        with patch("app.api.registries.supabase_client", mock_db):
+        with patch("app.api.registries.db_client", mock_db):
             app = _make_test_app(user_override=_user())
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -81,7 +81,7 @@ class TestDeleteRegistryRoute:
         mock_db.delete_registry.return_value = True
         mock_db.log_audit.return_value = None
 
-        with patch("app.api.registries.supabase_client", mock_db):
+        with patch("app.api.registries.db_client", mock_db):
             app = _make_test_app(user_override=_user())
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -97,7 +97,7 @@ class TestDeleteRegistryRoute:
         mock_db.delete_registry.return_value = True
         mock_db.log_audit.return_value = None
 
-        with patch("app.api.registries.supabase_client", mock_db):
+        with patch("app.api.registries.db_client", mock_db):
             app = _make_test_app(user_override=_user())
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -123,7 +123,7 @@ class TestListRegistriesRoute:
         mock_db = MagicMock()
         mock_db.get_registries.return_value = []
 
-        with patch("app.api.registries.supabase_client", mock_db):
+        with patch("app.api.registries.db_client", mock_db):
             app = _make_test_app(user_override=_user())
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -141,7 +141,7 @@ class TestListRegistriesRoute:
         _mock_settings.auth_enabled = True
         _mock_settings.supabase_jwt_secret = TEST_JWT_SECRET
 
-        with patch("app.api.registries.supabase_client", mock_db):
+        with patch("app.api.registries.db_client", mock_db):
             # NO user_override → real get_current_user runs
             app = _make_test_app(user_override=None)
             transport = ASGITransport(app=app)
@@ -169,7 +169,7 @@ class TestMultiTenantIsolation:
             return []
         mock_db.get_registries.side_effect = capture_get_registries
 
-        with patch("app.api.registries.supabase_client", mock_db):
+        with patch("app.api.registries.db_client", mock_db):
             # Request as user A
             app_a = _make_test_app(user_override=_user(user_a))
             transport_a = ASGITransport(app=app_a)

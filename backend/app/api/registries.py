@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 
 from app.config import get_settings
-from app.db.supabase_client import SupabaseClient
+from app.db.base import DatabaseProvider
 from app.models.auth import UserContext
 from app.models.registry import RegistryCreate, RegistryResponse, RegistryHealth
 from app.providers.factory import create_provider
@@ -22,7 +22,7 @@ from app.utils.auth import get_current_user
 from app.utils.encryption import encrypt_credentials
 
 # Global instance (initialized in main.py lifespan)
-from app.main import supabase_client
+from app.main import db_client
 
 router = APIRouter(prefix="/api/v1/registries", tags=["registries"])
 
@@ -38,7 +38,7 @@ async def create_registry(
     2. Encrypt credentials
     3. Store in Supabase (scoped to user)
     """
-    if not supabase_client:
+    if not db_client:
         raise HTTPException(status_code=503, detail="Database not available")
 
     # --- Test connectivity first ---
@@ -84,7 +84,7 @@ async def create_registry(
         "is_active": True,
     }
 
-    result = supabase_client.create_registry(registry_data)
+    result = db_client.create_registry(registry_data)
     if not result:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -92,7 +92,7 @@ async def create_registry(
         )
 
     # --- Audit ---
-    supabase_client.log_audit(
+    db_client.log_audit(
         user_id=str(user.user_id),
         registry_id=result["id"],
         action="registry.created",
@@ -108,10 +108,10 @@ async def list_registries(
     user: UserContext = Depends(get_current_user),  # P0-AUTH
 ):
     """List all active registries for the authenticated user."""
-    if not supabase_client:
+    if not db_client:
         raise HTTPException(status_code=503, detail="Database not available")
 
-    registries = supabase_client.get_registries(user_id=str(user.user_id))
+    registries = db_client.get_registries(user_id=str(user.user_id))
     return [RegistryResponse(**r) for r in registries]
 
 
@@ -121,10 +121,10 @@ async def check_health(
     user: UserContext = Depends(get_current_user),  # P0-AUTH
 ):
     """Health check a registry connection."""
-    if not supabase_client:
+    if not db_client:
         raise HTTPException(status_code=503, detail="Database not available")
 
-    registry = supabase_client.get_registry_by_id(
+    registry = db_client.get_registry_by_id(
         registry_id=str(registry_id),
         user_id=str(user.user_id),  # P0-AUTH: scoped to user
     )
@@ -163,11 +163,11 @@ async def delete_registry(
     user: UserContext = Depends(get_current_user),  # P0-AUTH
 ):
     """Soft-delete (deactivate) a registry."""
-    if not supabase_client:
+    if not db_client:
         raise HTTPException(status_code=503, detail="Database not available")
 
     # P0-DELETE: delete_registry now returns False if no row was affected
-    deleted = supabase_client.delete_registry(
+    deleted = db_client.delete_registry(
         registry_id=str(registry_id),
         user_id=str(user.user_id),  # P0-AUTH: scoped to user
     )
@@ -179,7 +179,7 @@ async def delete_registry(
         )
 
     # --- Audit ---
-    supabase_client.log_audit(
+    db_client.log_audit(
         user_id=str(user.user_id),
         registry_id=str(registry_id),
         action="registry.deleted",

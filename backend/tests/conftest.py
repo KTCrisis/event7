@@ -16,7 +16,7 @@ import pytest
 
 _fake_main = ModuleType("app.main")
 _fake_main.redis_cache = MagicMock()       # type: ignore
-_fake_main.supabase_client = MagicMock()   # type: ignore
+_fake_main.db_client = MagicMock()         # type: ignore
 sys.modules.setdefault("app.main", _fake_main)
 
 # NOW safe to import app modules

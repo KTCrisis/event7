@@ -18,7 +18,6 @@ from app.db.base import DatabaseProvider
 settings = get_settings()
 redis_cache = RedisCache()
 db_client: DatabaseProvider = create_database()
-supabase_client = db_client  # backward compat alias pour les routes existantes
 
 
 @asynccontextmanager
@@ -73,7 +72,7 @@ app.include_router(asyncapi_router)
 async def health():
     """Health check endpoint"""
     redis_ok = await redis_cache.ping()
-    db_ok = supabase_client.ping()
+    db_ok = db_client.ping()
 
     return {
         "status": "healthy" if (redis_ok and db_ok) else "degraded",
