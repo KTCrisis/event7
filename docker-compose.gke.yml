@@ -42,18 +42,26 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-  # --- Apicurio Registry (hosted demo) ---  
+      
+  # --- Apicurio Registry (hosted demo) ---      
   apicurio:
     image: apicurio/apicurio-registry:latest-release
     ports:
       - "8081:8080"
     environment:
-      APICURIO_STORAGE_KIND: "mem"
+      APICURIO_STORAGE_KIND: "sql"
+      APICURIO_STORAGE_SQL_KIND: "postgresql"
+      APICURIO_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/event7"
+      APICURIO_DATASOURCE_USERNAME: "event7"
+      APICURIO_DATASOURCE_PASSWORD: "event7_dev_password"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   # --- Backend (FastAPI) ---

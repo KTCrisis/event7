@@ -21,13 +21,16 @@ interface RegistryFormProps {
   onBack?: () => void;
 }
 
-const PROVIDERS: { value: ProviderType; label: string }[] = [
-  { value: "confluent", label: "Confluent Cloud" },
-  { value: "apicurio", label: "Apicurio (coming soon)" },
-  { value: "glue", label: "AWS Glue (coming soon)" },
+const PROVIDERS: { value: ProviderType; label: string; enabled: boolean }[] = [
+  { value: "confluent", label: "Confluent Cloud", enabled: true },
+  { value: "apicurio", label: "Apicurio Registry", enabled: true },
+  { value: "glue", label: "AWS Glue (coming soon)", enabled: false },
 ];
 
 const ENVIRONMENTS = ["DEV", "STAGING", "PPROD", "PROD"];
+
+/** Providers that require API key/secret */
+const NEEDS_CREDENTIALS: ProviderType[] = ["confluent", "glue"];
 
 export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
   const [name, setName] = useState("");
@@ -38,6 +41,8 @@ export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
   const [environment, setEnvironment] = useState("DEV");
   const [loading, setLoading] = useState(false);
 
+  const needsCreds = NEEDS_CREDENTIALS.includes(providerType);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -47,8 +52,8 @@ export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
         name,
         provider_type: providerType,
         base_url: baseUrl,
-        api_key: apiKey,
-        api_secret: apiSecret,
+        api_key: needsCreds ? apiKey : undefined,
+        api_secret: needsCreds ? apiSecret : undefined,
         environment,
       });
       toast.success(`Registry "${name}" connected successfully`);
@@ -100,7 +105,7 @@ export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
                 <DropdownMenuItem
                   key={p.value}
                   onClick={() => setProviderType(p.value)}
-                  disabled={p.value !== "confluent"}
+                  disabled={!p.enabled}
                 >
                   {p.label}
                 </DropdownMenuItem>
@@ -136,36 +141,47 @@ export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
         <Label htmlFor="url">Schema Registry URL</Label>
         <Input
           id="url"
-          placeholder="https://psrc-xxxxx.europe-west9.gcp.confluent.cloud"
+          placeholder={
+            providerType === "apicurio"
+              ? "http://apicurio:8080"
+              : "https://psrc-xxxxx.europe-west9.gcp.confluent.cloud"
+          }
           value={baseUrl}
           onChange={(e) => setBaseUrl(e.target.value)}
           required
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="key">API Key</Label>
-          <Input
-            id="key"
-            placeholder="API Key"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            required
-          />
+      {/* Credentials — only for providers that need them */}
+      {needsCreds ? (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="key">API Key</Label>
+            <Input
+              id="key"
+              placeholder="API Key"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="secret">API Secret</Label>
+            <Input
+              id="secret"
+              type="password"
+              placeholder="••••••••"
+              value={apiSecret}
+              onChange={(e) => setApiSecret(e.target.value)}
+              required
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="secret">API Secret</Label>
-          <Input
-            id="secret"
-            type="password"
-            placeholder="••••••••"
-            value={apiSecret}
-            onChange={(e) => setApiSecret(e.target.value)}
-            required
-          />
-        </div>
-      </div>
+      ) : (
+        <p className="text-xs text-zinc-500">
+          No credentials needed — Apicurio will be accessed without authentication.
+        </p>
+      )}
 
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? "Testing connection..." : "Connect Registry"}

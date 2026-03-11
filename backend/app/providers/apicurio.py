@@ -25,7 +25,7 @@ from app.models.schema import (
 )
 from app.models.governance import CompatibilityMode
 from app.providers.base import SchemaRegistryProvider
-from app.services.diff_service import compute_diff
+from app.services.diff_service import compute_schema_diff
 
 
 # ── Constants ──
@@ -131,15 +131,17 @@ class ApicurioProvider(SchemaRegistryProvider):
 
     @staticmethod
     def _parse_format(artifact_type: str | None) -> SchemaFormat:
-        """Map Apicurio artifactType to our SchemaFormat enum."""
         mapping = {
             "AVRO": SchemaFormat.AVRO,
-            "JSON": SchemaFormat.JSON,
-            "JSONSCHEMA": SchemaFormat.JSON,
+            "JSON": SchemaFormat.JSON_SCHEMA,
+            "JSONSCHEMA": SchemaFormat.JSON_SCHEMA,
             "PROTOBUF": SchemaFormat.PROTOBUF,
-            "OPENAPI": SchemaFormat.JSON,
-            "ASYNCAPI": SchemaFormat.JSON,
+            "OPENAPI": SchemaFormat.JSON_SCHEMA,
+            "ASYNCAPI": SchemaFormat.JSON_SCHEMA,
         }
+        if not artifact_type:
+            return SchemaFormat.AVRO
+        return mapping.get(artifact_type.upper(), SchemaFormat.AVRO)
         if not artifact_type:
             return SchemaFormat.AVRO
         return mapping.get(artifact_type.upper(), SchemaFormat.AVRO)
@@ -320,13 +322,10 @@ class ApicurioProvider(SchemaRegistryProvider):
 
     # ── Diff ──
 
-    async def diff_versions(
-        self, subject: str, v1: int, v2: int
-    ) -> SchemaDiff:
+    async def diff_versions(self, subject: str, v1: int, v2: int) -> SchemaDiff:
         schema1 = await self.get_schema(subject, v1)
         schema2 = await self.get_schema(subject, v2)
-        return compute_diff(schema1, schema2)
-
+        return compute_schema_diff(schema1, schema2)
     # ── References ──
 
     async def get_references(self, subject: str) -> list[SchemaReference]:
