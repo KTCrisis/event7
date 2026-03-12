@@ -38,7 +38,8 @@ event7 adds a **provider-agnostic governance layer** above your registries — w
 | **References Graph** | Interactive dependency graph — spot orphans, shared components, and high-impact schemas | Community |
 | **Dashboard KPIs** | Schema count, enrichment coverage, compatibility distribution, recent activity | Community |
 | **Multi-Provider** | Confluent Cloud, Confluent Platform, Apicurio v3 — one adapter pattern, one UI | Community |
-| **AI Agent** | Natural-language commands for drift analysis, coverage audit, and automated enrichments | Pro |
+| **AI Agent (BYOM)** | Natural-language governance commands — bring your own LLM (Ollama, OpenAI, etc.) | Community |
+| **AI Agent Managed** | Hosted LLM with tokens included — zero config | Pro |
 | **Hosted Registry** | Managed Apicurio instance — no infra to maintain | Pro |
 | **Governance Rules** | Define validation, quality, and migration rules — stored in event7, provider-agnostic | Community |
 | **Extended Metadata** | Custom business attributes beyond tags/owner — structured key-value metadata | Community |
