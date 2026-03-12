@@ -15,15 +15,22 @@ class ProviderType(str, Enum):
     GLUE = "glue"
     PULSAR = "pulsar"
 
+class AuthMode(str, Enum):
+    """Authentication mode for registry connections."""
+    API_KEY = "api_key"        # Confluent Cloud: API Key + API Secret
+    BASIC = "basic"            # Confluent Platform (on-prem): Username + Password (LDAP/RBAC)
 
 class RegistryCreate(BaseModel):
     """Payload pour connecter un nouveau registry"""
-
+ 
     name: str = Field(..., min_length=1, max_length=100, examples=["Production Confluent"])
     provider_type: ProviderType
     base_url: str = Field(..., examples=["https://psrc-xxxxx.europe-west1.gcp.confluent.cloud"])
     environment: str = Field(default="DEV", examples=["DEV", "STAGING", "PROD"])
-
+ 
+    # Auth mode — only meaningful for Confluent (Cloud vs Self-Managed)
+    auth_mode: AuthMode | None = None  # None = legacy default (api_key)
+ 
     # Credentials (chiffrés avant stockage)
     api_key: str | None = None
     api_secret: str | None = None

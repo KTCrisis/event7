@@ -34,21 +34,22 @@ event7 solves this by adding a **cross-registry governance layer** above your re
 - **Build an event catalog** — A business-friendly view of your event landscape for both developers and stakeholders
 - **Generate AsyncAPI specs** — Auto-generate AsyncAPI 3.0 documentation from registry schemas, with Avro-to-JSON-Schema conversion built in
 - **Secure credentials** — Registry credentials encrypted at rest with AES-256 (Fernet). event7 never stores plaintext secrets
+- **Hosted registry (coming soon)** — No registry yet? event7 can provision an Apicurio-backed registry for you — connect or create, from the same UI
 
 ---
 
 ## Current focus
 
-event7 is built for **multi-provider evolution**, with a first concrete implementation centered on **Confluent Schema Registry** — fully implemented and tested in production conditions.
+event7 is built for **multi-provider evolution**, with two fully implemented providers — **Confluent Schema Registry** and **Apicurio Registry v3** — tested in production conditions.
 
 | Provider | Status |
 |----------|--------|
 | Confluent Schema Registry | ✅ Implemented |
-| Apicurio Registry | 🔜 Planned |
+| Apicurio Registry v3 | ✅ Implemented |
 | AWS Glue Schema Registry | 🔜 Planned |
 | Custom / compatible backends | Extensible by design |
 
-Adding a new provider means creating **one file** — no changes to services, routes, or frontend. See [Adding a New Provider](#adding-a-new-provider).
+Adding a new provider means creating **one file** — no changes to services, routes, or frontend. Apicurio was added this way as a concrete proof of the adapter pattern. See [Adding a New Provider](#adding-a-new-provider).
 
 ---
 
@@ -88,7 +89,7 @@ HTTP Request → API Routes → Services → Providers + Cache + DB
 │ pattern  │               │   (Factory pattern)       │
 ├──────────┴──────────────┴───────────────────────────┤
 │           External Schema Registries                 │
-│    Confluent  ·  Apicurio (planned)  ·  Glue  ·  …  │
+│    Confluent  ·  Apicurio  ·  Glue (planned)  ·  …  │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -125,7 +126,7 @@ On-prem deployment is fully containerized with multi-stage Dockerfiles and a rea
 - Python 3.12+
 - Node.js 22+
 - Redis (or Docker)
-- A Schema Registry to connect to (Confluent Cloud, local, etc.)
+- A Schema Registry to connect to (Confluent Cloud, Apicurio, local, etc.)
 
 ### Backend
 
@@ -162,14 +163,19 @@ Open [http://localhost:3000](http://localhost:3000) and connect your first regis
 docker compose -f docker-compose.gke.yml up
 ```
 
-Starts PostgreSQL 15, Redis 7, backend, and frontend — all wired together.
+Starts PostgreSQL 15, Redis 7, Apicurio Registry, backend, and frontend — all wired together. A seed script is available to populate Apicurio with sample schemas:
+
+```bash
+python scripts/seed_apicurio.py          # Populate with 9 sample schemas
+python scripts/seed_apicurio.py --clean   # Reset and repopulate
+```
 
 ---
 
 ## Typical workflow
 
 1. Sign in (Supabase Auth or dev mode)
-2. Register a schema registry connection (Confluent Cloud, etc.)
+2. Register a schema registry connection (Confluent Cloud, Apicurio, etc.)
 3. Validate connectivity (health check)
 4. Browse subjects, versions, and schema content
 5. Compare versions with the visual diff viewer
@@ -188,20 +194,20 @@ event7/
 │   ├── app/
 │   │   ├── api/            # FastAPI routers (registries, schemas, governance, asyncapi)
 │   │   ├── services/       # Business logic, diff engine, AsyncAPI generation
-│   │   ├── providers/      # Registry adapters (Confluent + future providers)
+│   │   ├── providers/      # Registry adapters (Confluent, Apicurio)
 │   │   ├── models/         # Pydantic v2 data contracts (shared across all layers)
 │   │   ├── db/             # Database abstraction (Supabase + PostgreSQL via factory)
 │   │   ├── cache/          # Redis cache with TTL and hierarchical keys
 │   │   └── utils/          # AES-256 encryption, helpers
 │   ├── tests/              # pytest + pytest-asyncio
 │   ├── migrations/         # SQL schema (bootstrap.sql)
-│   └── scripts/            # Seed data, test scripts
+│   └── scripts/            # Seed data (seed_apicurio.py), test scripts
 ├── frontend/               # Next.js 14+ application
 │   ├── src/app/            # App Router pages
 │   ├── src/components/     # UI components
 │   ├── src/lib/            # API clients and utilities
 │   └── src/providers/      # React context providers
-├── docker-compose.gke.yml  # On-prem deployment (PG + Redis + backend + frontend)
+├── docker-compose.gke.yml  # On-prem deployment (PG + Redis + Apicurio + backend + frontend)
 └── docker-compose.yml      # Dev (Redis only)
 ```
 
@@ -215,7 +221,7 @@ event7 is designed to be extended. To add support for a new schema registry:
 2. Add the type to `ProviderType` enum in `models/registry.py`
 3. Register it in `providers/factory.py`
 
-That's it. No changes to services, routes, or frontend. The adapter pattern handles the rest.
+That's it. No changes to services, routes, or frontend. The adapter pattern handles the rest. The Apicurio provider (`providers/apicurio.py`) was added exactly this way — one file, one factory branch, zero changes elsewhere.
 
 The abstract interface covers: `health_check`, `list_subjects`, `get_schema`, `create_schema`, `delete_subject`, `get_versions`, `diff_versions`, `get_references`, `get_dependents`, `get_compatibility`, and `check_compatibility`.
 
@@ -238,8 +244,8 @@ The abstract interface covers: `health_check`, `list_subjects`, `get_schema`, `c
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **MVP** | Confluent provider, schema CRUD, visual diff, references, catalog, AsyncAPI generation, dual-mode DB, freemium model (1 registry / 50 schemas free) | ✅ Core done |
-| **Next** | Apicurio provider, Protobuf support, reference graph visualization, dashboard KPIs, CI/CD (GitHub Actions) | 🔜 In progress |
+| **MVP** | Confluent + Apicurio providers, schema CRUD, visual diff, references, catalog, AsyncAPI generation (with Kafka bindings), dual-mode DB, freemium model (1 registry / 50 schemas free) | ✅ Core done |
+| **Next** | Hosted registry provisioning (Apicurio-backed), Protobuf support, reference graph visualization, dashboard KPIs, CI/CD (GitHub Actions) | 🔜 In progress |
 | **Future** | RBAC & multi-tenant workspaces, enterprise SSO (SAML/OIDC), public REST API, breaking change notifications, schema health scoring, AI-assisted governance & contract analysis | 📋 Planned |
 
 ---

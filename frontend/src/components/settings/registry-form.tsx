@@ -12,9 +12,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, ArrowLeft } from "lucide-react";
+import { ChevronDown, ArrowLeft, Cloud, Server } from "lucide-react";
 import { toast } from "sonner";
-import type { ProviderType } from "@/types/registry";
+import type { ProviderType, AuthMode } from "@/types/registry";
 
 interface RegistryFormProps {
   onSuccess: () => void;
@@ -22,26 +22,42 @@ interface RegistryFormProps {
 }
 
 const PROVIDERS: { value: ProviderType; label: string; enabled: boolean }[] = [
-  { value: "confluent", label: "Confluent Cloud", enabled: true },
+  { value: "confluent", label: "Confluent Schema Registry", enabled: true },
   { value: "apicurio", label: "Apicurio Registry", enabled: true },
   { value: "glue", label: "AWS Glue (coming soon)", enabled: false },
 ];
 
 const ENVIRONMENTS = ["DEV", "STAGING", "PPROD", "PROD"];
 
-/** Providers that require API key/secret */
-const NEEDS_CREDENTIALS: ProviderType[] = ["confluent", "glue"];
-
 export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
   const [name, setName] = useState("");
   const [providerType, setProviderType] = useState<ProviderType>("confluent");
   const [baseUrl, setBaseUrl] = useState("");
+  const [authMode, setAuthMode] = useState<AuthMode>("api_key");
+
+  // Cloud credentials
   const [apiKey, setApiKey] = useState("");
   const [apiSecret, setApiSecret] = useState("");
+
+  // Self-managed / Apicurio credentials
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [token, setToken] = useState("");
+
   const [environment, setEnvironment] = useState("DEV");
   const [loading, setLoading] = useState(false);
 
-  const needsCreds = NEEDS_CREDENTIALS.includes(providerType);
+  const handleProviderChange = (newProvider: ProviderType) => {
+    setProviderType(newProvider);
+    // Reset auth mode + credentials when switching provider
+    setAuthMode("api_key");
+    setApiKey("");
+    setApiSecret("");
+    setUsername("");
+    setPassword("");
+    setToken("");
+    setBaseUrl("");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,9 +68,23 @@ export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
         name,
         provider_type: providerType,
         base_url: baseUrl,
-        api_key: needsCreds ? apiKey : undefined,
-        api_secret: needsCreds ? apiSecret : undefined,
         environment,
+        // Confluent — credentials depend on auth mode
+        ...(providerType === "confluent" && {
+          auth_mode: authMode,
+          ...(authMode === "api_key"
+            ? { api_key: apiKey, api_secret: apiSecret }
+            : {
+                username: username || undefined,
+                password: password || undefined,
+              }),
+        }),
+        // Apicurio — optional credentials
+        ...(providerType === "apicurio" && {
+          ...(username && { username }),
+          ...(password && { password }),
+          ...(token && { token }),
+        }),
       });
       toast.success(`Registry "${name}" connected successfully`);
       onSuccess();
@@ -64,6 +94,16 @@ export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
       setLoading(false);
     }
   };
+
+  // --- URL placeholder ---
+  const urlPlaceholder =
+    providerType === "confluent"
+      ? authMode === "api_key"
+        ? "https://psrc-xxxxx.europe-west9.gcp.confluent.cloud"
+        : "https://schema-registry.internal:8081"
+      : providerType === "apicurio"
+        ? "http://apicurio:8080"
+        : "https://...";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -104,7 +144,7 @@ export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
               {PROVIDERS.map((p) => (
                 <DropdownMenuItem
                   key={p.value}
-                  onClick={() => setProviderType(p.value)}
+                  onClick={() => handleProviderChange(p.value)}
                   disabled={!p.enabled}
                 >
                   {p.label}
@@ -137,49 +177,107 @@ export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
         </div>
       </div>
 
+      {/* Confluent — Deployment mode toggle */}
+      {providerType === "confluent" && (
+        <div className="space-y-2">
+          <Label>Deployment Mode</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setAuthMode("api_key")}
+              className={`flex items-center gap-2.5 rounded-lg border p-3 text-left transition-colors ${
+                authMode === "api_key"
+                  ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-400"
+                  : "border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:border-zinc-600"
+              }`}
+            >
+              <Cloud size={16} className="shrink-0" />
+              <div>
+                <div className="text-sm font-medium">Cloud</div>
+                <div className="text-[11px] text-zinc-500">API Key + Secret</div>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setAuthMode("basic")}
+              className={`flex items-center gap-2.5 rounded-lg border p-3 text-left transition-colors ${
+                authMode === "basic"
+                  ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-400"
+                  : "border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:border-zinc-600"
+              }`}
+            >
+              <Server size={16} className="shrink-0" />
+              <div>
+                <div className="text-sm font-medium">Self-Managed</div>
+                <div className="text-[11px] text-zinc-500">Username + Password</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="url">Schema Registry URL</Label>
         <Input
           id="url"
-          placeholder={
-            providerType === "apicurio"
-              ? "http://apicurio:8080"
-              : "https://psrc-xxxxx.europe-west9.gcp.confluent.cloud"
-          }
+          placeholder={urlPlaceholder}
           value={baseUrl}
           onChange={(e) => setBaseUrl(e.target.value)}
           required
         />
       </div>
 
-      {/* Credentials — only for providers that need them */}
-      {needsCreds ? (
+      {/* Confluent credentials — dynamic labels based on auth mode */}
+      {providerType === "confluent" && (
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="key">API Key</Label>
+            <Label htmlFor="cred-user">
+              {authMode === "api_key" ? "API Key" : "Username"}
+            </Label>
             <Input
-              id="key"
-              placeholder="API Key"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              required
+              id="cred-user"
+              placeholder={
+                authMode === "api_key" ? "ABCD1234EFGH5678" : "ldap-username"
+              }
+              value={authMode === "api_key" ? apiKey : username}
+              onChange={(e) =>
+                authMode === "api_key"
+                  ? setApiKey(e.target.value)
+                  : setUsername(e.target.value)
+              }
+              required={authMode === "api_key"}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="secret">API Secret</Label>
+            <Label htmlFor="cred-pass">
+              {authMode === "api_key" ? "API Secret" : "Password"}
+            </Label>
             <Input
-              id="secret"
+              id="cred-pass"
               type="password"
               placeholder="••••••••"
-              value={apiSecret}
-              onChange={(e) => setApiSecret(e.target.value)}
-              required
+              value={authMode === "api_key" ? apiSecret : password}
+              onChange={(e) =>
+                authMode === "api_key"
+                  ? setApiSecret(e.target.value)
+                  : setPassword(e.target.value)
+              }
+              required={authMode === "api_key"}
             />
           </div>
+          {authMode === "basic" && (
+            <p className="col-span-2 text-xs text-zinc-500">
+              Leave empty if your Schema Registry has no authentication configured.
+            </p>
+          )}
         </div>
-      ) : (
+      )}
+
+      {/* Apicurio — optional credentials */}
+      {providerType === "apicurio" && (
         <p className="text-xs text-zinc-500">
-          No credentials needed — Apicurio will be accessed without authentication.
+          No credentials needed — Apicurio will be accessed without
+          authentication.
         </p>
       )}
 
