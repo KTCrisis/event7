@@ -61,9 +61,10 @@ export function Sidebar() {
       <div className="flex items-center justify-between p-4 mb-2">
         {!collapsed && (
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-black text-sm">
-              e7
-            </div>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm"
+              style={{ background: "linear-gradient(135deg, #0D9488, #e69adfde)" }}>
+            e7
+          </div>
             <span className="font-bold text-lg tracking-tight">
               event<span className="text-teal-400">7</span>
             </span>
