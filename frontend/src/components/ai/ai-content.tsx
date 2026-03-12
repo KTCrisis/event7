@@ -4,6 +4,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRegistry } from "@/providers/registry-provider";
+import { createClient } from "@/lib/supabase/client";
 
 // --- Types ---
 
@@ -120,6 +121,18 @@ const ACTION_LABELS: Record<string, string> = {
   delete_subject: "Delete schema subject",
 };
 
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const supabase = createClient();
+  if (supabase) {
+    const { data } = await supabase.auth.getSession();
+    if (data?.session?.access_token) {
+      headers["Authorization"] = `Bearer ${data.session.access_token}`;
+    }
+  }
+  return headers;
+}
 // --- Main component ---
 
 export function AIContent() {
@@ -233,11 +246,12 @@ export function AIContent() {
       setMessages((prev) => [...prev, { role: "agent", content: "▋", ts }]);
 
       try {
+        const headers = await getAuthHeaders();
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/v1/ai/chat`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify({
               messages: historyRef.current,
               cmd,
@@ -329,11 +343,12 @@ export function AIContent() {
       setMessages((prev) => [...prev, { role: "agent", content: "▋", ts }]);
 
       try {
+        const headers = await getAuthHeaders();
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/v1/ai/execute`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify({ action, params }),
           }
         );
