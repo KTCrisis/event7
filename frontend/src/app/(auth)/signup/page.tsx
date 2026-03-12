@@ -46,7 +46,8 @@ export default function SignupPage() {
     <Card className="p-8 space-y-6">
       <div className="space-y-2 text-center">
         <div className="flex justify-center mb-4">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-black text-lg">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm"
+              style={{ background: "linear-gradient(135deg, #0D9488, #e69adfde)" }}>
             e7
           </div>
         </div>
