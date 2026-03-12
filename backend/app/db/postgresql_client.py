@@ -233,6 +233,7 @@ class PostgreSQLDatabase(DatabaseProvider):
             logger.error(f"Failed to upsert AsyncAPI spec: {e}")
             self._conn.rollback()
             return None
+            
     # ================================================================
     # AUDIT LOG
     # ================================================================
@@ -253,6 +254,230 @@ class PostgreSQLDatabase(DatabaseProvider):
         except Exception as e:
             logger.warning(f"Failed to write audit log: {e}")
 
+    # ================================================================
+    # GOVERNANCE RULES
+    # ================================================================
+ 
+    def list_governance_rules(
+        self,
+        registry_id: str,
+        subject: str | None = None,
+        scope: str | None = None,
+        kind: str | None = None,
+        category: str | None = None,
+        severity: str | None = None,
+        enforcement_status: str | None = None,
+        source: str | None = None,
+    ) -> list[dict]:
+        """List governance rules with optional filters."""
+        conditions = ["registry_id = %s::uuid"]
+        params: list = [registry_id]
+ 
+        if subject is not None:
+            # Subject-specific + global rules
+            conditions.append("(subject = %s OR subject IS NULL)")
+            params.append(subject)
+ 
+        if scope:
+            conditions.append("rule_scope = %s::rule_scope")
+            params.append(scope)
+        if kind:
+            conditions.append("rule_kind = %s::rule_kind")
+            params.append(kind)
+        if category:
+            conditions.append("rule_category = %s::rule_category")
+            params.append(category)
+        if severity:
+            conditions.append("severity = %s::rule_severity")
+            params.append(severity)
+        if enforcement_status:
+            conditions.append("enforcement_status = %s::enforcement_status")
+            params.append(enforcement_status)
+        if source:
+            conditions.append("source = %s")
+            params.append(source)
+ 
+        where = " AND ".join(conditions)
+        return self._fetchall(
+            f"SELECT * FROM governance_rules WHERE {where} ORDER BY created_at",
+            tuple(params),
+        )
+ 
+    def get_governance_rule(self, rule_id: str) -> dict | None:
+        """Get a single governance rule by ID."""
+        return self._fetchone(
+            "SELECT * FROM governance_rules WHERE id = %s::uuid",
+            (rule_id,),
+        )
+ 
+    def create_governance_rule(self, data: dict) -> dict | None:
+        """Insert a new governance rule."""
+        import json
+ 
+        columns = []
+        placeholders = []
+        values = []
+ 
+        # Map of column → (placeholder_suffix, needs_json)
+        col_config = {
+            "registry_id": ("::uuid", False),
+            "subject": ("", False),
+            "rule_name": ("", False),
+            "description": ("", False),
+            "rule_scope": ("::rule_scope", False),
+            "rule_category": ("::rule_category", False),
+            "rule_kind": ("::rule_kind", False),
+            "rule_type": ("", False),
+            "rule_mode": ("::rule_mode", False),
+            "expression": ("", False),
+            "params": ("::jsonb", True),
+            "tags": ("::jsonb", True),
+            "on_success": ("", False),
+            "on_failure": ("", False),
+            "severity": ("::rule_severity", False),
+            "enforcement_status": ("::enforcement_status", False),
+            "evaluation_source": ("", False),
+            "target_type": ("", False),
+            "target_ref": ("", False),
+            "provider_rule_ref": ("::jsonb", True),
+            "source": ("", False),
+            "origin_template_id": ("::uuid", False),
+            "applies_to_version": ("", False),
+            "created_by": ("::uuid", False),
+        }
+ 
+        for col, (suffix, is_json) in col_config.items():
+            if col in data and data[col] is not None:
+                columns.append(col)
+                placeholders.append(f"%s{suffix}")
+                values.append(json.dumps(data[col]) if is_json else data[col])
+ 
+        cols_str = ", ".join(columns)
+        phs_str = ", ".join(placeholders)
+ 
+        return self._fetchone(
+            f"INSERT INTO governance_rules ({cols_str}) VALUES ({phs_str}) RETURNING *",
+            tuple(values),
+        )
+ 
+    def update_governance_rule(self, rule_id: str, data: dict) -> dict | None:
+        """Update a governance rule. data contains only fields to update."""
+        import json
+ 
+        set_parts = []
+        values = []
+ 
+        col_config = {
+            "description": ("", False),
+            "rule_scope": ("::rule_scope", False),
+            "rule_category": ("::rule_category", False),
+            "rule_kind": ("::rule_kind", False),
+            "rule_type": ("", False),
+            "rule_mode": ("::rule_mode", False),
+            "expression": ("", False),
+            "params": ("::jsonb", True),
+            "tags": ("::jsonb", True),
+            "on_success": ("", False),
+            "on_failure": ("", False),
+            "severity": ("::rule_severity", False),
+            "enforcement_status": ("::enforcement_status", False),
+            "evaluation_source": ("", False),
+            "target_type": ("", False),
+            "target_ref": ("", False),
+            "provider_rule_ref": ("::jsonb", True),
+            "source": ("", False),
+            "applies_to_version": ("", False),
+        }
+ 
+        for col, (suffix, is_json) in col_config.items():
+            if col in data:
+                val = data[col]
+                set_parts.append(f"{col} = %s{suffix}")
+                values.append(json.dumps(val) if (is_json and val is not None) else val)
+ 
+        if not set_parts:
+            return self.get_governance_rule(rule_id)
+ 
+        values.append(rule_id)
+        set_str = ", ".join(set_parts)
+ 
+        return self._fetchone(
+            f"UPDATE governance_rules SET {set_str} WHERE id = %s::uuid RETURNING *",
+            tuple(values),
+        )
+ 
+    def delete_governance_rule(self, rule_id: str) -> bool:
+        """Delete a governance rule."""
+        affected = self._execute(
+            "DELETE FROM governance_rules WHERE id = %s::uuid",
+            (rule_id,),
+        )
+        return affected > 0
+ 
+    def count_governance_rules(self, registry_id: str, subject: str | None = None) -> dict:
+        """Count rules grouped by kind, scope, enforcement."""
+        if subject is not None:
+            rows = self._fetchall(
+                """SELECT rule_kind, rule_scope, enforcement_status, subject
+                   FROM governance_rules
+                   WHERE registry_id = %s::uuid AND (subject = %s OR subject IS NULL)""",
+                (registry_id, subject),
+            )
+        else:
+            rows = self._fetchall(
+                """SELECT rule_kind, rule_scope, enforcement_status, subject
+                   FROM governance_rules
+                   WHERE registry_id = %s::uuid""",
+                (registry_id,),
+            )
+ 
+        by_kind: dict[str, int] = {}
+        by_scope: dict[str, int] = {}
+        by_enforcement: dict[str, int] = {}
+        global_count = 0
+        subject_count = 0
+ 
+        for r in rows:
+            k = r.get("rule_kind", "POLICY")
+            by_kind[k] = by_kind.get(k, 0) + 1
+ 
+            s = r.get("rule_scope", "declarative")
+            by_scope[s] = by_scope.get(s, 0) + 1
+ 
+            e = r.get("enforcement_status", "declared")
+            by_enforcement[e] = by_enforcement.get(e, 0) + 1
+ 
+            if r.get("subject") is None:
+                global_count += 1
+            else:
+                subject_count += 1
+ 
+        return {
+            "total": len(rows),
+            "by_kind": by_kind,
+            "by_scope": by_scope,
+            "by_enforcement": by_enforcement,
+            "global_rules": global_count,
+            "subject_rules": subject_count,
+        }
+ 
+    # ================================================================
+    # GOVERNANCE RULE TEMPLATES
+    # ================================================================
+ 
+    def list_governance_templates(self) -> list[dict]:
+        """List all governance rule templates."""
+        return self._fetchall(
+            "SELECT * FROM governance_rule_templates ORDER BY layer",
+        )
+ 
+    def get_governance_template(self, template_id: str) -> dict | None:
+        """Get a single template by ID."""
+        return self._fetchone(
+            "SELECT * FROM governance_rule_templates WHERE id = %s::uuid",
+            (template_id,),
+        )
+ 
     # ================================================================
     # SCHEMA SNAPSHOTS
     # ================================================================

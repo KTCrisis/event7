@@ -119,6 +119,69 @@ class DatabaseProvider(ABC):
         """Write an audit log entry. Fire-and-forget, never raises."""
         ...
 
+
+    # ================================================================
+    # GOVERNANCE RULES
+    # ================================================================
+ 
+    @abstractmethod
+    def list_governance_rules(
+        self,
+        registry_id: str,
+        subject: str | None = None,
+        scope: str | None = None,
+        kind: str | None = None,
+        category: str | None = None,
+        severity: str | None = None,
+        enforcement_status: str | None = None,
+        source: str | None = None,
+    ) -> list[dict]:
+        """List governance rules for a registry, with optional filters.
+        When subject is provided, also returns global rules (subject IS NULL).
+        """
+        ...
+ 
+    @abstractmethod
+    def get_governance_rule(self, rule_id: str) -> dict | None:
+        """Get a single governance rule by ID."""
+        ...
+ 
+    @abstractmethod
+    def create_governance_rule(self, data: dict) -> dict | None:
+        """Insert a new governance rule."""
+        ...
+ 
+    @abstractmethod
+    def update_governance_rule(self, rule_id: str, data: dict) -> dict | None:
+        """Update a governance rule. data contains only fields to update."""
+        ...
+ 
+    @abstractmethod
+    def delete_governance_rule(self, rule_id: str) -> bool:
+        """Delete a governance rule. Returns True if deleted."""
+        ...
+ 
+    @abstractmethod
+    def count_governance_rules(self, registry_id: str, subject: str | None = None) -> dict:
+        """Count rules by kind, scope, and enforcement status.
+        Returns: {"total": N, "by_kind": {...}, "by_scope": {...}, "by_enforcement": {...}, "global_rules": N, "subject_rules": N}
+        """
+        ...
+ 
+    # ================================================================
+    # GOVERNANCE RULE TEMPLATES
+    # ================================================================
+ 
+    @abstractmethod
+    def list_governance_templates(self) -> list[dict]:
+        """List all governance rule templates."""
+        ...
+ 
+    @abstractmethod
+    def get_governance_template(self, template_id: str) -> dict | None:
+        """Get a single governance rule template by ID."""
+        ...
+
     # ================================================================
     # SCHEMA SNAPSHOTS
     # ================================================================

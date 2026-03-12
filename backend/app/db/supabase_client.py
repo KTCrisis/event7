@@ -259,6 +259,163 @@ class SupabaseDatabase(DatabaseProvider):
         except Exception as e:
             logger.warning(f"Failed to write audit log: {e}")
 
+
+ 
+    # ================================================================
+    # GOVERNANCE RULES
+    # ================================================================
+ 
+    def list_governance_rules(
+        self,
+        registry_id: str,
+        subject: str | None = None,
+        scope: str | None = None,
+        kind: str | None = None,
+        category: str | None = None,
+        severity: str | None = None,
+        enforcement_status: str | None = None,
+        source: str | None = None,
+    ) -> list[dict]:
+        """List governance rules with optional filters.
+        When subject is provided, returns subject-specific + global rules.
+        """
+        query = self.client.table("governance_rules").select("*")
+        
+        if subject is not None:
+            # Subject-specific rules + global rules (subject IS NULL)
+            query = query.eq("registry_id", registry_id).or_(
+                f"subject.eq.{subject},subject.is.null"
+            )
+        else:
+            query = query.eq("registry_id", registry_id)
+        
+        if scope:
+            query = query.eq("rule_scope", scope)
+        if kind:
+            query = query.eq("rule_kind", kind)
+        if category:
+            query = query.eq("rule_category", category)
+        if severity:
+            query = query.eq("severity", severity)
+        if enforcement_status:
+            query = query.eq("enforcement_status", enforcement_status)
+        if source:
+            query = query.eq("source", source)
+        
+        query = query.order("created_at", desc=False)
+        response = query.execute()
+        return response.data or []
+ 
+    def get_governance_rule(self, rule_id: str) -> dict | None:
+        """Get a single governance rule by ID."""
+        response = (
+            self.client.table("governance_rules")
+            .select("*")
+            .eq("id", rule_id)
+            .execute()
+        )
+        data = response.data
+        return data[0] if data else None
+ 
+    def create_governance_rule(self, data: dict) -> dict | None:
+        """Insert a new governance rule."""
+        response = (
+            self.client.table("governance_rules")
+            .insert(data)
+            .execute()
+        )
+        if not response.data:
+            logger.error("Failed to create governance rule: no data returned")
+            return None
+        return response.data[0]
+ 
+    def update_governance_rule(self, rule_id: str, data: dict) -> dict | None:
+        """Update a governance rule. data contains only fields to update."""
+        response = (
+            self.client.table("governance_rules")
+            .update(data)
+            .eq("id", rule_id)
+            .execute()
+        )
+        if not response.data:
+            logger.warning(f"update_governance_rule: no row affected for {rule_id}")
+            return None
+        return response.data[0]
+ 
+    def delete_governance_rule(self, rule_id: str) -> bool:
+        """Delete a governance rule."""
+        try:
+            response = (
+                self.client.table("governance_rules")
+                .delete()
+                .eq("id", rule_id)
+                .execute()
+            )
+            return bool(response.data)
+        except Exception as e:
+            logger.error(f"Failed to delete governance rule {rule_id}: {e}")
+            return False
+ 
+    def count_governance_rules(self, registry_id: str, subject: str | None = None) -> dict:
+        """Count rules grouped by kind, scope, enforcement."""
+        rules = self.list_governance_rules(registry_id, subject=subject)
+        
+        by_kind: dict[str, int] = {}
+        by_scope: dict[str, int] = {}
+        by_enforcement: dict[str, int] = {}
+        global_count = 0
+        subject_count = 0
+        
+        for r in rules:
+            k = r.get("rule_kind", "POLICY")
+            by_kind[k] = by_kind.get(k, 0) + 1
+            
+            s = r.get("rule_scope", "declarative")
+            by_scope[s] = by_scope.get(s, 0) + 1
+            
+            e = r.get("enforcement_status", "declared")
+            by_enforcement[e] = by_enforcement.get(e, 0) + 1
+            
+            if r.get("subject") is None:
+                global_count += 1
+            else:
+                subject_count += 1
+        
+        return {
+            "total": len(rules),
+            "by_kind": by_kind,
+            "by_scope": by_scope,
+            "by_enforcement": by_enforcement,
+            "global_rules": global_count,
+            "subject_rules": subject_count,
+        }
+ 
+    # ================================================================
+    # GOVERNANCE RULE TEMPLATES
+    # ================================================================
+ 
+    def list_governance_templates(self) -> list[dict]:
+        """List all governance rule templates."""
+        response = (
+            self.client.table("governance_rule_templates")
+            .select("*")
+            .order("layer", desc=False)
+            .execute()
+        )
+        return response.data or []
+ 
+    def get_governance_template(self, template_id: str) -> dict | None:
+        """Get a single template by ID."""
+        response = (
+            self.client.table("governance_rule_templates")
+            .select("*")
+            .eq("id", template_id)
+            .execute()
+        )
+        data = response.data
+        return data[0] if data else None
+ 
+
     # ================================================================
     # SCHEMA SNAPSHOTS
     # ================================================================

@@ -35,6 +35,9 @@ out/
 .open-next/
 .wrangler/
 
+#supabase sql
+bootstrap.sql
+
 # Testing
 .coverage
 htmlcov/
