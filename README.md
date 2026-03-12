@@ -12,7 +12,7 @@
 > One platform to govern your schemas — regardless of your registry provider.  
 > Deploy as SaaS or self-hosted. Same codebase, one env var to switch.
 
-📖 **[Full documentation →](https://event7.dev/docs)**
+📖 **[Full documentation →](https://event7.pages.dev/docs)**
 
 ---
 
