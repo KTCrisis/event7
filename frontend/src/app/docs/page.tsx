@@ -63,10 +63,11 @@ export default function DocsIntroPage() {
         </h1>
 
         <p className="text-lg text-slate-400 leading-relaxed max-w-2xl mb-8">
-          event7 is a provider-agnostic governance layer for your schema
-          registries. Explore schemas, track drift, manage ownership, and
-          generate AsyncAPI specs — whether you run Confluent, Apicurio, or
-          both.
+        event7 is a provider-agnostic governance layer for your schema
+        registries. Explore schemas, track drift, manage ownership, and
+        generate AsyncAPI specs — whether you run Confluent, Apicurio,
+        Karapace, Redpanda, or any combination. No schema registry yet?
+        event7 can provision one for you.
         </p>
 
         <div className="flex flex-wrap gap-3">
