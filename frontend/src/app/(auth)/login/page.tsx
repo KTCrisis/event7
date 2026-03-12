@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { BookOpen } from "lucide-react";
 import { toast } from "sonner";
 
 export default function LoginPage() {
@@ -89,6 +90,12 @@ export default function LoginPage() {
         No account?{" "}
         <Link href="/signup" className="text-primary hover:underline">
           Sign up
+        </Link>
+      </p>
+      <p className="text-center text-sm text-muted-foreground">
+        <Link href="/docs" className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary hover:underline transition-colors">
+          <BookOpen className="h-3.5 w-3.5" />
+          Documentation
         </Link>
       </p>
     </Card>
