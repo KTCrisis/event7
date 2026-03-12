@@ -1,3 +1,5 @@
+// src/app/docs/roadmap/page.tsx
+
 import { Check, ArrowRight, Clock, Telescope } from "lucide-react";
 
 interface RoadmapItem {
@@ -21,14 +23,22 @@ const done: RoadmapItem[] = [
   { name: "Dual-mode database (Supabase + PostgreSQL)", tier: "Community" },
   { name: "Public documentation (/docs)", tier: "Community" },
   { name: "Hosted Registry UX stub (coming soon flow)", tier: "Pro" },
+  { name: "Governance Rules & Policies — CRUD, templates, scoring", tier: "Community" },
+  { name: "Governance Templates — RAW, CORE, REFINED, APPLICATION layers", tier: "Community" },
+  { name: "Governance Score — 3-axis scoring with confidence indicator", tier: "Community" },
+  { name: "Dashboard governance integration — coverage, rules, enforcement funnel", tier: "Community" },
+  { name: "Catalog score badges with toggle", tier: "Community" },
 ];
 
 const next: RoadmapItem[] = [
   { name: "RLS Supabase — multi-tenant security", tier: "Community" },
+  { name: "Provider Rule Sync — import from Confluent ruleSet", tier: "Pro" },
+  { name: "Provider Rule Sync — push rules to Confluent", tier: "Pro" },
+  { name: "Provider Rule Sync — import Apicurio artifact rules", tier: "Pro" },
+  { name: "Drift detection — event7 vs provider comparison", tier: "Pro" },
   { name: "Hosted registry provisioning (Apicurio-backed)", tier: "Pro" },
   { name: "Protobuf support — 3rd schema format", tier: "Community" },
   { name: "Cross-registry aggregated view (All registries)", tier: "Community" },
-  { name: "Governance Rules engine — provider-agnostic", tier: "Community" },
   { name: "Extended business metadata — custom attributes", tier: "Community" },
   { name: "Confluent Catalog API reader (Stream Governance)", tier: "Community" },
   { name: "Apicurio metadata sync (labels + rules)", tier: "Community" },
@@ -44,6 +54,8 @@ const planned: RoadmapItem[] = [
   { name: "AuthProvider abstraction — Supabase vs OIDC", tier: "Enterprise" },
   { name: "AI Agent Managed — hosted LLM with tokens included", tier: "Pro" },
   { name: "AWS Glue Schema Registry provider", tier: "Community" },
+  { name: "Automated policy evaluation (schema content + enrichment checks)", tier: "Community" },
+  { name: "Custom governance templates (user-created)", tier: "Community" },
 ];
 
 const future: RoadmapItem[] = [
@@ -146,7 +158,7 @@ export default function RoadmapPage() {
       <RoadmapSection
         icon={ArrowRight}
         title="Next"
-        subtitle="Actively planned — governance layer, channel model, and multi-tenant security."
+        subtitle="Actively planned — provider sync, channel model, and multi-tenant security."
         color="text-cyan-400"
         items={next}
       />

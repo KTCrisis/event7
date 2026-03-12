@@ -10,6 +10,7 @@ const mobileLinks = [
   { name: "Introduction", href: "/docs" },
   { name: "Features", href: "/docs/features" },
   { name: "Getting Started", href: "/docs/getting-started" },
+  { name: "Governance Rules", href: "/docs/governance-rules" },
   { name: "API Reference", href: "/docs/api-reference" },
   { name: "Licensing", href: "/docs/licensing" },
   { name: "Roadmap", href: "/docs/roadmap" },
@@ -32,10 +33,16 @@ export function DocsHeader() {
           </button>
 
           {/* Mobile logo (hidden on desktop — sidebar has its own) */}
-          <Link href="/docs" className="md:hidden flex items-center gap-0.5">
+          <Link href="/docs" className="md:hidden flex items-center gap-2">
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-xs"
+              style={{ background: "linear-gradient(135deg, #0D9488, #e69adfde)" }}
+            >
+              e7
+            </div>
             <span className="text-base font-semibold text-white">event</span>
             <span className="text-base font-semibold text-teal-400">7</span>
-            <span className="ml-1.5 text-[10px] font-medium text-slate-500 uppercase tracking-widest">
+            <span className="ml-1 text-[10px] font-medium text-slate-500 uppercase tracking-widest">
               docs
             </span>
           </Link>

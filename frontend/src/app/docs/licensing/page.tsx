@@ -1,3 +1,5 @@
+// src/app/docs/licensing/page.tsx
+
 import { Cloud, Scale, Check, Star, Building2, X } from "lucide-react";
 
 type TierColor = "cyan" | "teal" | "amber" | "violet";
@@ -12,6 +14,7 @@ const tiers = [
       "Try event7 instantly — no install, no credit card. Connect one registry and start governing in minutes.",
     features: [
       "Full governance core (Explorer, Diff, Catalog, Enrichments, AsyncAPI, Graph, Dashboard)",
+      "Governance Rules & Policies — templates, scoring, enforcement tracking",
       "1 registry connection",
       "Up to 50 schemas",
       "AI Agent — bring your own model (Ollama, OpenAI, etc.)",
@@ -27,6 +30,7 @@ const tiers = [
       "Free and open-source. The full governance engine on your own infrastructure — no limits, no dependencies on event7.",
     features: [
       "Full governance core (Explorer, Diff, Catalog, Enrichments, AsyncAPI, Graph, Dashboard)",
+      "Governance Rules & Policies — templates, scoring, enforcement tracking",
       "Unlimited registries and schemas",
       "AI Agent — bring your own model (Ollama, OpenAI, etc.)",
       "Multi-provider support (Confluent Cloud, Platform, Apicurio v3)",
@@ -41,8 +45,9 @@ const tiers = [
     license: "Commercial",
     color: "amber" as TierColor,
     description:
-      "For teams that want zero-config AI and managed infrastructure. Everything in Community plus:",
+      "For teams that want zero-config AI, provider sync, and managed infrastructure. Everything in Community plus:",
     features: [
+      "Provider Rule Sync — import from Confluent ruleSet, push rules to provider, drift detection",
       "AI Agent Managed — hosted LLM with tokens included, zero config",
       "Hosted Registry — fully managed Apicurio instance (no infra to maintain)",
       "Unlimited registries and schemas on event7 SaaS",
@@ -100,6 +105,11 @@ const comparisonRows = [
   { label: "Registries", free: "1", community: "Unlimited", pro: "Unlimited", enterprise: "Unlimited" },
   { label: "Schemas", free: "50", community: "Unlimited", pro: "Unlimited", enterprise: "Unlimited" },
   { label: "Governance core", free: true, community: true, pro: true, enterprise: true },
+  { label: "Governance Rules & Policies", free: true, community: true, pro: true, enterprise: true },
+  { label: "Governance Templates", free: true, community: true, pro: true, enterprise: true },
+  { label: "Governance Scoring", free: true, community: true, pro: true, enterprise: true },
+  { label: "Provider Rule Sync", free: false, community: false, pro: true, enterprise: true },
+  { label: "Drift Detection", free: false, community: false, pro: true, enterprise: true },
   { label: "AI Agent (BYOM)", free: true, community: true, pro: true, enterprise: true },
   { label: "AI Managed (hosted LLM)", free: false, community: false, pro: true, enterprise: true },
   { label: "Hosted Registry", free: false, community: false, pro: true, enterprise: true },
@@ -124,8 +134,9 @@ export default function LicensingPage() {
       </h1>
       <p className="text-base text-slate-400 leading-relaxed mb-10 max-w-2xl">
         event7 follows an <strong className="text-slate-300">open-core</strong>{" "}
-        model. The governance engine is free and open-source under Apache 2.0.
-        Features with ongoing infrastructure or support costs are offered in paid tiers.
+        model. The governance engine — including rules, policies, templates, and
+        scoring — is free and open-source under Apache 2.0. Provider sync and
+        managed infrastructure are offered in paid tiers.
       </p>
 
       {/* Tier cards */}

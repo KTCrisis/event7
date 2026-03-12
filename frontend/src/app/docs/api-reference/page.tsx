@@ -1,4 +1,6 @@
-import { Server, Database, BookOpen, FileJson, Bot, Shield } from "lucide-react";
+// src/app/docs/api-reference/page.tsx
+
+import { Server, Database, BookOpen, FileJson, Bot, Shield, ScrollText } from "lucide-react";
 
 interface Endpoint {
   method: "GET" | "POST" | "PUT" | "DELETE";
@@ -60,6 +62,31 @@ const groups: EndpointGroup[] = [
     ],
   },
   {
+    name: "Governance Rules",
+    icon: ScrollText,
+    prefix: "/api/v1/registries/{id}",
+    description: "Rules & policies CRUD, governance templates, and scoring. Filter list with query params: subject, scope, kind, category, severity, enforcement_status, source.",
+    endpoints: [
+      { method: "POST", path: "/rules", description: "Create a governance rule or policy" },
+      { method: "GET", path: "/rules", description: "List rules with optional filters (also returns global rules when filtering by subject)" },
+      { method: "GET", path: "/rules/{rule_id}", description: "Get a single rule by ID" },
+      { method: "PUT", path: "/rules/{rule_id}", description: "Update a rule (partial update, only non-null fields)" },
+      { method: "DELETE", path: "/rules/{rule_id}", description: "Delete a rule" },
+      { method: "POST", path: "/rules/templates/{template_id}/apply", description: "Apply a governance template to registry or subject" },
+      { method: "GET", path: "/governance/score", description: "Governance score for registry or subject (?subject=...)" },
+    ],
+  },
+  {
+    name: "Governance Templates",
+    icon: Shield,
+    prefix: "/api/v1/governance",
+    description: "Built-in rule templates (RAW, CORE, REFINED, APPLICATION layers). Read-only — templates are seed data.",
+    endpoints: [
+      { method: "GET", path: "/templates", description: "List all governance templates" },
+      { method: "GET", path: "/templates/{id}", description: "Get a single template with rule definitions" },
+    ],
+  },
+  {
     name: "AsyncAPI",
     icon: FileJson,
     prefix: "/api/v1/registries/{id}",
@@ -84,7 +111,7 @@ const groups: EndpointGroup[] = [
   },
   {
     name: "Hosted Registry",
-    icon: Shield,
+    icon: Server,
     prefix: "/api/v1/registries/hosted",
     description: "Managed Apicurio instances. Coming soon (currently returns 501).",
     endpoints: [

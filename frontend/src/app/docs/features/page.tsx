@@ -1,3 +1,6 @@
+// src/app/docs/features/page.tsx
+
+import Link from "next/link";
 import {
   Search,
   GitCompare,
@@ -13,6 +16,7 @@ import {
   Database,
   RefreshCw,
   Lock,
+  Shield,
 } from "lucide-react";
 
 const features = [
@@ -45,6 +49,14 @@ const features = [
     badge: "Community",
   },
   {
+    icon: Shield,
+    name: "Governance Rules & Policies",
+    description:
+      "Define rules (CEL conditions, compatibility checks, encryption transforms) and policies (organizational standards, naming conventions, ownership requirements) stored in event7 — provider-agnostic. Four built-in templates for RAW/CORE/REFINED/APPLICATION layers. Three-axis governance scoring with confidence indicator.",
+    badge: "Community",
+    link: "/docs/governance-rules",
+  },
+  {
     icon: FileJson,
     name: "AsyncAPI Generation",
     description:
@@ -62,7 +74,7 @@ const features = [
     icon: BarChart3,
     name: "Dashboard & KPIs",
     description:
-      "At-a-glance metrics: schema count, enrichment coverage, compatibility modes distribution, top-referenced schemas, and recent version activity. Built with Recharts for a clean, real-time overview.",
+      "At-a-glance metrics: schema count, enrichment coverage, governance score, rules by scope, enforcement funnel, compatibility distribution, and top-referenced schemas. Built with Recharts for a clean, real-time overview.",
     badge: "Community",
   },
   {
@@ -91,10 +103,10 @@ const features = [
 const comingSoon = [
   {
     icon: ScrollText,
-    name: "Governance Rules",
+    name: "Provider Rule Sync",
     description:
-      "Define validation, quality, and migration rules stored in event7 — provider-agnostic. Apply governance policies across Confluent, Apicurio, or any registry without paying for vendor-specific rule engines.",
-    badge: "Community",
+      "Import rules from Confluent ruleSet (CEL, JSONATA) and Apicurio artifact rules. Push event7 governance rules back to providers. Drift detection between declared and actual state.",
+    badge: "Pro",
   },
   {
     icon: Database,
@@ -135,24 +147,44 @@ function BadgeColor({ tier }: { tier: string }) {
 }
 
 function FeatureCard({ feature }: { feature: typeof features[0] }) {
+  const content = (
+    <div className="flex items-start gap-4">
+      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-400 group-hover:bg-teal-500/15 transition-colors">
+        <feature.icon className="h-4.5 w-4.5" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2.5 mb-1.5">
+          <h3 className="text-sm font-semibold text-white">
+            {feature.name}
+          </h3>
+          <BadgeColor tier={feature.badge} />
+          {"link" in feature && (
+            <span className="text-[10px] text-teal-400/60 font-medium">
+              docs →
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-slate-400 leading-relaxed">
+          {feature.description}
+        </p>
+      </div>
+    </div>
+  );
+
+  if ("link" in feature && feature.link) {
+    return (
+      <Link
+        href={feature.link}
+        className="group block rounded-xl border border-slate-800/60 bg-slate-900/30 p-5 hover:border-teal-500/30 hover:bg-slate-900/50 transition-all duration-200"
+      >
+        {content}
+      </Link>
+    );
+  }
+
   return (
     <div className="group rounded-xl border border-slate-800/60 bg-slate-900/30 p-5 hover:border-slate-700 hover:bg-slate-900/50 transition-all duration-200">
-      <div className="flex items-start gap-4">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-400 group-hover:bg-teal-500/15 transition-colors">
-          <feature.icon className="h-4.5 w-4.5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2.5 mb-1.5">
-            <h3 className="text-sm font-semibold text-white">
-              {feature.name}
-            </h3>
-            <BadgeColor tier={feature.badge} />
-          </div>
-          <p className="text-sm text-slate-400 leading-relaxed">
-            {feature.description}
-          </p>
-        </div>
-      </div>
+      {content}
     </div>
   );
 }

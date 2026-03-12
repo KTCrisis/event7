@@ -9,7 +9,8 @@ import {
   Code2,
   Scale,
   ChevronRight,
-  Map
+  Map,
+  Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ const sections = [
     label: "Guides",
     items: [
       { name: "Getting Started", href: "/docs/getting-started", icon: Rocket },
+      { name: "Governance Rules", href: "/docs/governance-rules", icon: Shield },
     ],
   },
   {
@@ -44,19 +46,21 @@ export function DocsSidebar() {
     <aside className="hidden md:flex w-60 flex-col border-r border-slate-800/60 bg-slate-950/50 backdrop-blur-sm">
       {/* Logo */}
       <div className="flex items-center gap-2 px-5 py-5 border-b border-slate-800/60">
-        <Link href="/docs" className="flex items-center gap-0.5">
+        <Link href="/docs" className="flex items-center gap-2.5">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm"
+            style={{ background: "linear-gradient(135deg, #0D9488, #e69adfde)" }}
+          >
+            e7
+          </div>
           <span className="text-lg font-semibold text-white tracking-tight">
-            event
+            event<span className="text-teal-400">7</span>
           </span>
-          <span className="text-lg font-semibold text-teal-400 tracking-tight">
-            7
-          </span>
-          <span className="ml-2 text-xs font-medium text-slate-500 uppercase tracking-widest">
+          <span className="ml-1 text-xs font-medium text-slate-500 uppercase tracking-widest">
             docs
           </span>
         </Link>
       </div>
-
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         {sections.map((section) => (
