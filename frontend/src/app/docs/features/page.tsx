@@ -9,6 +9,10 @@ import {
   BarChart3,
   Tags,
   ShieldCheck,
+  ScrollText,
+  Database,
+  RefreshCw,
+  Lock,
 } from "lucide-react";
 
 const features = [
@@ -79,7 +83,38 @@ const features = [
     icon: Bot,
     name: "AI Agent",
     description:
-      "Terminal-style interface powered by LLM. Six context commands (/health, /schemas, /drift, /catalog, /refs, /asyncapi) and three write actions (enrich, generate, delete) with confirmation UI. Pluggable: Ollama local, Ollama Cloud, or any OpenAI-compatible API.",
+      "Terminal-style interface powered by LLM. Six context commands (/health, /schemas, /drift, /catalog, /refs, /asyncapi) and three write actions (enrich, generate, delete) with confirmation UI. Bring your own model — Ollama local, Ollama Cloud, or any OpenAI-compatible API.",
+    badge: "Community",
+  },
+];
+
+const comingSoon = [
+  {
+    icon: ScrollText,
+    name: "Governance Rules",
+    description:
+      "Define validation, quality, and migration rules stored in event7 — provider-agnostic. Apply governance policies across Confluent, Apicurio, or any registry without paying for vendor-specific rule engines.",
+    badge: "Community",
+  },
+  {
+    icon: Database,
+    name: "Extended Metadata",
+    description:
+      "Custom business attributes beyond tags and ownership. Define structured key-value metadata to capture domain-specific context — data lineage annotations, SLA tiers, data sensitivity levels, and more.",
+    badge: "Community",
+  },
+  {
+    icon: RefreshCw,
+    name: "Registry Metadata Sync",
+    description:
+      "Read tags, business metadata, and rules from Confluent Catalog API (Stream Governance) or Apicurio labels and rules. Unify all metadata in event7's governance layer regardless of source.",
+    badge: "Community",
+  },
+  {
+    icon: Lock,
+    name: "Encryption Tracking",
+    description:
+      "Display field-level encryption metadata (CSFLE, custom encryption). Visualize which fields are encrypted across your schemas — without vendor lock-in on the encryption mechanism itself.",
     badge: "Pro",
   },
 ];
@@ -99,6 +134,29 @@ function BadgeColor({ tier }: { tier: string }) {
   );
 }
 
+function FeatureCard({ feature }: { feature: typeof features[0] }) {
+  return (
+    <div className="group rounded-xl border border-slate-800/60 bg-slate-900/30 p-5 hover:border-slate-700 hover:bg-slate-900/50 transition-all duration-200">
+      <div className="flex items-start gap-4">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-400 group-hover:bg-teal-500/15 transition-colors">
+          <feature.icon className="h-4.5 w-4.5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2.5 mb-1.5">
+            <h3 className="text-sm font-semibold text-white">
+              {feature.name}
+            </h3>
+            <BadgeColor tier={feature.badge} />
+          </div>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            {feature.description}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FeaturesPage() {
   return (
     <article>
@@ -110,31 +168,50 @@ export default function FeaturesPage() {
         AI-powered automation. Community features are free and open-source.
       </p>
 
+      {/* Current features */}
       <div className="space-y-4">
         {features.map((f) => (
-          <div
-            key={f.name}
-            className="group rounded-xl border border-slate-800/60 bg-slate-900/30 p-5 hover:border-slate-700 hover:bg-slate-900/50 transition-all duration-200"
-          >
-            <div className="flex items-start gap-4">
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-400 group-hover:bg-teal-500/15 transition-colors">
-                <f.icon className="h-4.5 w-4.5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2.5 mb-1.5">
-                  <h3 className="text-sm font-semibold text-white">
-                    {f.name}
-                  </h3>
-                  <BadgeColor tier={f.badge} />
-                </div>
-                <p className="text-sm text-slate-400 leading-relaxed">
-                  {f.description}
-                </p>
-              </div>
-            </div>
-          </div>
+          <FeatureCard key={f.name} feature={f} />
         ))}
       </div>
+
+      {/* Coming soon */}
+      <section className="mt-14">
+        <div className="flex items-center gap-3 mb-6">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500">
+            Coming soon
+          </h2>
+          <div className="h-px flex-1 bg-slate-800/60" />
+        </div>
+        <div className="space-y-4">
+          {comingSoon.map((f) => (
+            <div
+              key={f.name}
+              className="group rounded-xl border border-dashed border-slate-800/60 bg-slate-900/20 p-5 transition-all duration-200"
+            >
+              <div className="flex items-start gap-4">
+                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-800/50 text-slate-500">
+                  <f.icon className="h-4.5 w-4.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2.5 mb-1.5">
+                    <h3 className="text-sm font-semibold text-slate-300">
+                      {f.name}
+                    </h3>
+                    <BadgeColor tier={f.badge} />
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-500 border border-slate-700">
+                      Soon
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-500 leading-relaxed">
+                    {f.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
     </article>
   );
 }

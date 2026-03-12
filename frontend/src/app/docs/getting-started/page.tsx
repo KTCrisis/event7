@@ -13,10 +13,12 @@ function CodeBlock({ children }: { children: string }) {
 function Step({
   number,
   title,
+  isLast,
   children,
 }: {
   number: number;
   title: string;
+  isLast?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -25,9 +27,9 @@ function Step({
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-500/10 text-teal-400 text-sm font-bold border border-teal-500/20">
           {number}
         </div>
-        <div className="flex-1 w-px bg-slate-800/60 mt-2" />
+        {!isLast && <div className="flex-1 w-px bg-slate-800/60 mt-2" />}
       </div>
-      <div className="pb-8 flex-1 min-w-0">
+      <div className={`${isLast ? "" : "pb-8"} flex-1 min-w-0`}>
         <h3 className="text-base font-semibold text-white mb-3">{title}</h3>
         {children}
       </div>
@@ -42,8 +44,8 @@ export default function GettingStartedPage() {
         Getting Started
       </h1>
       <p className="text-base text-slate-400 leading-relaxed mb-10 max-w-2xl">
-        Get event7 running in minutes. Choose between the hosted SaaS or
-        self-hosted with Docker.
+        Get event7 running in minutes. Choose between the managed SaaS and a
+        self-hosted Docker deployment.
       </p>
 
       {/* Prerequisites */}
@@ -88,7 +90,7 @@ export default function GettingStartedPage() {
           <p className="text-sm text-slate-400 leading-relaxed mb-3">
             Go to <strong className="text-slate-300">Settings</strong> and click{" "}
             <strong className="text-slate-300">Connect Registry</strong>. Pick your provider, paste
-            your URL and credentials — event7 encrypts them AES-256 at rest.
+            your URL and credentials — event7 encrypts them at rest.
           </p>
           <div className="rounded-lg border border-slate-800/60 bg-slate-900/50 p-4 text-sm text-slate-500">
             <p className="font-medium text-slate-400 mb-1">Confluent Cloud example</p>
@@ -104,7 +106,7 @@ export default function GettingStartedPage() {
           </div>
         </Step>
 
-        <Step number={3} title="Explore your schemas">
+        <Step number={3} title="Explore your schemas" isLast>
           <p className="text-sm text-slate-400 leading-relaxed">
             Once connected, the{" "}
             <strong className="text-slate-300">Schema Explorer</strong> shows all
@@ -136,7 +138,7 @@ cp backend/.env.example backend/.env`}
 
         <Step number={2} title="Start the stack">
           <CodeBlock>
-{`docker compose -f docker-compose.gke.yml up -d
+{`docker compose -f docker-compose.local.yml up -d
 
 # Services started:
 #   localhost:3000  → Frontend (Next.js)
@@ -158,7 +160,7 @@ python scripts/seed_apicurio.py --clean`}
           </p>
         </Step>
 
-        <Step number={4} title="Verify health">
+        <Step number={4} title="Verify health" isLast>
           <CodeBlock>
 {`curl http://localhost:8000/health
 

@@ -1,57 +1,79 @@
-import { Scale, Check, Star, Building2 } from "lucide-react";
+import { Cloud, Scale, Check, Star, Building2, X } from "lucide-react";
+
+type TierColor = "cyan" | "teal" | "amber" | "violet";
 
 const tiers = [
+  {
+    name: "Free",
+    icon: Cloud,
+    license: "SaaS terms",
+    color: "cyan" as TierColor,
+    description:
+      "Try event7 instantly — no install, no credit card. Connect one registry and start governing in minutes.",
+    features: [
+      "Full governance core (Explorer, Diff, Catalog, Enrichments, AsyncAPI, Graph, Dashboard)",
+      "1 registry connection",
+      "Up to 50 schemas",
+      "AI Agent — bring your own model (Ollama, OpenAI, etc.)",
+      "Hosted on event7 SaaS",
+    ],
+  },
   {
     name: "Community",
     icon: Scale,
     license: "Apache 2.0",
-    color: "teal",
+    color: "teal" as TierColor,
     description:
-      "Free and open-source. The full governance core — explore, diff, catalog, enrich, and generate AsyncAPI specs across all supported providers.",
+      "Free and open-source. The full governance engine on your own infrastructure — no limits, no dependencies on event7.",
     features: [
-      "Schema Explorer with field-level detail",
-      "Visual Diff Viewer (LCS-based, Avro + JSON Schema)",
-      "Event Catalog with search, filter, and CSV export",
-      "Enrichments — tags, owner, description, classification",
-      "AsyncAPI 3.0 generation and export",
-      "References Graph with dependency visualization",
-      "Dashboard with governance KPIs",
+      "Full governance core (Explorer, Diff, Catalog, Enrichments, AsyncAPI, Graph, Dashboard)",
+      "Unlimited registries and schemas",
+      "AI Agent — bring your own model (Ollama, OpenAI, etc.)",
       "Multi-provider support (Confluent Cloud, Platform, Apicurio v3)",
-      "Dual deployment — SaaS or self-hosted (Docker / Kubernetes)",
-      "Redis caching, AES-256 credential encryption",
+      "Self-hosted — Docker, Kubernetes, or bare metal",
+      "PostgreSQL + Redis, no external dependencies",
+      "Credentials encrypted at rest",
     ],
   },
   {
     name: "Pro",
     icon: Star,
     license: "Commercial",
-    color: "amber",
+    color: "amber" as TierColor,
     description:
-      "For teams that want AI-powered governance and managed infrastructure. Everything in Community plus:",
+      "For teams that want zero-config AI and managed infrastructure. Everything in Community plus:",
     features: [
-      "AI Agent — natural-language commands and automated enrichments",
+      "AI Agent Managed — hosted LLM with tokens included, zero config",
       "Hosted Registry — fully managed Apicurio instance (no infra to maintain)",
-      "Priority support via email",
+      "Unlimited registries and schemas on event7 SaaS",
+      "Email support",
     ],
   },
   {
     name: "Enterprise",
     icon: Building2,
     license: "Commercial",
-    color: "violet",
+    color: "violet" as TierColor,
     description:
-      "For organizations running on-prem with security and compliance requirements. Everything in Pro plus:",
+      "For organizations with security, compliance, and on-prem requirements. Everything in Pro plus:",
     features: [
       "OIDC / SSO integration (Okta, Azure AD, Keycloak)",
       "RBAC — role-based access control per registry and subject",
       "Audit log export",
+      "On-prem / private cloud deployment",
       "SLA and dedicated support",
       "Custom provider integrations",
     ],
   },
 ];
 
-const colorMap: Record<string, { badge: string; border: string; icon: string; check: string }> = {
+const colorMap: Record<TierColor, { badge: string; border: string; icon: string; check: string }> = {
+  cyan: {
+    badge: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+    border: "border-cyan-500/20 hover:border-cyan-500/40",
+    icon: "text-cyan-400",
+    check: "text-cyan-500/60",
+  },
   teal: {
     badge: "bg-teal-500/10 text-teal-400 border-teal-500/20",
     border: "border-teal-500/20 hover:border-teal-500/40",
@@ -72,20 +94,42 @@ const colorMap: Record<string, { badge: string; border: string; icon: string; ch
   },
 };
 
+const comparisonRows = [
+  { label: "Deployment", free: "event7 SaaS", community: "Self-hosted", pro: "event7 SaaS", enterprise: "On-prem / private" },
+  { label: "License", free: "SaaS terms", community: "Apache 2.0", pro: "Commercial", enterprise: "Commercial" },
+  { label: "Registries", free: "1", community: "Unlimited", pro: "Unlimited", enterprise: "Unlimited" },
+  { label: "Schemas", free: "50", community: "Unlimited", pro: "Unlimited", enterprise: "Unlimited" },
+  { label: "Governance core", free: true, community: true, pro: true, enterprise: true },
+  { label: "AI Agent (BYOM)", free: true, community: true, pro: true, enterprise: true },
+  { label: "AI Managed (hosted LLM)", free: false, community: false, pro: true, enterprise: true },
+  { label: "Hosted Registry", free: false, community: false, pro: true, enterprise: true },
+  { label: "SSO / OIDC", free: false, community: false, pro: false, enterprise: true },
+  { label: "RBAC", free: false, community: false, pro: false, enterprise: true },
+  { label: "Audit logs", free: false, community: false, pro: false, enterprise: true },
+  { label: "Support", free: "Community", community: "Community", pro: "Email", enterprise: "SLA" },
+  { label: "Best for", free: "Evaluation", community: "Labs / self-hosting", pro: "Teams", enterprise: "Regulated orgs" },
+];
+
+function CellValue({ value }: { value: string | boolean }) {
+  if (value === true) return <Check className="h-4 w-4 text-teal-400 mx-auto" />;
+  if (value === false) return <X className="h-4 w-4 text-slate-700 mx-auto" />;
+  return <span className="text-xs text-slate-400">{value}</span>;
+}
+
 export default function LicensingPage() {
   return (
     <article>
       <h1 className="text-3xl font-bold text-white tracking-tight mb-3">
-        Licensing
+        Plans & Licensing
       </h1>
       <p className="text-base text-slate-400 leading-relaxed mb-10 max-w-2xl">
         event7 follows an <strong className="text-slate-300">open-core</strong>{" "}
         model. The governance engine is free and open-source under Apache 2.0.
-        Advanced features with infrastructure costs (AI, managed hosting) are
-        available in paid tiers.
+        Features with ongoing infrastructure or support costs are offered in paid tiers.
       </p>
 
-      <div className="space-y-6">
+      {/* Tier cards */}
+      <div className="space-y-5">
         {tiers.map((tier) => {
           const colors = colorMap[tier.color];
           return (
@@ -93,7 +137,6 @@ export default function LicensingPage() {
               key={tier.name}
               className={`rounded-xl border bg-slate-900/30 p-6 transition-colors duration-200 ${colors.border}`}
             >
-              {/* Header */}
               <div className="flex items-center gap-3 mb-3">
                 <tier.icon className={`h-5 w-5 ${colors.icon}`} />
                 <h2 className="text-lg font-bold text-white">{tier.name}</h2>
@@ -108,7 +151,6 @@ export default function LicensingPage() {
                 {tier.description}
               </p>
 
-              {/* Feature list */}
               <ul className="space-y-2">
                 {tier.features.map((f) => (
                   <li
@@ -126,6 +168,40 @@ export default function LicensingPage() {
           );
         })}
       </div>
+
+      {/* Comparison table */}
+      <section className="mt-14">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
+          Compare plans
+        </h2>
+        <div className="rounded-xl border border-slate-800/60 bg-slate-900/20 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-800/60">
+                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-1/5"></th>
+                <th className="text-center py-3 px-3 text-xs font-semibold text-cyan-400 uppercase tracking-wider">Free</th>
+                <th className="text-center py-3 px-3 text-xs font-semibold text-teal-400 uppercase tracking-wider">Community</th>
+                <th className="text-center py-3 px-3 text-xs font-semibold text-amber-400 uppercase tracking-wider">Pro</th>
+                <th className="text-center py-3 px-3 text-xs font-semibold text-violet-400 uppercase tracking-wider">Enterprise</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparisonRows.map((row, i) => (
+                <tr
+                  key={row.label}
+                  className={i < comparisonRows.length - 1 ? "border-b border-slate-800/30" : ""}
+                >
+                  <td className="py-2.5 px-4 text-xs font-medium text-slate-300">{row.label}</td>
+                  <td className="py-2.5 px-3 text-center"><CellValue value={row.free} /></td>
+                  <td className="py-2.5 px-3 text-center"><CellValue value={row.community} /></td>
+                  <td className="py-2.5 px-3 text-center"><CellValue value={row.pro} /></td>
+                  <td className="py-2.5 px-3 text-center"><CellValue value={row.enterprise} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {/* Apache 2.0 details */}
       <section className="mt-14">

@@ -79,7 +79,7 @@ cp backend/.env.example backend/.env
 # Edit backend/.env — set ENCRYPTION_KEY, DB_PROVIDER=postgresql
 
 # Start everything
-docker compose -f docker-compose.gke.yml up -d
+docker compose -f docker-compose.local.yml up -d
 ```
 
 This starts PostgreSQL 15, Redis 7, Apicurio Registry, backend (FastAPI), and frontend (Next.js).
