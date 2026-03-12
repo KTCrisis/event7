@@ -1,7 +1,8 @@
-// src/components/layout/sidebar.tsx
-// Cleanup — only active routes, dead links removed
+// Placement: frontend/src/components/layout/sidebar.tsx
+// Update: branded logo (event + 7 in teal) + collapsible sidebar + AI Agent
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -11,15 +12,16 @@ import {
   Share2,
   Library,
   FileCode,
+  Bot,
   Settings,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 
 const navigation = [
   {
     group: "Overview",
-    items: [
-      { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    ],
+    items: [{ name: "Dashboard", href: "/", icon: LayoutDashboard }],
   },
   {
     group: "Schemas",
@@ -39,6 +41,7 @@ const navigation = [
   {
     group: "Admin",
     items: [
+      { name: "AI Agent", href: "/ai", icon: Bot },
       { name: "Settings", href: "/settings", icon: Settings },
     ],
   },
@@ -46,24 +49,46 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside className="flex flex-col w-60 bg-card border-r border-border h-screen shrink-0">
-      <div className="p-5 mb-2">
-        <div className="flex items-center gap-3 font-bold text-lg">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-black text-sm">
-            e7
+    <aside
+      className={`flex flex-col bg-card border-r border-border h-screen shrink-0 transition-all duration-200 ease-in-out ${
+        collapsed ? "w-[52px]" : "w-60"
+      }`}
+    >
+      {/* Logo + collapse toggle */}
+      <div className="flex items-center justify-between p-4 mb-2">
+        {!collapsed && (
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-black text-sm">
+              e7
+            </div>
+            <span className="font-bold text-lg tracking-tight">
+              event<span className="text-teal-400">7</span>
+            </span>
           </div>
-          <span>event7</span>
-        </div>
+        )}
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          className={`text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-accent/50 ${
+            collapsed ? "mx-auto" : ""
+          }`}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
+        </button>
       </div>
 
-      <nav className="flex-1 px-3 space-y-6 overflow-y-auto pb-6">
+      {/* Navigation */}
+      <nav className="flex-1 px-2 space-y-6 overflow-y-auto pb-6">
         {navigation.map((section) => (
           <div key={section.group}>
-            <h3 className="px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-              {section.group}
-            </h3>
+            {!collapsed && (
+              <h3 className="px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                {section.group}
+              </h3>
+            )}
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const isActive =
@@ -75,14 +100,17 @@ export function Sidebar() {
                   <Link
                     key={item.name}
                     href={item.href}
+                    title={collapsed ? item.name : undefined}
                     className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      collapsed ? "justify-center" : ""
+                    } ${
                       isActive
                         ? "bg-accent text-accent-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                     }`}
                   >
-                    <item.icon size={16} />
-                    {item.name}
+                    <item.icon size={16} className="shrink-0" />
+                    {!collapsed && item.name}
                   </Link>
                 );
               })}

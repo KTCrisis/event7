@@ -13,6 +13,7 @@ from app.config import get_settings
 from app.cache.redis_cache import RedisCache
 from app.db.factory import create_database
 from app.db.base import DatabaseProvider
+from app.api.ai import router as ai_router
 
 # Instances globales
 settings = get_settings()
@@ -66,7 +67,7 @@ app.include_router(registries_router)
 app.include_router(schemas_router)
 app.include_router(governance_router)
 app.include_router(asyncapi_router)
-
+app.include_router(ai_router)
 
 # === Health Check ===
 @app.get("/health")

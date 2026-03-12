@@ -8,8 +8,10 @@
 # This simulates the GKE deployment locally:
 #   - PostgreSQL instead of Supabase
 #   - Redis
+#   - Apicurio Registry (hosted demo)
 #   - Backend (FastAPI)
 #   - Frontend (Next.js standalone)
+#   - Ollama (optional, uncomment for air-gapped AI)
 # ============================================
 
 services:
@@ -42,8 +44,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-      
-  # --- Apicurio Registry (hosted demo) ---      
+
+  # --- Apicurio Registry (hosted demo) ---
   apicurio:
     image: apicurio/apicurio-registry:latest-release
     ports:
@@ -91,6 +93,14 @@ services:
       # Hosted Apicurio (internal URL for provisioning)
       HOSTED_APICURIO_URL: http://apicurio:8080
 
+      # AI / Ollama — point to cloud or on-prem instance
+      # For Ollama Cloud:  https://ollama.com + model + API key
+      # For on-prem:       http://gpu-server:11434 + model + empty key
+      # Leave empty to disable AI agent
+      OLLAMA_HOST: "${OLLAMA_HOST:-}"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-}"
+      OLLAMA_API_KEY: "${OLLAMA_API_KEY:-}"
+
       # CORS
       CORS_ORIGINS: '["http://localhost:3000"]'
     depends_on:
@@ -101,7 +111,6 @@ services:
       apicurio:
         condition: service_healthy
     restart: unless-stopped
-
 
   # --- Frontend (Next.js standalone) ---
   frontend:
@@ -118,5 +127,24 @@ services:
       - backend
     restart: unless-stopped
 
+  # --- Optional: Ollama for air-gapped AI agent ---
+  # Uncomment below to run Ollama locally instead of pointing to a remote instance.
+  # Then set OLLAMA_HOST=http://ollama:11434 and OLLAMA_MODEL=llama3.1:8b in backend env.
+  # Note: GPU passthrough requires nvidia-container-toolkit on the host.
+  #
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   # deploy:
+  #   #   resources:
+  #   #     reservations:
+  #   #       devices:
+  #   #         - capabilities: [gpu]
+  #   restart: unless-stopped
+
 volumes:
   postgres_data:
+  # ollama_data:
