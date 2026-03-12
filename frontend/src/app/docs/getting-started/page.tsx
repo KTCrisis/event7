@@ -56,7 +56,7 @@ export default function GettingStartedPage() {
         <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
           <ul className="space-y-2">
             {[
-              "A schema registry (Confluent Cloud, Confluent Platform, or Apicurio v3)",
+              "A schema registry (Confluent Cloud, Confluent Platform, Redpanda, Karapace or Apicurio v3)",
               "Registry credentials (API Key + Secret for Confluent Cloud, or username/password for on-prem)",
               "For self-hosted: Docker + Docker Compose installed",
             ].map((item) => (
