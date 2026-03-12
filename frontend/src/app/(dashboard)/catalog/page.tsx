@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from "react";
 import {
   Search, Download, Edit3, FileCode, Braces, Tag,
   Shield, Users, Layers, Link2, Loader2, AlertCircle,
-  DatabaseZap, ChevronDown,
+  DatabaseZap, ChevronDown, Eye, EyeOff,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { useRegistry } from "@/providers/registry-provider";
 import { getCatalog, exportCatalogCsv } from "@/lib/api/governance";
 import { EnrichmentEditor } from "@/components/catalog/enrichment-editor";
+import { CatalogScoreBadge } from "@/components/rules/catalog-score";
 import type { CatalogEntry, DataClassification } from "@/types/governance";
 
 // Classification badge config
@@ -33,6 +34,9 @@ const CLASS_CONFIG: Record<DataClassification, { label: string; color: string; i
 
 type FilterKey = "all" | "documented" | "undocumented" | "with-refs";
 type SortKey = "subject" | "version" | "owner" | "classification";
+
+const GRID_WITH_SCORE = "grid-cols-[36px_1fr_140px_120px_100px_80px_60px_40px]";
+const GRID_NO_SCORE = "grid-cols-[1fr_140px_120px_100px_80px_60px_40px]";
 
 export default function CatalogPage() {
   const { selected: registry } = useRegistry();
@@ -47,8 +51,13 @@ export default function CatalogPage() {
   const [classFilter, setClassFilter] = useState<DataClassification | "all">("all");
   const [sortBy, setSortBy] = useState<SortKey>("subject");
 
+  // Score toggle
+  const [showScores, setShowScores] = useState(false);
+
   // Editor
   const [editing, setEditing] = useState<CatalogEntry | null>(null);
+
+  const gridCols = showScores ? GRID_WITH_SCORE : GRID_NO_SCORE;
 
   // Fetch catalog
   useEffect(() => {
@@ -177,10 +186,25 @@ export default function CatalogPage() {
             Business view of schemas — document, tag, and classify your events.
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleExport}>
-          <Download size={13} />
-          Export CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn(
+              "gap-1.5 text-xs",
+              showScores && "border-cyan-500/50 text-cyan-400"
+            )}
+            onClick={() => setShowScores((v) => !v)}
+            title={showScores ? "Hide governance scores" : "Show governance scores"}
+          >
+            {showScores ? <EyeOff size={13} /> : <Eye size={13} />}
+            Scores
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleExport}>
+            <Download size={13} />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -275,7 +299,8 @@ export default function CatalogPage() {
       {/* Table */}
       <Card className="p-0 overflow-hidden">
         {/* Table header */}
-        <div className="grid grid-cols-[1fr_140px_120px_100px_80px_60px_40px] gap-2 px-4 py-2 border-b border-border bg-muted/20 text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
+        <div className={cn("grid gap-2 px-4 py-2 border-b border-border bg-muted/20 text-[10px] uppercase tracking-wider font-medium text-muted-foreground", gridCols)}>
+          {showScores && <div className="text-center">Score</div>}
           <div>Subject</div>
           <div>Owner</div>
           <div>Classification</div>
@@ -297,8 +322,15 @@ export default function CatalogPage() {
               return (
                 <div
                   key={entry.subject}
-                  className="grid grid-cols-[1fr_140px_120px_100px_80px_60px_40px] gap-2 px-4 py-2.5 items-center hover:bg-muted/20 transition-colors group"
+                  className={cn("grid gap-2 px-4 py-2.5 items-center hover:bg-muted/20 transition-colors group", gridCols)}
                 >
+                  {/* Governance Score (conditional) */}
+                  {showScores && (
+                    <div className="flex justify-center">
+                      <CatalogScoreBadge registryId={registry.id} subject={entry.subject} />
+                    </div>
+                  )}
+
                   {/* Subject + description */}
                   <div className="min-w-0">
                     <div className="text-sm font-medium truncate" title={entry.subject}>

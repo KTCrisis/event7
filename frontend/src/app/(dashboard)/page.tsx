@@ -1,6 +1,6 @@
 // Placement: frontend/src/app/(dashboard)/page.tsx
-// Phase 6 — Enriched Dashboard with KPIs, charts, governance coverage, quick links
-// Updated: Connect/Hosted empty state via RegistryChooser
+// Phase 6 — Enriched Dashboard with KPIs, charts, governance rules, quick links
+// Updated: Unified governance section (coverage + rules + score)
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -16,6 +16,7 @@ import { listSubjects } from "@/lib/api/schemas";
 import { getCatalog } from "@/lib/api/governance";
 import { buildGraph, extractNamespace, computeStats } from "@/lib/api/references";
 import { RegistryChooser } from "@/components/settings/registry-chooser";
+import { DashboardGovernance } from "@/components/rules/dashboard-governance";
 import type { SubjectInfo } from "@/types/schema";
 import type { CatalogEntry } from "@/types/governance";
 
@@ -35,11 +36,9 @@ interface DashboardStats {
   totalVersions: number;
   refEdges: number;
   undocumented: number;
-  // Governance
   withDescription: number;
   withOwner: number;
   withTags: number;
-  // Distributions
   formatData: { name: string; value: number; color: string }[];
   namespaceData: { name: string; count: number }[];
   topVersioned: SubjectInfo[];
@@ -49,9 +48,9 @@ interface DashboardStats {
 // === Colors ===
 
 const FORMAT_COLORS: Record<string, string> = {
-  AVRO: "#22d3ee",   // cyan-400
-  JSON: "#f59e0b",   // amber-500
-  PROTOBUF: "#a78bfa", // violet-400
+  AVRO: "#22d3ee",
+  JSON: "#f59e0b",
+  PROTOBUF: "#a78bfa",
   UNKNOWN: "#64748b",
 };
 
@@ -67,20 +66,17 @@ function computeDashboardStats(data: DashboardData): DashboardStats {
   const protoCount = subjects.filter((s) => s.format === "PROTOBUF").length;
   const totalVersions = subjects.reduce((sum, s) => sum + (s.version_count ?? 1), 0);
 
-  // Governance from catalog
   const withDescription = catalog.filter((c) => c.description && c.description.trim().length > 0).length;
   const withOwner = catalog.filter((c) => c.owner_team && c.owner_team.trim().length > 0).length;
   const withTags = catalog.filter((c) => c.tags && c.tags.length > 0).length;
   const undocumented = subjects.length - withDescription;
 
-  // Format distribution
   const formatData = [
     { name: "Avro", value: avroCount, color: FORMAT_COLORS.AVRO },
     { name: "JSON", value: jsonCount, color: FORMAT_COLORS.JSON },
   ];
   if (protoCount > 0) formatData.push({ name: "Protobuf", value: protoCount, color: FORMAT_COLORS.PROTOBUF });
 
-  // Namespace distribution (top 8)
   const nsMap = new Map<string, number>();
   for (const s of subjects) {
     const ns = extractNamespace(s.subject);
@@ -92,12 +88,10 @@ function computeDashboardStats(data: DashboardData): DashboardStats {
     .slice(0, 8)
     .map(([name, count]) => ({ name, count }));
 
-  // Top versioned schemas
   const topVersioned = [...subjects]
     .sort((a, b) => (b.version_count ?? 1) - (a.version_count ?? 1))
     .slice(0, 5);
 
-  // Undocumented subjects (from catalog, no description)
   const undocumentedSubjects = catalog
     .filter((c) => !c.description || c.description.trim().length === 0)
     .slice(0, 5);
@@ -156,7 +150,7 @@ export default function DashboardPage() {
     return computeDashboardStats(data);
   }, [data]);
 
-  // --- No registry: Connect / Hosted chooser ---
+  // --- No registry ---
   if (!selected) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -206,8 +200,6 @@ export default function DashboardPage() {
 
   if (!stats) return null;
 
-  const govTotal = stats.total || 1;
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -236,7 +228,7 @@ export default function DashboardPage() {
         <KpiCard icon={AlertCircle} label="Undocumented" value={stats.undocumented} accent={stats.undocumented > 0 ? "#f87171" : undefined} />
       </div>
 
-      {/* Charts row */}
+      {/* Charts row: Format + Namespace */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Format Distribution — Donut */}
         <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
@@ -291,70 +283,60 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Second row: Governance + Top Versioned */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Governance Coverage */}
-        <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
-          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Governance Coverage</h3>
-          <div className="space-y-3">
-            <GovBar label="Description" count={stats.withDescription} total={govTotal} color="#22d3ee" />
-            <GovBar label="Owner" count={stats.withOwner} total={govTotal} color="#a78bfa" />
-            <GovBar label="Tags" count={stats.withTags} total={govTotal} color="#34d399" />
-          </div>
-          <div className="mt-3 pt-3 border-t border-zinc-800">
-            <Link
-              href="/catalog"
-              className="text-[11px] text-cyan-400 hover:text-cyan-300 inline-flex items-center gap-1 transition-colors"
-            >
-              <Library size={11} /> Open Catalog to add enrichments <ArrowRight size={10} />
-            </Link>
-          </div>
-        </div>
+      {/* Governance (unified: coverage + rules + score + charts) */}
+      <DashboardGovernance
+        registryId={selected.id}
+        catalogStats={{
+          total: stats.total,
+          withDescription: stats.withDescription,
+          withOwner: stats.withOwner,
+          withTags: stats.withTags,
+        }}
+      />
 
-        {/* Top Versioned Schemas */}
-        <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
-          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Most Versioned Schemas</h3>
-          <div className="space-y-2">
-            {stats.topVersioned.map((s) => {
-              const label = extractLabel(s.subject);
-              return (
-                <Link
-                  key={s.subject}
-                  href={`/schemas?subject=${encodeURIComponent(s.subject)}`}
-                  className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-zinc-800/50 transition-colors group"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span
-                      className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                      style={{
-                        background: `${FORMAT_COLORS[s.format] || FORMAT_COLORS.UNKNOWN}20`,
-                        color: FORMAT_COLORS[s.format] || FORMAT_COLORS.UNKNOWN,
-                      }}
-                    >
-                      {s.format}
-                    </span>
-                    <span className="text-sm text-zinc-300 truncate">{label}</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-zinc-500 tabular-nums">v{s.version_count ?? 1}</span>
-                    <ExternalLink size={12} className="text-zinc-700 group-hover:text-cyan-400 transition-colors" />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-          <div className="mt-2 pt-2 border-t border-zinc-800">
-            <Link
-              href="/schemas"
-              className="text-[11px] text-cyan-400 hover:text-cyan-300 inline-flex items-center gap-1 transition-colors"
-            >
-              <Search size={11} /> Open Schema Explorer <ArrowRight size={10} />
-            </Link>
-          </div>
+      {/* Top Versioned Schemas */}
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
+        <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Most Versioned Schemas</h3>
+        <div className="space-y-2">
+          {stats.topVersioned.map((s) => {
+            const label = extractLabel(s.subject);
+            return (
+              <Link
+                key={s.subject}
+                href={`/schemas?subject=${encodeURIComponent(s.subject)}`}
+                className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-zinc-800/50 transition-colors group"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                    style={{
+                      background: `${FORMAT_COLORS[s.format] || FORMAT_COLORS.UNKNOWN}20`,
+                      color: FORMAT_COLORS[s.format] || FORMAT_COLORS.UNKNOWN,
+                    }}
+                  >
+                    {s.format}
+                  </span>
+                  <span className="text-sm text-zinc-300 truncate">{label}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-zinc-500 tabular-nums">v{s.version_count ?? 1}</span>
+                  <ExternalLink size={12} className="text-zinc-700 group-hover:text-cyan-400 transition-colors" />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+        <div className="mt-2 pt-2 border-t border-zinc-800">
+          <Link
+            href="/schemas"
+            className="text-[11px] text-cyan-400 hover:text-cyan-300 inline-flex items-center gap-1 transition-colors"
+          >
+            <Search size={11} /> Open Schema Explorer <ArrowRight size={10} />
+          </Link>
         </div>
       </div>
 
-      {/* Third row: Undocumented schemas call-to-action */}
+      {/* Undocumented schemas call-to-action */}
       {stats.undocumentedSubjects.length > 0 && (
         <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg p-4">
           <div className="flex items-start gap-3">
@@ -412,26 +394,6 @@ function KpiCard({
       <p className="text-2xl font-bold tabular-nums" style={{ color: accent || "#f1f5f9" }}>
         {value}
       </p>
-    </div>
-  );
-}
-
-function GovBar({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
-  const pct = Math.round((count / total) * 100);
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-zinc-400">{label}</span>
-        <span className="text-xs text-zinc-500 tabular-nums">
-          {count}/{total} <span className="text-zinc-600">({pct}%)</span>
-        </span>
-      </div>
-      <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, background: color }}
-        />
-      </div>
     </div>
   );
 }
