@@ -80,7 +80,7 @@ export default function GettingStartedPage() {
           <p className="text-sm text-slate-400 leading-relaxed mb-3">
             Sign up at{" "}
             <code className="text-teal-400 bg-teal-500/5 px-1.5 py-0.5 rounded text-xs">
-              app.event7.dev
+              https://event7.pages.dev/
             </code>{" "}
             with email and password. You&apos;ll land on an empty dashboard.
           </p>
