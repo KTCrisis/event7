@@ -5,7 +5,7 @@
  * Modification: ajout AuthMode type + auth_mode dans RegistryCreate
  */
 
-export type ProviderType = "confluent" | "apicurio" | "glue" | "pulsar";
+export type ProviderType = "confluent" | "apicurio" | "karapace" | "redpanda" | "glue" | "pulsar";
 
 export type AuthMode = "api_key" | "basic";
 

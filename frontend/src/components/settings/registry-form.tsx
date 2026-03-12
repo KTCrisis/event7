@@ -24,6 +24,8 @@ interface RegistryFormProps {
 const PROVIDERS: { value: ProviderType; label: string; enabled: boolean }[] = [
   { value: "confluent", label: "Confluent Schema Registry", enabled: true },
   { value: "apicurio", label: "Apicurio Registry", enabled: true },
+  { value: "karapace", label: "Karapace (Aiven)", enabled: true },
+  { value: "redpanda", label: "Redpanda Schema Registry", enabled: true },
   { value: "glue", label: "AWS Glue (coming soon)", enabled: false },
 ];
 
@@ -39,7 +41,7 @@ export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
   const [apiKey, setApiKey] = useState("");
   const [apiSecret, setApiSecret] = useState("");
 
-  // Self-managed / Apicurio credentials
+  // Self-managed / Apicurio / Karapace / Redpanda credentials
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [token, setToken] = useState("");
@@ -85,6 +87,11 @@ export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
           ...(password && { password }),
           ...(token && { token }),
         }),
+        // Karapace / Redpanda — optional Basic Auth
+        ...((providerType === "karapace" || providerType === "redpanda") && {
+          ...(username && { username }),
+          ...(password && { password }),
+        }),
       });
       toast.success(`Registry "${name}" connected successfully`);
       onSuccess();
@@ -103,7 +110,11 @@ export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
         : "https://schema-registry.internal:8081"
       : providerType === "apicurio"
         ? "http://apicurio:8080"
-        : "https://...";
+        : providerType === "karapace"
+          ? "https://karapace-xxx.aivencloud.com:port"
+          : providerType === "redpanda"
+            ? "https://schema-registry.your-cluster.redpanda.com"
+            : "https://...";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -279,6 +290,42 @@ export function RegistryForm({ onSuccess, onBack }: RegistryFormProps) {
           No credentials needed — Apicurio will be accessed without
           authentication.
         </p>
+      )}
+
+      {/* Karapace / Redpanda — Basic Auth (optional) */}
+      {(providerType === "karapace" || providerType === "redpanda") && (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="cred-user">Username</Label>
+              <Input
+                id="cred-user"
+                placeholder={
+                  providerType === "karapace"
+                    ? "avnadmin"
+                    : "redpanda-user"
+                }
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cred-pass">Password</Label>
+              <Input
+                id="cred-pass"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-zinc-500">
+            Leave empty if your{" "}
+            {providerType === "karapace" ? "Karapace" : "Redpanda"} Schema
+            Registry has no authentication configured.
+          </p>
+        </>
       )}
 
       <Button type="submit" className="w-full" disabled={loading}>

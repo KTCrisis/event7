@@ -60,8 +60,14 @@ event7 follows an **open-core** model. The governance engine is free and open-so
 |----------|--------|
 | Confluent Schema Registry (Cloud + Platform) | ✅ Implemented |
 | Apicurio Registry v3 | ✅ Implemented |
+| Karapace (Aiven) | ✅ Compatible (Confluent API) |
+| Redpanda Schema Registry | ✅ Compatible (Confluent API) |
 | AWS Glue Schema Registry | 🔜 Planned |
+| Azure Schema Registry (Event Hubs) | 🔜 Planned |
+| Google Pub/Sub Schemas | 📋 Future |
+| Pulsar Schema Registry | 📋 Future |
 | Custom / compatible backends | Extensible by design |
+
 
 Adding a new provider means creating **one file** — no changes to services, routes, or frontend. See [Adding a New Provider](#adding-a-new-provider).
 
@@ -236,6 +242,10 @@ The abstract interface covers: `health_check`, `list_subjects`, `get_schema`, `c
 | RLS multi-tenant security | 🔜 Next |
 | Hosted registry provisioning (Apicurio-backed) | 🔜 Next |
 | Protobuf support | 🔜 Next |
+| Karapace + Redpanda validation & docs | 🔜 Next |
+| AWS Glue Schema Registry provider | 🔜 Planned |
+| Azure Schema Registry provider | 🔜 Planned |
+| Google Pub/Sub / Pulsar providers | 📋 Future |
 | Cross-registry aggregated view | 🔜 Next |
 | Governance Rules engine (provider-agnostic) | 🔜 Next |
 | Extended business metadata | 🔜 Next |

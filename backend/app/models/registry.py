@@ -12,6 +12,8 @@ from pydantic import BaseModel, Field
 class ProviderType(str, Enum):
     CONFLUENT = "confluent"
     APICURIO = "apicurio"
+    KARAPACE = "karapace"
+    REDPANDA = "redpanda"
     GLUE = "glue"
     PULSAR = "pulsar"
 

@@ -3,7 +3,6 @@ event7 - Provider Factory
 Instancie le bon provider en fonction du type de registry.
 
 Placement: backend/app/providers/factory.py
-Modification: ajout branche Apicurio + fallback username/password pour Confluent on-prem
 """
 
 from app.models.registry import ProviderType
@@ -45,6 +44,22 @@ def create_provider(
             base_url=base_url,
             api_key=auth_user,
             api_secret=auth_pass,
+        )
+
+    # --- Karapace (Aiven) — Confluent-compatible API ---
+    if provider_type == ProviderType.KARAPACE:
+        return ConfluentProvider(
+            base_url=base_url,
+            api_key=creds.get("username") or creds.get("api_key"),
+            api_secret=creds.get("password") or creds.get("api_secret"),
+        )
+
+    # --- Redpanda — Confluent-compatible API ---
+    if provider_type == ProviderType.REDPANDA:
+        return ConfluentProvider(
+            base_url=base_url,
+            api_key=creds.get("username") or creds.get("api_key"),
+            api_secret=creds.get("password") or creds.get("api_secret"),
         )
 
     # --- Apicurio ---
