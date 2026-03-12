@@ -5,6 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-000000.svg?logo=next.js&logoColor=white)](https://nextjs.org)
 [![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)](docker-compose.gke.yml)
+[![AsyncAPI 3.0](https://img.shields.io/badge/AsyncAPI-3.0-4F46E5.svg?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyTDIgN3Y3YzAgNS41NSA0LjI1IDEwLjc0IDEwIDEyIDUuNzUtMS4yNiAxMC02LjQ1IDEwLTEyVjdMMTIgMnoiLz48L3N2Zz4=)](https://www.asyncapi.com)
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 **Cross-registry schema governance platform for exploring, comparing, enriching, and governing event schemas.**
@@ -44,6 +45,9 @@ event7 adds a **provider-agnostic governance layer** above your registries — w
 | **Governance Rules** | Define validation, quality, and migration rules — stored in event7, provider-agnostic | Community |
 | **Extended Metadata** | Custom business attributes beyond tags/owner — structured key-value metadata | Community |
 | **Registry Metadata Sync** | Read tags, rules, and metadata from Confluent Catalog API or Apicurio labels | Community |
+| **Channel Model** | Map schemas to topics, queues, and exchanges — Kafka, RabbitMQ, Pub/Sub, and more | Community |
+| **Kafka TNS/RNS Support** | Auto-detect TopicNameStrategy or manually map RecordNameStrategy subjects to topics | Community |
+| **Multi-Broker Channels** | RabbitMQ exchanges, Google Pub/Sub, AWS SNS/SQS, Azure Service Bus, NATS, Pulsar | Community |
 | **Encryption Tracking** | Display field-level encryption metadata (CSFLE) — visibility without vendor lock-in | Pro |
 
 event7 follows an **open-core** model. The governance engine is free and open-source under **Apache 2.0**. Features with infrastructure costs (AI, managed hosting) are available in paid tiers. See [Licensing](#licensing).
@@ -238,6 +242,11 @@ The abstract interface covers: `health_check`, `list_subjects`, `get_schema`, `c
 | Confluent Catalog API reader (Stream Governance) | 🔜 Next |
 | Apicurio metadata sync (labels + rules) | 🔜 Next |
 | Encryption tracking (CSFLE metadata) | 🔜 Next |
+| Channel model (topics, queues, exchanges) | 🔜 Next |
+| Kafka TNS auto-detect + RNS mapping | 🔜 Next |
+| RabbitMQ exchange/queue support | 🔜 Next |
+| Cloud broker channels (Pub/Sub, SNS/SQS, Service Bus) | 🔜 Next |
+| AsyncAPI channel bindings from channel model | 🔜 Next |
 | AuthProvider abstraction (OIDC / SSO) | 🔜 Planned |
 | RBAC, public API, notifications, health scores | 📋 Future |
 
@@ -260,8 +269,9 @@ Please open an issue first for major changes so we can discuss the approach.
 
 event7 follows an **open-core** model:
 
-- **Community** (Apache 2.0) — Schema Explorer, Diff Viewer, Event Catalog, Enrichments, AsyncAPI, References Graph, Dashboard, Multi-Provider support, dual deployment
-- **Pro** (Commercial) — AI Agent, Hosted Registry, priority support
+- **Free** (SaaS terms) — Core governance, 1 registry, 50 schemas, AI Agent BYOM
+- **Community** (Apache 2.0) — Everything free, unlimited, self-hosted, AI Agent BYOM
+- **Pro** (Commercial) — AI Managed, Hosted Registry, email support
 - **Enterprise** (Commercial) — OIDC/SSO, RBAC, audit logs, SLA
 
 See the [full licensing details](https://event7.dev/docs/licensing).

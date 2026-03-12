@@ -12,6 +12,7 @@ const mobileLinks = [
   { name: "Getting Started", href: "/docs/getting-started" },
   { name: "API Reference", href: "/docs/api-reference" },
   { name: "Licensing", href: "/docs/licensing" },
+  { name: "Roadmap", href: "/docs/roadmap" },
 ];
 
 export function DocsHeader() {

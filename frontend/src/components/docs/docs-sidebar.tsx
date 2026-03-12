@@ -9,6 +9,7 @@ import {
   Code2,
   Scale,
   ChevronRight,
+  Map
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ const sections = [
     items: [
       { name: "API Reference", href: "/docs/api-reference", icon: Code2 },
       { name: "Licensing", href: "/docs/licensing", icon: Scale },
+      { name: "Roadmap", href: "/docs/roadmap", icon: Map },
     ],
   },
 ];
