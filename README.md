@@ -40,6 +40,10 @@ event7 adds a **provider-agnostic governance layer** above your registries — w
 | **Multi-Provider** | Confluent Cloud, Confluent Platform, Apicurio v3 — one adapter pattern, one UI | Community |
 | **AI Agent** | Natural-language commands for drift analysis, coverage audit, and automated enrichments | Pro |
 | **Hosted Registry** | Managed Apicurio instance — no infra to maintain | Pro |
+| **Governance Rules** | Define validation, quality, and migration rules — stored in event7, provider-agnostic | Community |
+| **Extended Metadata** | Custom business attributes beyond tags/owner — structured key-value metadata | Community |
+| **Registry Metadata Sync** | Read tags, rules, and metadata from Confluent Catalog API or Apicurio labels | Community |
+| **Encryption Tracking** | Display field-level encryption metadata (CSFLE) — visibility without vendor lock-in | Pro |
 
 event7 follows an **open-core** model. The governance engine is free and open-source under **Apache 2.0**. Features with infrastructure costs (AI, managed hosting) are available in paid tiers. See [Licensing](#licensing).
 
@@ -228,6 +232,11 @@ The abstract interface covers: `health_check`, `list_subjects`, `get_schema`, `c
 | Hosted registry provisioning (Apicurio-backed) | 🔜 Next |
 | Protobuf support | 🔜 Next |
 | Cross-registry aggregated view | 🔜 Next |
+| Governance Rules engine (provider-agnostic) | 🔜 Next |
+| Extended business metadata | 🔜 Next |
+| Confluent Catalog API reader (Stream Governance) | 🔜 Next |
+| Apicurio metadata sync (labels + rules) | 🔜 Next |
+| Encryption tracking (CSFLE metadata) | 🔜 Next |
 | AuthProvider abstraction (OIDC / SSO) | 🔜 Planned |
 | RBAC, public API, notifications, health scores | 📋 Future |
 
