@@ -10,6 +10,7 @@ const mobileLinks = [
   { name: "Introduction", href: "/docs" },
   { name: "Features", href: "/docs/features" },
   { name: "Getting Started", href: "/docs/getting-started" },
+  { name: "Self-Hosted Install", href: "/docs/installation" },
   { name: "Schema Validator", href: "/docs/validator"},
   { name: "Channel Model", href: "/docs/channels" },
   { name: "Governance Rules", href: "/docs/governance-rules" },

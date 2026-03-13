@@ -6,13 +6,14 @@ import {
   Sparkles,
   Blocks,
   Rocket,
+  Container,
   Code2,
   Scale,
   ChevronRight,
   Map,
   Shield,
+  ShieldCheck,
   Network,
-  ShieldCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,9 +26,15 @@ const sections = [
     ],
   },
   {
-    label: "Guides",
+    label: "Setup",
     items: [
       { name: "Getting Started", href: "/docs/getting-started", icon: Rocket },
+      { name: "Self-Hosted Install", href: "/docs/installation", icon: Container },
+    ],
+  },
+  {
+    label: "Concepts",
+    items: [
       { name: "Schema Validator", href: "/docs/validator", icon: ShieldCheck },
       { name: "Channel Model", href: "/docs/channels", icon: Network },
       { name: "Governance Rules", href: "/docs/governance-rules", icon: Shield },
@@ -83,13 +90,13 @@ export function DocsSidebar() {
                         "flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors duration-150",
                         isActive
                           ? "bg-teal-500/10 text-teal-400 font-medium"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                          : "text-slate-400 hover:text-white hover:bg-slate-800/50"
                       )}
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
                       <span className="flex-1">{item.name}</span>
                       {isActive && (
-                        <ChevronRight className="h-3.5 w-3.5 text-teal-500/60" />
+                        <ChevronRight className="h-3.5 w-3.5 text-teal-500/50" />
                       )}
                     </Link>
                   </li>
@@ -99,13 +106,6 @@ export function DocsSidebar() {
           </div>
         ))}
       </nav>
-
-      {/* Footer */}
-      <div className="border-t border-slate-800/60 px-5 py-4">
-        <p className="text-[11px] text-slate-600">
-          Apache 2.0 · Open-core
-        </p>
-      </div>
     </aside>
   );
 }
