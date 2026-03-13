@@ -1,6 +1,7 @@
 // src/app/docs/getting-started/page.tsx
 
-import { Cloud, Container, Terminal, CheckCircle2, Upload, Network, Shield, ShieldCheck } from "lucide-react";
+import { Cloud, Container, Terminal, CheckCircle2, Upload, Network, Shield, ShieldCheck, Mail } from "lucide-react";
+import Link from "next/link";
 
 function CodeBlock({ children }: { children: string }) {
   return (
@@ -46,97 +47,61 @@ export default function GettingStartedPage() {
         Getting Started
       </h1>
       <p className="text-base text-slate-400 leading-relaxed mb-10 max-w-2xl">
-        Get event7 running in minutes. Choose between the managed SaaS and a
-        self-hosted Docker deployment.
+        The fastest way to try event7 is the{" "}
+        <strong className="text-slate-300">self-hosted Docker deployment</strong>{" "}
+        — everything runs locally in 5 minutes. A hosted version is also
+        available as a preview for early testers.
       </p>
 
-      {/* Prerequisites */}
-      <section className="mb-12">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-4">
-          Prerequisites
-        </h2>
+      {/* Two options overview */}
+      <div className="grid gap-4 sm:grid-cols-2 mb-12">
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <Container className="h-4 w-4 text-emerald-400" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
+              Recommended
+            </span>
+          </div>
+          <h3 className="text-sm font-semibold text-white mb-1.5">Self-Hosted (Docker)</h3>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Full stack on your machine — frontend, backend, Apicurio, PostgreSQL,
+            Redis. No account needed, no limits, full control.
+          </p>
+          <Link
+            href="/docs/installation"
+            className="inline-flex items-center gap-1.5 mt-3 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+          >
+            Installation guide →
+          </Link>
+        </div>
         <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
-          <ul className="space-y-2">
-            {[
-              "A schema registry (Confluent Cloud, Confluent Platform, Redpanda, Karapace, or Apicurio v3) — or start with an empty one",
-              "Registry credentials (API Key + Secret for Confluent Cloud, or username/password for on-prem)",
-              "For self-hosted: Docker + Docker Compose installed",
-            ].map((item) => (
-              <li key={item} className="flex items-start gap-2.5 text-sm text-slate-400">
-                <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-teal-500/60" />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {/* Option A: SaaS */}
-      <section className="mb-14">
-        <div className="flex items-center gap-2.5 mb-6">
-          <Cloud className="h-5 w-5 text-cyan-400" />
-          <h2 className="text-xl font-bold text-white">Option A — SaaS</h2>
-        </div>
-
-        <Step number={1} title="Create an account">
-          <p className="text-sm text-slate-400 leading-relaxed mb-3">
-            Sign up at{" "}
-            <code className="text-teal-400 bg-teal-500/5 px-1.5 py-0.5 rounded text-xs">
-              https://event7.pages.dev/
-            </code>{" "}
-            with email and password. You&apos;ll land on an empty dashboard.
-          </p>
-        </Step>
-
-        <Step number={2} title="Connect your first registry">
-          <p className="text-sm text-slate-400 leading-relaxed mb-3">
-            Go to <strong className="text-slate-300">Settings</strong> and click{" "}
-            <strong className="text-slate-300">Connect Registry</strong>. Pick your provider, paste
-            your URL and credentials — event7 encrypts them at rest (AES-256 Fernet).
-          </p>
-          <div className="rounded-lg border border-slate-800/60 bg-slate-900/50 p-4 text-sm text-slate-500">
-            <p className="font-medium text-slate-400 mb-1">Confluent Cloud example</p>
-            <p>
-              URL:{" "}
-              <code className="text-slate-300 text-xs">
-                https://psrc-xxxxx.region.aws.confluent.cloud
-              </code>
-            </p>
-            <p>
-              API Key / Secret: from Confluent Cloud → Schema Registry → API credentials
-            </p>
+          <div className="flex items-center gap-2 mb-2">
+            <Cloud className="h-4 w-4 text-cyan-400" />
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              Preview
+            </span>
           </div>
-          <div className="rounded-lg border border-slate-800/60 bg-slate-900/50 p-4 text-sm text-slate-500 mt-3">
-            <p className="font-medium text-slate-400 mb-1">Apicurio example</p>
-            <p>
-              URL:{" "}
-              <code className="text-slate-300 text-xs">
-                http://your-apicurio-host:8080
-              </code>
-            </p>
-            <p>
-              No credentials required for unauthenticated instances.
-            </p>
-          </div>
-        </Step>
-
-        <Step number={3} title="Explore your schemas" isLast>
-          <p className="text-sm text-slate-400 leading-relaxed">
-            Once connected, the{" "}
-            <strong className="text-slate-300">Schema Explorer</strong> shows all
-            subjects and versions. From there you can diff versions, validate a
-            new version before publishing, inspect references, enrich schemas in
-            the Event Catalog, or import an AsyncAPI spec to create channels and
-            bindings.
+          <h3 className="text-sm font-semibold text-white mb-1.5">SaaS (Hosted Demo)</h3>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Try event7 without installing anything. Currently in preview —
+            accounts are created manually upon request. Multi-tenant isolation
+            and self-service signup are in progress.
           </p>
-        </Step>
-      </section>
+          <a
+            href="mailto:flux7art@gmail.com?subject=event7%20demo%20access"
+            className="inline-flex items-center gap-1.5 mt-3 text-xs font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
+          >
+            <Mail className="h-3 w-3" />
+            Request demo access →
+          </a>
+        </div>
+      </div>
 
-      {/* Option B: Self-hosted */}
+      {/* Self-hosted quick start */}
       <section className="mb-14">
         <div className="flex items-center gap-2.5 mb-6">
           <Container className="h-5 w-5 text-emerald-400" />
-          <h2 className="text-xl font-bold text-white">Option B — Self-hosted (Docker)</h2>
+          <h2 className="text-xl font-bold text-white">Self-Hosted Quick Start</h2>
         </div>
 
         <Step number={1} title="Clone and configure">
@@ -150,6 +115,24 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 # Copy and edit the env file
 cp backend/.env.example backend/.env`}
           </CodeBlock>
+          <p className="text-xs text-slate-500 mt-2">
+            Set{" "}
+            <code className="text-cyan-400/80 bg-slate-800/50 px-1.5 py-0.5 rounded">
+              ENCRYPTION_KEY
+            </code>{" "}
+            and{" "}
+            <code className="text-cyan-400/80 bg-slate-800/50 px-1.5 py-0.5 rounded">
+              DB_PROVIDER=postgresql
+            </code>{" "}
+            in{" "}
+            <code className="text-slate-400 bg-slate-800/50 px-1.5 py-0.5 rounded">
+              backend/.env
+            </code>. See the{" "}
+            <Link href="/docs/installation" className="text-teal-400 hover:text-teal-300">
+              full installation guide
+            </Link>{" "}
+            for all options.
+          </p>
         </Step>
 
         <Step number={2} title="Start the stack">
@@ -179,7 +162,10 @@ cp backend/.env.example backend/.env`}
 
         <Step number={4} title="(Optional) Seed with sample data">
           <CodeBlock>
-{`# Seed Apicurio with 10 schemas + cross-references
+{`cd backend
+pip install requests pyyaml   # if not already installed
+
+# Seed Apicurio with 10 schemas + cross-references
 python scripts/seed_apicurio.py --url http://localhost:8081
 
 # Seed event7 with enrichments, channels, bindings, and rules
@@ -202,6 +188,44 @@ python scripts/seed_event7.py --url http://localhost:8000`}
 #  "database_provider": "PostgreSQLDatabase", "version": "0.1.0"}`}
           </CodeBlock>
         </Step>
+      </section>
+
+      {/* SaaS preview */}
+      <section className="mb-14">
+        <div className="flex items-center gap-2.5 mb-6">
+          <Cloud className="h-5 w-5 text-cyan-400" />
+          <h2 className="text-xl font-bold text-white">SaaS Preview</h2>
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            In progress
+          </span>
+        </div>
+
+        <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-6 text-sm text-slate-400 leading-relaxed space-y-3">
+          <p>
+            A hosted version of event7 is available at{" "}
+            <code className="text-cyan-400/80 bg-slate-800/50 px-1.5 py-0.5 rounded text-xs">
+              event7.pages.dev
+            </code>{" "}
+            for early testers. It runs on Cloudflare Pages + Railway + managed
+            PostgreSQL.
+          </p>
+          <p>
+            Self-service signup is not yet available. To get access, reach out
+            and a demo account will be created for you with a connected
+            registry to explore.
+          </p>
+          <p className="text-slate-500">
+            Work in progress: multi-tenant isolation, self-service onboarding,
+            and SSO integration.
+          </p>
+          <a
+            href="mailto:flux7art@gmail.com?subject=event7%20demo%20access"
+            className="inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-lg text-xs font-medium text-slate-950 bg-teal-400 hover:bg-teal-300 transition-colors"
+          >
+            <Mail className="h-3.5 w-3.5" />
+            Request demo access
+          </a>
+        </div>
       </section>
 
       {/* Two paths: existing schemas vs fresh start */}
@@ -265,7 +289,7 @@ python scripts/seed_event7.py --url http://localhost:8000`}
               icon: ShieldCheck,
               title: "Validate Schemas",
               desc: "Test a schema before publishing — SR compatibility + governance rules + diff in one report.",
-              href: "/docs/features",
+              href: "/docs/validator",
             },
             {
               icon: Upload,
