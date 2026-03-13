@@ -1,6 +1,6 @@
 // src/components/rules/rule-editor.tsx
 // Drawer for creating/editing governance rules & policies
-// Form adapts based on rule_scope selection
+// Form adapts based on rule_scope — hides irrelevant fields
 "use client";
 
 import { useState, useEffect } from "react";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { createRule, updateRule } from "@/lib/api/rules";
-import { ScopeBadge, SeverityBadge } from "./rule-badges";
+import { ScopeBadge } from "./rule-badges";
 import type {
   GovernanceRule,
   GovernanceRuleCreate,
@@ -25,13 +25,14 @@ import type {
 
 interface RuleEditorProps {
   registryId: string;
-  rule?: GovernanceRule | null;      // null = create mode
-  subject?: string | null;           // Pre-fill subject
+  rule?: GovernanceRule | null;
+  subject?: string | null;
   onClose: () => void;
   onSaved: (rule: GovernanceRule) => void;
 }
 
-// Helper data
+// === Scope options ===
+
 const SCOPE_OPTIONS: { value: RuleScope; label: string; hint: string }[] = [
   { value: "runtime", label: "Runtime", hint: "Executed by serializer/deserializer (CEL, JSONATA)" },
   { value: "control_plane", label: "Control Plane", hint: "Applied at schema registration (compatibility, validity)" },
@@ -51,11 +52,12 @@ const CATEGORY_OPTIONS: { value: RuleCategory; label: string }[] = [
 const SEVERITY_OPTIONS: RuleSeverity[] = ["info", "warning", "error", "critical"];
 
 const ENFORCEMENT_OPTIONS: { value: EnforcementStatus; label: string }[] = [
-  { value: "declared", label: "Declared" },
-  { value: "expected", label: "Expected" },
+  { value: "declared", label: "Declared — documented only" },
+  { value: "expected", label: "Expected — required, affects score" },
 ];
 
-// Map scope → default kind
+// === Scope-driven defaults ===
+
 const SCOPE_DEFAULT_KIND: Record<RuleScope, RuleKind> = {
   runtime: "CONDITION",
   control_plane: "VALIDATION",
@@ -63,34 +65,102 @@ const SCOPE_DEFAULT_KIND: Record<RuleScope, RuleKind> = {
   audit: "POLICY",
 };
 
-// Map scope → available rule_types
 const SCOPE_RULE_TYPES: Record<RuleScope, string[]> = {
   runtime: ["CEL", "CEL_FIELD", "JSONATA", "ENCRYPT", "DECRYPT", "SS_TYPE"],
   control_plane: ["COMPATIBILITY", "VALIDITY", "INTEGRITY", "BREAKING_CHECK", "LINT"],
-  declarative: ["CUSTOM", "REGEX", "REQUIRED_FIELDS", "NAMING"],
+  declarative: ["CUSTOM"],
   audit: ["CUSTOM", "REGEX", "REQUIRED_FIELDS", "NAMING"],
 };
 
-// Map scope → available modes
 const SCOPE_MODES: Record<RuleScope, RuleMode[]> = {
   runtime: ["WRITE", "READ", "READWRITE", "UPGRADE", "DOWNGRADE", "UPDOWN"],
   control_plane: ["REGISTER"],
-  declarative: ["REGISTER", "WRITE", "READ", "READWRITE"],
+  declarative: ["REGISTER"],
   audit: ["REGISTER"],
 };
 
 const EVAL_SOURCE_OPTIONS: { value: EvaluationSource; label: string }[] = [
-  { value: "provider_config", label: "Provider Config" },
-  { value: "schema_content", label: "Schema Content" },
-  { value: "enrichment_metadata", label: "Enrichment Metadata" },
-  { value: "declared_only", label: "Declared Only" },
-  { value: "not_evaluable", label: "Not Evaluable" },
+  { value: "provider_config", label: "Provider Config — verifiable via API" },
+  { value: "schema_content", label: "Schema Content — verifiable by inspecting schema" },
+  { value: "enrichment_metadata", label: "Enrichment Metadata — verifiable via event7 enrichments" },
+  { value: "declared_only", label: "Declared Only — taken on trust" },
+  { value: "not_evaluable", label: "Not Evaluable — informational" },
 ];
+
+// === Concrete placeholder examples per scope ===
+
+const NAME_PLACEHOLDERS: Record<RuleScope, string> = {
+  runtime: "encrypt-pii-fields",
+  control_plane: "enforce-backward-compat",
+  declarative: "require-owner-team",
+  audit: "naming-convention-check",
+};
+
+const DESCRIPTION_PLACEHOLDERS: Record<RuleScope, string> = {
+  runtime: "Encrypt all fields tagged PII using CSFLE before producing to Kafka",
+  control_plane: "Enforce BACKWARD_TRANSITIVE compatibility to protect all downstream consumers",
+  declarative: "Every schema in this registry must have an owner_team defined in enrichments",
+  audit: "Subject names must follow the convention com.{domain}.{entity}-value",
+};
+
+const EXPRESSION_PLACEHOLDERS: Record<RuleScope, string> = {
+  runtime: "has(value.customer_id) && has(value.timestamp)",
+  control_plane: "",
+  declarative: "",
+  audit: "^com\\.[a-z]+\\.[a-z]+\\.[A-Z][a-zA-Z]+-value$",
+};
+
+// === What to show per scope ===
+
+interface ScopeVisibility {
+  ruleType: boolean;
+  mode: boolean;
+  expression: boolean;
+  compatDropdown: boolean;
+  onSuccessFailure: boolean;
+  evalSource: boolean;
+}
+
+const SCOPE_VISIBILITY: Record<RuleScope, ScopeVisibility> = {
+  runtime: {
+    ruleType: true,
+    mode: true,
+    expression: true,
+    compatDropdown: false,
+    onSuccessFailure: true,
+    evalSource: false,
+  },
+  control_plane: {
+    ruleType: true,
+    mode: false,
+    expression: false,
+    compatDropdown: true,
+    onSuccessFailure: false,
+    evalSource: false,
+  },
+  declarative: {
+    ruleType: false,
+    mode: false,
+    expression: false,
+    compatDropdown: false,
+    onSuccessFailure: false,
+    evalSource: true,
+  },
+  audit: {
+    ruleType: true,
+    mode: false,
+    expression: true,
+    compatDropdown: false,
+    onSuccessFailure: false,
+    evalSource: true,
+  },
+};
+
+// === Component ===
 
 export function RuleEditor({ registryId, rule, subject, onClose, onSaved }: RuleEditorProps) {
   const isEdit = !!rule;
 
-  // Form state
   const [ruleName, setRuleName] = useState(rule?.rule_name ?? "");
   const [description, setDescription] = useState(rule?.description ?? "");
   const [ruleScope, setRuleScope] = useState<RuleScope>(rule?.rule_scope ?? "declarative");
@@ -109,13 +179,14 @@ export function RuleEditor({ registryId, rule, subject, onClose, onSaved }: Rule
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // When scope changes, update defaults
+  // When scope changes, update all auto-defaults
   useEffect(() => {
     if (!isEdit) {
       setRuleKind(SCOPE_DEFAULT_KIND[ruleScope]);
       setRuleType(SCOPE_RULE_TYPES[ruleScope][0]);
       setRuleMode(SCOPE_MODES[ruleScope][0]);
-      // Auto evaluation source
+      setExpression("");
+
       if (ruleScope === "runtime" || ruleScope === "control_plane") {
         setEvalSource("provider_config");
       } else if (ruleScope === "audit") {
@@ -126,8 +197,8 @@ export function RuleEditor({ registryId, rule, subject, onClose, onSaved }: Rule
     }
   }, [ruleScope, isEdit]);
 
-  const showExpression = ruleScope === "runtime" || ruleScope === "audit";
-  const showOnSuccessFailure = ruleScope === "runtime" && ruleKind === "TRANSFORM";
+  const vis = SCOPE_VISIBILITY[ruleScope];
+  const showOnSuccessFailure = vis.onSuccessFailure && ruleKind === "TRANSFORM";
 
   const handleSave = async () => {
     setSaving(true);
@@ -182,10 +253,8 @@ export function RuleEditor({ registryId, rule, subject, onClose, onSaved }: Rule
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
-      {/* Drawer */}
       <div className="relative w-[480px] bg-card border-l border-border h-full flex flex-col animate-in slide-in-from-right-2">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -207,7 +276,7 @@ export function RuleEditor({ registryId, rule, subject, onClose, onSaved }: Rule
         {/* Form */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
 
-          {/* Scope selector — drives the whole form */}
+          {/* SCOPE */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Scope</label>
             <div className="grid grid-cols-2 gap-2">
@@ -231,23 +300,23 @@ export function RuleEditor({ registryId, rule, subject, onClose, onSaved }: Rule
             </div>
           </div>
 
-          {/* Rule name (create only) */}
+          {/* RULE NAME */}
           {!isEdit && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Rule Name</label>
               <Input
                 value={ruleName}
                 onChange={(e) => setRuleName(e.target.value)}
-                placeholder="e.g. require-customer-id"
+                placeholder={NAME_PLACEHOLDERS[ruleScope]}
                 className="h-9 text-sm"
               />
             </div>
           )}
 
-          {/* Subject */}
+          {/* SUBJECT */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
-              Subject <span className="text-zinc-600">(empty = global rule)</span>
+              Subject <span className="text-zinc-600">(empty = applies to all schemas)</span>
             </label>
             <Input
               value={subjectVal}
@@ -258,22 +327,22 @@ export function RuleEditor({ registryId, rule, subject, onClose, onSaved }: Rule
             />
           </div>
 
-          {/* Description */}
+          {/* DESCRIPTION */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Description</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              Description
+              {ruleScope === "declarative" && <span className="text-cyan-400/60 ml-1">— this is the main content for policies</span>}
+            </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder={ruleScope === "declarative"
-                ? "Describe this governance standard..."
-                : "What does this rule check or transform?"
-              }
+              placeholder={DESCRIPTION_PLACEHOLDERS[ruleScope]}
               rows={3}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-cyan-500"
             />
           </div>
 
-          {/* Category */}
+          {/* CATEGORY */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Category</label>
             <select
@@ -287,39 +356,41 @@ export function RuleEditor({ registryId, rule, subject, onClose, onSaved }: Rule
             </select>
           </div>
 
-          {/* Rule Type */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Rule Type</label>
-            <select
-              value={ruleType}
-              onChange={(e) => setRuleType(e.target.value)}
-              className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
-            >
-              {SCOPE_RULE_TYPES[ruleScope].map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Expression (runtime & audit only) */}
-          {showExpression && (
+          {/* RULE TYPE — runtime + control_plane + audit only */}
+          {vis.ruleType && (
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Expression</label>
+              <label className="text-xs font-medium text-muted-foreground">Rule Type</label>
+              <select
+                value={ruleType}
+                onChange={(e) => setRuleType(e.target.value)}
+                className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
+              >
+                {SCOPE_RULE_TYPES[ruleScope].map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* EXPRESSION — runtime + audit */}
+          {vis.expression && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                Expression
+                {ruleScope === "audit" && <span className="text-zinc-600 ml-1">(optional)</span>}
+              </label>
               <textarea
                 value={expression}
                 onChange={(e) => setExpression(e.target.value)}
-                placeholder={ruleScope === "runtime"
-                  ? "has(value.customer_id)"
-                  : "^com\\.[a-z]+\\.[A-Z].*-value$"
-                }
+                placeholder={EXPRESSION_PLACEHOLDERS[ruleScope]}
                 rows={3}
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-cyan-500"
               />
             </div>
           )}
 
-          {/* Control plane: expression as dropdown for COMPATIBILITY */}
-          {ruleScope === "control_plane" && ruleType === "COMPATIBILITY" && (
+          {/* COMPATIBILITY DROPDOWN — control_plane only */}
+          {vis.compatDropdown && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Compatibility Level</label>
               <select
@@ -327,28 +398,41 @@ export function RuleEditor({ registryId, rule, subject, onClose, onSaved }: Rule
                 onChange={(e) => setExpression(e.target.value)}
                 className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
               >
+                <option value="">Select a level…</option>
                 {["BACKWARD", "BACKWARD_TRANSITIVE", "FORWARD", "FORWARD_TRANSITIVE", "FULL", "FULL_TRANSITIVE", "NONE"].map((v) => (
                   <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-zinc-600">
+                Controls what schema changes are allowed when registering a new version.
+              </p>
+            </div>
+          )}
+
+          {/* MODE — runtime only */}
+          {vis.mode && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Mode</label>
+              <select
+                value={ruleMode}
+                onChange={(e) => setRuleMode(e.target.value as RuleMode)}
+                className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
+              >
+                {SCOPE_MODES[ruleScope].map((m) => (
+                  <option key={m} value={m}>
+                    {m === "WRITE" && "WRITE — at produce (serialization)"}
+                    {m === "READ" && "READ — at consume (deserialization)"}
+                    {m === "READWRITE" && "READWRITE — both directions"}
+                    {m === "UPGRADE" && "UPGRADE — migration to newer version"}
+                    {m === "DOWNGRADE" && "DOWNGRADE — migration to older version"}
+                    {m === "UPDOWN" && "UPDOWN — migration both directions"}
+                  </option>
                 ))}
               </select>
             </div>
           )}
 
-          {/* Mode */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Mode</label>
-            <select
-              value={ruleMode}
-              onChange={(e) => setRuleMode(e.target.value as RuleMode)}
-              className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
-            >
-              {SCOPE_MODES[ruleScope].map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* On Success / On Failure (runtime TRANSFORM only) */}
+          {/* ON SUCCESS / ON FAILURE — runtime TRANSFORM only */}
           {showOnSuccessFailure && (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -359,11 +443,11 @@ export function RuleEditor({ registryId, rule, subject, onClose, onSaved }: Rule
                   className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 >
                   <option value="">None</option>
-                  <option value="NONE">NONE</option>
-                  <option value="ENCRYPT">ENCRYPT</option>
-                  <option value="DECRYPT">DECRYPT</option>
-                  <option value="DLQ">DLQ</option>
-                  <option value="ERROR">ERROR</option>
+                  <option value="NONE">NONE — continue</option>
+                  <option value="ENCRYPT">ENCRYPT — encrypt the field</option>
+                  <option value="DECRYPT">DECRYPT — decrypt the field</option>
+                  <option value="DLQ">DLQ — send to dead letter queue</option>
+                  <option value="ERROR">ERROR — reject the message</option>
                 </select>
               </div>
               <div className="space-y-1.5">
@@ -374,81 +458,126 @@ export function RuleEditor({ registryId, rule, subject, onClose, onSaved }: Rule
                   className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 >
                   <option value="">None</option>
-                  <option value="NONE">NONE</option>
-                  <option value="ERROR">ERROR</option>
-                  <option value="DLQ">DLQ</option>
+                  <option value="NONE">NONE — ignore</option>
+                  <option value="ERROR">ERROR — reject the message</option>
+                  <option value="DLQ">DLQ — send to dead letter queue</option>
                 </select>
               </div>
             </div>
           )}
 
-          {/* Severity */}
+          {/* SEVERITY */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Severity</label>
-            <div className="flex gap-2">
-              {SEVERITY_OPTIONS.map((s) => (
+            <label className="text-xs font-medium text-muted-foreground">How important is this rule?</label>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { value: "info" as RuleSeverity, label: "Info", hint: "No penalty if not met", color: "zinc" },
+                { value: "warning" as RuleSeverity, label: "Warning", hint: "Moderate impact on score", color: "yellow" },
+                { value: "error" as RuleSeverity, label: "Error", hint: "Significant impact on score", color: "orange" },
+                { value: "critical" as RuleSeverity, label: "Critical", hint: "Blocks compliance — major impact", color: "red" },
+              ]).map((s) => (
                 <button
-                  key={s}
-                  onClick={() => setSeverity(s)}
+                  key={s.value}
+                  onClick={() => setSeverity(s.value)}
                   className={cn(
-                    "flex-1 py-1.5 rounded-md text-xs font-medium border transition-all",
-                    severity === s
-                      ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-400"
-                      : "border-border text-muted-foreground hover:border-zinc-600"
+                    "px-3 py-2 rounded-md text-xs border transition-all text-left",
+                    severity === s.value
+                      ? `border-${s.color}-500/50 bg-${s.color}-500/10 text-${s.color}-400`
+                      : "border-border bg-background text-muted-foreground hover:border-zinc-600"
                   )}
                 >
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                  <div className="font-medium mb-0.5">{s.label}</div>
+                  <div className="text-[10px] text-muted-foreground">{s.hint}</div>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Enforcement Status */}
+          {/* ENFORCEMENT */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Enforcement Status</label>
-            <div className="flex gap-2">
-              {ENFORCEMENT_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setEnforcement(opt.value)}
-                  className={cn(
-                    "flex-1 py-1.5 rounded-md text-xs font-medium border transition-all",
-                    enforcement === opt.value
-                      ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-400"
-                      : "border-border text-muted-foreground hover:border-zinc-600"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Evaluation Source (declarative & audit) */}
-          {(ruleScope === "declarative" || ruleScope === "audit") && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Evaluation Source</label>
-              <select
-                value={evalSource}
-                onChange={(e) => setEvalSource(e.target.value as EvaluationSource)}
-                className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            <label className="text-xs font-medium text-muted-foreground">Is this rule required?</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setEnforcement("declared")}
+                className={cn(
+                  "px-3 py-2 rounded-md text-xs border transition-all text-left",
+                  enforcement === "declared"
+                    ? "border-zinc-500/50 bg-zinc-500/10 text-zinc-400"
+                    : "border-border bg-background text-muted-foreground hover:border-zinc-600"
+                )}
               >
-                {EVAL_SOURCE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                <div className="font-medium mb-0.5">Declared</div>
+                <div className="text-[10px] text-muted-foreground">Documented for reference — no effect on score</div>
+              </button>
+              <button
+                onClick={() => setEnforcement("expected")}
+                className={cn(
+                  "px-3 py-2 rounded-md text-xs border transition-all text-left",
+                  enforcement === "expected"
+                    ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
+                    : "border-border bg-background text-muted-foreground hover:border-zinc-600"
+                )}
+              >
+                <div className="font-medium mb-0.5">Expected</div>
+                <div className="text-[10px] text-muted-foreground">Required by governance — impacts the score</div>
+              </button>
+            </div>
+          </div>
+
+          {/* EVALUATION SOURCE — declarative + audit only */}
+          {vis.evalSource && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">How can this be verified?</label>
+              <div className="grid grid-cols-1 gap-1.5">
+                {([
+                  { value: "enrichment_metadata" as EvaluationSource, label: "Check enrichments", hint: "event7 can verify via owner, tags, description, classification" },
+                  { value: "schema_content" as EvaluationSource, label: "Inspect schema", hint: "event7 can check field names, doc attributes, references" },
+                  { value: "provider_config" as EvaluationSource, label: "Query provider API", hint: "event7 can read the setting from the registry directly" },
+                  { value: "declared_only" as EvaluationSource, label: "Trust — no auto-check", hint: "This is a convention taken on trust, not verifiable" },
+                ]).map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setEvalSource(opt.value)}
+                    className={cn(
+                      "flex items-start gap-3 px-3 py-2 rounded-md text-xs border transition-all text-left w-full",
+                      evalSource === opt.value
+                        ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-400"
+                        : "border-border bg-background text-muted-foreground hover:border-zinc-600"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-3 h-3 rounded-full border-2 mt-0.5 shrink-0",
+                      evalSource === opt.value
+                        ? "border-cyan-400 bg-cyan-400"
+                        : "border-zinc-600 bg-transparent"
+                    )} />
+                    <div>
+                      <div className="font-medium">{opt.label}</div>
+                      <div className="text-[10px] text-muted-foreground">{opt.hint}</div>
+                    </div>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
           )}
 
-          {/* Scope hint */}
+          {/* SCOPE HINT */}
           <div className="rounded-md bg-zinc-900/50 border border-zinc-800 px-3 py-2 text-[11px] text-zinc-500">
-            {ruleScope === "runtime" && "This rule will be executed by the serializer/deserializer client. It can be synced to Confluent Schema Registry."}
-            {ruleScope === "control_plane" && "This rule controls what is allowed when registering a schema. It can be synced to Confluent or Apicurio."}
-            {ruleScope === "declarative" && "This is an organizational standard. It is not automatically enforced but contributes to governance scoring."}
-            {ruleScope === "audit" && "This rule will be checked a posteriori for scoring. It is not enforced at runtime."}
+            {ruleScope === "runtime" && (
+              <><strong className="text-zinc-400">Runtime rule.</strong> Executed by the Kafka serializer/deserializer. Can be synced to Confluent ruleSet.</>
+            )}
+            {ruleScope === "control_plane" && (
+              <><strong className="text-zinc-400">Control plane rule.</strong> Controls schema registration. Can be synced to Confluent or Apicurio.</>
+            )}
+            {ruleScope === "declarative" && (
+              <><strong className="text-zinc-400">Organizational policy.</strong> Not enforced automatically — contributes to governance score when marked Expected.</>
+            )}
+            {ruleScope === "audit" && (
+              <><strong className="text-zinc-400">Audit check.</strong> Evaluated against schema content or enrichments for scoring. Add a regex or description.</>
+            )}
           </div>
 
-          {/* Error */}
+          {/* ERROR */}
           {error && (
             <div className="rounded-md bg-red-500/10 border border-red-500/20 px-3 py-2 text-xs text-red-400">
               {error}
