@@ -53,7 +53,7 @@ event7 adds a **provider-agnostic governance layer** above your registries. Sche
 ### How event7 fits
 
 ```
-Schema Registry  →  event7                →  AsyncAPI / CloudEvents  →  EventCatalog / Backstage
+Schema Registry  ↔  event7                ↔  AsyncAPI / CloudEvents  →  EventCatalog / Backstage
   (stores)          (governs + validates)      (specifies)                (documents)
 ```
 
