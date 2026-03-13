@@ -104,7 +104,7 @@ class SchemaService:
     async def create_schema(
         self, subject: str, schema: dict, schema_type: str = "AVRO"
     ) -> SchemaDetail:
-        result = await self.provider.create_schema(subject, schema, schema_type)
+        result = await self.provider.create_schema(subject, schema)
         # Invalidate cache
         await self.cache.delete_pattern(self._key("*"))
         return result

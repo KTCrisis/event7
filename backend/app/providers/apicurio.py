@@ -292,7 +292,7 @@ class ApicurioProvider(SchemaRegistryProvider):
 
         return await self.get_schema(subject, "latest")
 
-    async def delete_subject(self, subject: str) -> bool:
+    async def delete_subject(self, subject: str, permanent: bool = False) -> bool:
         try:
             await self._delete(self._artifact_path(subject))
             return True
