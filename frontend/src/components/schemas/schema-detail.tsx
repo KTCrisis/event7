@@ -9,14 +9,15 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import { SchemaContent } from "./schema-content";
+import { EvolutionTimeline } from "./evolution-timeline";
 import { getSchema, getVersions, getReferences, getCompatibility } from "@/lib/api/schemas";
 import type { SchemaDetail as SchemaDetailType, SchemaReference, CompatibilityInfo } from "@/types/schema";
 
@@ -24,6 +25,8 @@ interface SchemaDetailProps {
   registryId: string;
   subject: string;
 }
+
+type Tab = "schema" | "evolution";
 
 export function SchemaDetail({ registryId, subject }: SchemaDetailProps) {
   const router = useRouter();
@@ -34,12 +37,14 @@ export function SchemaDetail({ registryId, subject }: SchemaDetailProps) {
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("schema");
 
   // Fetch schema data
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setTab("schema"); // reset tab on subject change
 
     Promise.all([
       getSchema(registryId, subject),
@@ -56,7 +61,7 @@ export function SchemaDetail({ registryId, subject }: SchemaDetailProps) {
         setSelectedVersion(schemaData.version);
         setLoading(false);
       })
-      .catch((err) => {
+      .catch((err: any) => {
         if (cancelled) return;
         setError(err?.detail || "Failed to load schema");
         setLoading(false);
@@ -71,8 +76,6 @@ export function SchemaDetail({ registryId, subject }: SchemaDetailProps) {
     setLoading(true);
     try {
       const data = await getSchema(registryId, subject);
-      // If we need a specific version, use the versions-detail endpoint
-      // For now, the latest is fetched — version selector is visual
       setSchema(data);
     } catch (err: any) {
       setError(err?.detail || "Failed to load version");
@@ -210,9 +213,50 @@ export function SchemaDetail({ registryId, subject }: SchemaDetailProps) {
         </div>
       )}
 
-      {/* Schema content */}
+      {/* Tabs */}
+      <div className="shrink-0 px-4 border-b border-border">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setTab("schema")}
+            className={cn(
+              "py-2 text-xs font-medium border-b-2 transition-colors",
+              tab === "schema"
+                ? "border-cyan-400 text-cyan-400"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Schema
+          </button>
+          <button
+            onClick={() => setTab("evolution")}
+            className={cn(
+              "py-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1.5",
+              tab === "evolution"
+                ? "border-cyan-400 text-cyan-400"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Evolution
+            {versions.length > 1 && (
+              <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5">
+                {versions.length}
+              </Badge>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
       <div className="flex-1 overflow-auto p-4">
-        <SchemaContent content={schema.schema_content} maxHeight="none" />
+        {tab === "schema" ? (
+          <SchemaContent content={schema.schema_content} maxHeight="none" />
+        ) : (
+          <EvolutionTimeline
+            registryId={registryId}
+            subject={subject}
+            versions={versions}
+          />
+        )}
       </div>
     </div>
   );
