@@ -138,10 +138,7 @@ export default function AsyncApiPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <FileCode className="text-primary" size={24} />
-          AsyncAPI Documentation
-        </h1>
+      <h1 className="text-lg font-semibold">AsyncAPI</h1>
         <p className="text-muted-foreground text-sm mt-1">
           Generate and browse AsyncAPI 3.0 specs from your registry schemas.
         </p>
