@@ -406,7 +406,7 @@ INSERT INTO governance_rule_templates (template_name, display_name, description,
 VALUES
 -- RAW Layer
 ('raw_layer', 'RAW Layer Governance',
- 'Couche de collecte — données brutes, fidélité à la source, peu de contraintes',
+ 'Collection layer — raw data, fidelity to the source, few constraints',
  'raw',
  '[
     {
@@ -420,7 +420,7 @@ VALUES
         "severity": "error",
         "evaluation_source": "provider_config",
         "default_enforcement": "expected",
-        "description": "Compatibilité BACKWARD pour ne pas casser les consumers"
+        "description": "Backward compatibility to avoid disrupting the consumer experience"
     },
     {
         "rule_name": "require-source-metadata",
@@ -433,7 +433,7 @@ VALUES
         "severity": "warning",
         "evaluation_source": "schema_content",
         "default_enforcement": "expected",
-        "description": "Le schéma doit contenir des champs source_system et ingestion_timestamp"
+        "description": "The schema must contain source_system and ingestion_timestamp fields"
     },
     {
         "rule_name": "no-transform-on-raw",
@@ -446,13 +446,13 @@ VALUES
         "severity": "info",
         "evaluation_source": "declared_only",
         "default_enforcement": "declared",
-        "description": "Les données RAW ne doivent pas être transformées — fidélité à la source"
+        "description": "RAW data must not be transformed — fidelity to the source"
     }
 ]'::jsonb),
 
 -- CORE Layer
 ('core_layer', 'CORE Layer Governance',
- 'Couche canonique — modèle métier central, contraintes fortes, réutilisable',
+ 'Canonical layer — core business model, strong constraints, reusable',
  'core',
  '[
     {
@@ -466,7 +466,7 @@ VALUES
         "severity": "critical",
         "evaluation_source": "provider_config",
         "default_enforcement": "expected",
-        "description": "Compatibilité FULL_TRANSITIVE — le modèle canonique ne doit jamais casser"
+        "description": "FULL_TRANSITIVE compatibility — the canonical model should never break"
     },
     {
         "rule_name": "require-doc-fields",
@@ -479,7 +479,7 @@ VALUES
         "severity": "error",
         "evaluation_source": "schema_content",
         "default_enforcement": "expected",
-        "description": "Tous les champs doivent avoir un attribut doc (Avro) ou description (JSON Schema)"
+        "description": "All fields must have a doc (Avro) or description (JSON Schema) attribute."
     },
     {
         "rule_name": "require-id-and-timestamp",
@@ -492,7 +492,7 @@ VALUES
         "severity": "error",
         "evaluation_source": "provider_config",
         "default_enforcement": "expected",
-        "description": "Chaque événement core doit contenir un id et un timestamp"
+        "description": "Each core event must contain an ID and a timestamp"
     },
     {
         "rule_name": "encrypt-pii",
@@ -507,7 +507,7 @@ VALUES
         "severity": "critical",
         "evaluation_source": "provider_config",
         "default_enforcement": "expected",
-        "description": "Les champs tagués PII doivent être chiffrés (CSFLE)"
+        "description": "Fields tagged PII must be encrypted (CSFLE)"
     },
     {
         "rule_name": "require-owner",
@@ -520,13 +520,13 @@ VALUES
         "severity": "warning",
         "evaluation_source": "enrichment_metadata",
         "default_enforcement": "expected",
-        "description": "Le schéma core doit avoir un owner_team défini dans les enrichments"
+        "description": "The core schema must have an owner_team defined in the enrichments."
     }
 ]'::jsonb),
 
 -- REFINED Layer
 ('refined_layer', 'REFINED Layer Governance',
- 'Couche d''agrégation — réutilise les types Core, period-based',
+ 'Aggregation layer — reuses Core, period-based types',
  'refined',
  '[
     {
@@ -540,7 +540,7 @@ VALUES
         "severity": "error",
         "evaluation_source": "provider_config",
         "default_enforcement": "expected",
-        "description": "Compatibilité BACKWARD_TRANSITIVE — dashboards et rapports ne doivent pas casser"
+        "description": "BACKWARD_TRANSITIVE compatibility — dashboards and reports must not break"
     },
     {
         "rule_name": "must-reference-core",
@@ -553,7 +553,7 @@ VALUES
         "severity": "warning",
         "evaluation_source": "schema_content",
         "default_enforcement": "expected",
-        "description": "Les schémas refined doivent référencer des types Core (pas de duplication)"
+        "description": "Refined schemas must reference Core types (no duplication)."
     },
     {
         "rule_name": "require-aggregation-period",
@@ -566,13 +566,13 @@ VALUES
         "severity": "info",
         "evaluation_source": "declared_only",
         "default_enforcement": "declared",
-        "description": "Documenter la période d''agrégation dans les enrichments"
+        "description": "Documenting the aggregation period in the enrichments"
     }
 ]'::jsonb),
 
 -- APPLICATION Layer
 ('application_layer', 'APPLICATION Layer Governance',
- 'Couche applicative — vues simplifiées, consommation, évolution indépendante',
+ 'Application layer — simplified views, consumption, independent evolution',
  'application',
  '[
     {
@@ -586,7 +586,7 @@ VALUES
         "severity": "warning",
         "evaluation_source": "provider_config",
         "default_enforcement": "expected",
-        "description": "Compatibilité BACKWARD — les apps clientes ne doivent pas casser"
+        "description": "Backward compatibility — client apps must not break"
     },
     {
         "rule_name": "max-fields-limit",
@@ -600,9 +600,10 @@ VALUES
         "severity": "info",
         "evaluation_source": "schema_content",
         "default_enforcement": "declared",
-        "description": "Les schémas application doivent rester simples (max 30 champs)"
+        "description": "Application schemas should remain simple (max 30 fields)"
     }
 ]'::jsonb)
+
 ON CONFLICT (template_name) DO UPDATE SET
     display_name = EXCLUDED.display_name,
     description = EXCLUDED.description,

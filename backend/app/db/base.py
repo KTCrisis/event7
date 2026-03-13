@@ -182,6 +182,67 @@ class DatabaseProvider(ABC):
         """Get a single governance rule template by ID."""
         ...
 
+
+   # ================================================================
+    # CHANNELS
+    # ================================================================
+ 
+    @abstractmethod
+    def get_channels(self, registry_id: str) -> list[dict]:
+        """List all channels for a registry."""
+        ...
+ 
+    @abstractmethod
+    def get_channel_by_id(self, channel_id: str) -> dict | None:
+        """Fetch a single channel by ID."""
+        ...
+ 
+    @abstractmethod
+    def create_channel(self, channel_data: dict) -> dict | None:
+        """Insert a new channel. channel_data must include registry_id."""
+        ...
+ 
+    @abstractmethod
+    def update_channel(self, channel_id: str, updates: dict) -> dict | None:
+        """Update a channel. Returns updated row or None."""
+        ...
+ 
+    @abstractmethod
+    def delete_channel(self, channel_id: str) -> bool:
+        """Delete a channel (cascades to channel_subjects). Returns True if deleted."""
+        ...
+ 
+    # ================================================================
+    # CHANNEL-SUBJECT BINDINGS
+    # ================================================================
+ 
+    @abstractmethod
+    def get_bindings_for_channel(self, channel_id: str) -> list[dict]:
+        """List all subject bindings for a channel."""
+        ...
+ 
+    @abstractmethod
+    def get_channels_for_subject(self, registry_id: str, subject_name: str) -> list[dict]:
+        """List all channels bound to a subject (reverse lookup)."""
+        ...
+ 
+    @abstractmethod
+    def create_binding(self, binding_data: dict) -> dict | None:
+        """Create a channel-subject binding. binding_data must include channel_id."""
+        ...
+ 
+    @abstractmethod
+    def delete_binding(self, binding_id: str) -> bool:
+        """Delete a channel-subject binding. Returns True if deleted."""
+        ...
+ 
+    @abstractmethod
+    def update_binding_status(
+        self, binding_id: str, status: str, verified_at: str | None = None
+    ) -> dict | None:
+        """Update binding_status and last_verified_at. Returns updated row."""
+        ...
+
     # ================================================================
     # SCHEMA SNAPSHOTS
     # ================================================================
