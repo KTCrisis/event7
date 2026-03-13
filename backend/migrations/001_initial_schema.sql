@@ -1,10 +1,13 @@
 -- ============================================
 -- event7 - Supabase Database Bootstrap
--- Version: 0.2.0 (post P0+P1)
+-- Version: 0.3.0 (Channel Model)
 -- ============================================
 -- Script DESTRUCTIF: DROP toutes les tables puis recrée.
 -- Utiliser pour un init propre en dev/test.
 -- Exécuter dans Supabase Dashboard > SQL Editor
+-- ============================================
+-- ⚠️  NE PAS EXÉCUTER EN PRODUCTION AVEC DES DONNÉES
+-- ============================================
 
 -- ========================
 -- 0. CLEANUP (ordre inverse des FK)
@@ -19,7 +22,11 @@ BEGIN
         SELECT policyname, tablename
         FROM pg_policies
         WHERE schemaname = 'public'
-          AND tablename IN ('registries', 'enrichments', 'schema_snapshots', 'asyncapi_specs', 'audit_logs')
+          AND tablename IN (
+              'registries', 'enrichments', 'schema_snapshots',
+              'asyncapi_specs', 'audit_logs',
+              'channels', 'channel_subjects'
+          )
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS %I ON %I', pol.policyname, pol.tablename);
     END LOOP;
@@ -29,11 +36,14 @@ END $$;
 DROP TRIGGER IF EXISTS trg_registries_updated_at ON registries;
 DROP TRIGGER IF EXISTS trg_enrichments_updated_at ON enrichments;
 DROP TRIGGER IF EXISTS trg_asyncapi_updated_at ON asyncapi_specs;
+DROP TRIGGER IF EXISTS trg_channels_updated_at ON channels;
 
 -- Drop function
 DROP FUNCTION IF EXISTS update_updated_at();
 
 -- Drop tables (ordre: enfants → parents)
+DROP TABLE IF EXISTS channel_subjects CASCADE;
+DROP TABLE IF EXISTS channels CASCADE;
 DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS asyncapi_specs CASCADE;
 DROP TABLE IF EXISTS schema_snapshots CASCADE;
@@ -86,6 +96,9 @@ CREATE TABLE enrichments (
     owner_team TEXT,
     tags JSONB NOT NULL DEFAULT '[]'::jsonb,
     classification data_classification NOT NULL DEFAULT 'internal',
+    data_layer VARCHAR(50) CHECK (
+        data_layer IN ('raw', 'core', 'refined', 'application') OR data_layer IS NULL
+    ),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -130,6 +143,76 @@ CREATE TABLE audit_logs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- --- Channels (abstraction multi-broker) ---
+CREATE TABLE channels (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    registry_id UUID NOT NULL REFERENCES registries(id) ON DELETE CASCADE,
+
+    name VARCHAR(500) NOT NULL,
+    address VARCHAR(1000) NOT NULL,
+
+    broker_type VARCHAR(50) NOT NULL CHECK (broker_type IN (
+        'kafka', 'redpanda', 'rabbitmq', 'pulsar', 'nats',
+        'google_pubsub', 'aws_sns_sqs', 'azure_servicebus', 'redis_streams', 'custom'
+    )),
+    resource_kind VARCHAR(50) NOT NULL CHECK (resource_kind IN (
+        'topic', 'exchange', 'subject', 'queue', 'stream'
+    )),
+    messaging_pattern VARCHAR(50) NOT NULL CHECK (messaging_pattern IN (
+        'topic_log', 'pubsub', 'queue'
+    )),
+
+    broker_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+    data_layer VARCHAR(50) CHECK (
+        data_layer IN ('raw', 'core', 'refined', 'application') OR data_layer IS NULL
+    ),
+
+    description TEXT,
+    owner VARCHAR(200),
+    tags TEXT[] DEFAULT '{}',
+
+    is_auto_detected BOOLEAN NOT NULL DEFAULT FALSE,
+    auto_detect_source VARCHAR(100),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT uq_channels_registry_address_broker UNIQUE (registry_id, address, broker_type)
+);
+
+-- --- Channel-Subject Bindings (pivot N:N) ---
+CREATE TABLE channel_subjects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    channel_id UUID NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+
+    subject_name VARCHAR(500) NOT NULL,
+
+    binding_strategy VARCHAR(50) NOT NULL CHECK (binding_strategy IN (
+        'channel_bound', 'domain_bound', 'app_bound'
+    )),
+    schema_role VARCHAR(50) NOT NULL DEFAULT 'value' CHECK (schema_role IN (
+        'value', 'key', 'header', 'envelope'
+    )),
+
+    binding_origin VARCHAR(50) NOT NULL DEFAULT 'manual' CHECK (binding_origin IN (
+        'tns', 'trs', 'rns_heuristic', 'kafka_api', 'routing_key', 'attribute_filter', 'manual'
+    )),
+
+    binding_selector VARCHAR(500),
+
+    binding_status VARCHAR(50) NOT NULL DEFAULT 'unverified' CHECK (binding_status IN (
+        'active', 'missing_subject', 'stale', 'unverified'
+    )),
+    last_verified_at TIMESTAMPTZ,
+
+    is_auto_detected BOOLEAN NOT NULL DEFAULT FALSE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT uq_channel_subjects_binding UNIQUE (channel_id, subject_name, schema_role)
+);
+
 -- ========================
 -- 4. INDEXES
 -- ========================
@@ -158,6 +241,18 @@ CREATE INDEX idx_audit_registry_id ON audit_logs(registry_id);
 CREATE INDEX idx_audit_action ON audit_logs(action);
 CREATE INDEX idx_audit_created_at ON audit_logs(created_at DESC);
 
+-- Channels
+CREATE INDEX idx_channels_registry ON channels(registry_id);
+CREATE INDEX idx_channels_broker ON channels(broker_type);
+CREATE INDEX idx_channels_layer ON channels(data_layer);
+CREATE INDEX idx_channels_resource ON channels(resource_kind);
+
+-- Channel Subjects
+CREATE INDEX idx_channel_subjects_channel ON channel_subjects(channel_id);
+CREATE INDEX idx_channel_subjects_subject ON channel_subjects(subject_name);
+CREATE INDEX idx_channel_subjects_strategy ON channel_subjects(binding_strategy);
+CREATE INDEX idx_channel_subjects_status ON channel_subjects(binding_status);
+
 -- ========================
 -- 5. UPDATED_AT TRIGGER
 -- ========================
@@ -182,6 +277,10 @@ CREATE TRIGGER trg_asyncapi_updated_at
     BEFORE UPDATE ON asyncapi_specs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+CREATE TRIGGER trg_channels_updated_at
+    BEFORE UPDATE ON channels
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 -- ========================
 -- 6. ROW LEVEL SECURITY
 -- ========================
@@ -195,6 +294,8 @@ ALTER TABLE enrichments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE schema_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE asyncapi_specs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE channels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE channel_subjects ENABLE ROW LEVEL SECURITY;
 
 -- Registries
 CREATE POLICY "registries_select_own" ON registries FOR SELECT
@@ -233,6 +334,36 @@ CREATE POLICY "asyncapi_update_own" ON asyncapi_specs FOR UPDATE
     USING (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
 CREATE POLICY "asyncapi_delete_own" ON asyncapi_specs FOR DELETE
     USING (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+
+-- Channels (via registry owner)
+CREATE POLICY "channels_select_own" ON channels FOR SELECT
+    USING (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+CREATE POLICY "channels_insert_own" ON channels FOR INSERT
+    WITH CHECK (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+CREATE POLICY "channels_update_own" ON channels FOR UPDATE
+    USING (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+CREATE POLICY "channels_delete_own" ON channels FOR DELETE
+    USING (registry_id IN (SELECT id FROM registries WHERE user_id = auth.uid()));
+
+-- Channel Subjects (via channel → registry owner)
+CREATE POLICY "channel_subjects_select_own" ON channel_subjects FOR SELECT
+    USING (channel_id IN (
+        SELECT id FROM channels WHERE registry_id IN (
+            SELECT id FROM registries WHERE user_id = auth.uid()
+        )
+    ));
+CREATE POLICY "channel_subjects_insert_own" ON channel_subjects FOR INSERT
+    WITH CHECK (channel_id IN (
+        SELECT id FROM channels WHERE registry_id IN (
+            SELECT id FROM registries WHERE user_id = auth.uid()
+        )
+    ));
+CREATE POLICY "channel_subjects_delete_own" ON channel_subjects FOR DELETE
+    USING (channel_id IN (
+        SELECT id FROM channels WHERE registry_id IN (
+            SELECT id FROM registries WHERE user_id = auth.uid()
+        )
+    ));
 
 -- Audit Logs
 CREATE POLICY "audit_select_own" ON audit_logs FOR SELECT

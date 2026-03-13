@@ -1,6 +1,6 @@
 -- ============================================
 -- event7 - PostgreSQL Standalone Schema
--- Version: 0.3.0 (local / GKE / on-prem compatible)
+-- Version: 0.4.0 (Channel Model)
 -- ============================================
 -- Compatible with both Supabase Cloud and plain PostgreSQL.
 -- Differences from bootstrap.sql (Supabase):
@@ -93,6 +93,9 @@ CREATE TABLE IF NOT EXISTS enrichments (
     owner_team TEXT,
     tags JSONB NOT NULL DEFAULT '[]'::jsonb,
     classification data_classification NOT NULL DEFAULT 'internal',
+    data_layer VARCHAR(50) CHECK (
+        data_layer IN ('raw', 'core', 'refined', 'application') OR data_layer IS NULL
+    ),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_enrichments_registry_subject UNIQUE (registry_id, subject)
@@ -214,11 +217,80 @@ CREATE TABLE IF NOT EXISTS governance_rules (
 );
 
 -- Unique partiel pour rules globales (subject IS NULL)
--- CREATE UNIQUE INDEX est pas IF NOT EXISTS en PG < 9.5, on drop+create
 DROP INDEX IF EXISTS uq_governance_rules_global;
 CREATE UNIQUE INDEX uq_governance_rules_global
     ON governance_rules (registry_id, rule_name)
     WHERE subject IS NULL;
+
+-- --- Channels (abstraction multi-broker) ---
+CREATE TABLE IF NOT EXISTS channels (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    registry_id UUID NOT NULL REFERENCES registries(id) ON DELETE CASCADE,
+
+    name VARCHAR(500) NOT NULL,
+    address VARCHAR(1000) NOT NULL,
+
+    broker_type VARCHAR(50) NOT NULL CHECK (broker_type IN (
+        'kafka', 'redpanda', 'rabbitmq', 'pulsar', 'nats',
+        'google_pubsub', 'aws_sns_sqs', 'azure_servicebus', 'redis_streams', 'custom'
+    )),
+    resource_kind VARCHAR(50) NOT NULL CHECK (resource_kind IN (
+        'topic', 'exchange', 'subject', 'queue', 'stream'
+    )),
+    messaging_pattern VARCHAR(50) NOT NULL CHECK (messaging_pattern IN (
+        'topic_log', 'pubsub', 'queue'
+    )),
+
+    broker_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+    data_layer VARCHAR(50) CHECK (
+        data_layer IN ('raw', 'core', 'refined', 'application') OR data_layer IS NULL
+    ),
+
+    description TEXT,
+    owner VARCHAR(200),
+    tags TEXT[] DEFAULT '{}',
+
+    is_auto_detected BOOLEAN NOT NULL DEFAULT FALSE,
+    auto_detect_source VARCHAR(100),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT uq_channels_registry_address_broker UNIQUE (registry_id, address, broker_type)
+);
+
+-- --- Channel-Subject Bindings (pivot N:N) ---
+CREATE TABLE IF NOT EXISTS channel_subjects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    channel_id UUID NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+
+    subject_name VARCHAR(500) NOT NULL,
+
+    binding_strategy VARCHAR(50) NOT NULL CHECK (binding_strategy IN (
+        'channel_bound', 'domain_bound', 'app_bound'
+    )),
+    schema_role VARCHAR(50) NOT NULL DEFAULT 'value' CHECK (schema_role IN (
+        'value', 'key', 'header', 'envelope'
+    )),
+
+    binding_origin VARCHAR(50) NOT NULL DEFAULT 'manual' CHECK (binding_origin IN (
+        'tns', 'trs', 'rns_heuristic', 'kafka_api', 'routing_key', 'attribute_filter', 'manual'
+    )),
+
+    binding_selector VARCHAR(500),
+
+    binding_status VARCHAR(50) NOT NULL DEFAULT 'unverified' CHECK (binding_status IN (
+        'active', 'missing_subject', 'stale', 'unverified'
+    )),
+    last_verified_at TIMESTAMPTZ,
+
+    is_auto_detected BOOLEAN NOT NULL DEFAULT FALSE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT uq_channel_subjects_binding UNIQUE (channel_id, subject_name, schema_role)
+);
 
 CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -259,6 +331,18 @@ CREATE INDEX IF NOT EXISTS idx_governance_rules_subject ON governance_rules(regi
 CREATE INDEX IF NOT EXISTS idx_governance_rules_tags ON governance_rules USING GIN (tags);
 CREATE INDEX IF NOT EXISTS idx_governance_rules_scoring ON governance_rules(registry_id, severity, enforcement_status, evaluation_source);
 CREATE INDEX IF NOT EXISTS idx_governance_rules_template ON governance_rules(origin_template_id) WHERE origin_template_id IS NOT NULL;
+
+-- Channels
+CREATE INDEX IF NOT EXISTS idx_channels_registry ON channels(registry_id);
+CREATE INDEX IF NOT EXISTS idx_channels_broker ON channels(broker_type);
+CREATE INDEX IF NOT EXISTS idx_channels_layer ON channels(data_layer);
+CREATE INDEX IF NOT EXISTS idx_channels_resource ON channels(resource_kind);
+
+-- Channel Subjects
+CREATE INDEX IF NOT EXISTS idx_channel_subjects_channel ON channel_subjects(channel_id);
+CREATE INDEX IF NOT EXISTS idx_channel_subjects_subject ON channel_subjects(subject_name);
+CREATE INDEX IF NOT EXISTS idx_channel_subjects_strategy ON channel_subjects(binding_strategy);
+CREATE INDEX IF NOT EXISTS idx_channel_subjects_status ON channel_subjects(binding_status);
 
 -- Audit
 CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit_logs(user_id);
@@ -301,6 +385,17 @@ CREATE TRIGGER trg_governance_templates_updated_at
 DROP TRIGGER IF EXISTS trg_governance_rules_updated_at ON governance_rules;
 CREATE TRIGGER trg_governance_rules_updated_at
     BEFORE UPDATE ON governance_rules
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Channel trigger — safe drop (table may not exist on first partial run)
+DO $$
+BEGIN
+    DROP TRIGGER IF EXISTS trg_channels_updated_at ON channels;
+EXCEPTION WHEN undefined_table THEN NULL;
+END $$;
+
+CREATE TRIGGER trg_channels_updated_at
+    BEFORE UPDATE ON channels
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ========================
