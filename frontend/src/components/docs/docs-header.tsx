@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, ExternalLink, Github, Linkedin, Mail } from "lucide-react";
+import { Menu, X, Github, Linkedin, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const mobileLinks = [
@@ -81,14 +81,12 @@ export function DocsHeader() {
             <span className="hidden sm:inline">Contact</span>
           </a>
           <div className="hidden sm:block w-px h-4 bg-slate-800 mx-1" />
-          <Link
-            href="https://event7.pages.dev"
-            target="_blank"
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
+          <a
+            href="mailto:flux7art@gmail.com?subject=event7%20demo%20access"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-slate-950 bg-teal-400 hover:bg-teal-300 transition-colors"
           >
-            Live Demo
-            <ExternalLink className="h-3 w-3 opacity-50" />
-          </Link>
+            Request Demo
+          </a>
         </div>
       </div>
 
