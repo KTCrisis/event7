@@ -18,6 +18,10 @@ export interface CatalogEntry {
   data_layer: DataLayer | null;
   has_asyncapi: boolean;
   reference_count: number;
+  // Channel binding info
+  broker_types: string[];
+  channel_count: number;
+  updated_at: string | null;
 }
 
 export interface Enrichment {

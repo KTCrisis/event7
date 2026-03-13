@@ -650,6 +650,29 @@ class PostgreSQLDatabase(DatabaseProvider):
                RETURNING *""",
             (status, binding_id),
         )
+
+    # ================================================================
+    # CATALOG HELPERS
+    # ================================================================
+
+    def get_subject_channel_map(self, registry_id: str) -> dict[str, list[str]]:
+        """Return {subject_name: [broker_types]} via single JOIN query."""
+        rows = self._fetchall(
+            """SELECT cs.subject_name,
+                      array_agg(DISTINCT c.broker_type) AS broker_types,
+                      count(*) AS channel_count
+               FROM channel_subjects cs
+               JOIN channels c ON cs.channel_id = c.id
+               WHERE c.registry_id = %s::uuid
+               GROUP BY cs.subject_name""",
+            (registry_id,),
+        )
+        return {
+            r["subject_name"]: r["broker_types"]
+            for r in rows
+        }
+
+        
     # ================================================================
     # SCHEMA SNAPSHOTS
     # ================================================================

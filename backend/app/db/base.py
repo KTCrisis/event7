@@ -244,6 +244,16 @@ class DatabaseProvider(ABC):
         ...
 
     # ================================================================
+    # CATALOG HELPERS
+    # ================================================================
+
+    @abstractmethod
+    def get_subject_channel_map(self, registry_id: str) -> dict[str, list[str]]:
+        """Return {subject_name: [distinct broker_types]} for all bound subjects in a registry."""
+        ...
+
+        
+    # ================================================================
     # SCHEMA SNAPSHOTS
     # ================================================================
 

@@ -88,3 +88,8 @@ class CatalogEntry(BaseModel):
     # Calculé
     has_asyncapi: bool = False
     reference_count: int = 0
+
+    # Channel binding info (from channel_subjects join)
+    broker_types: list[str] = Field(default_factory=list)
+    channel_count: int = 0
+    updated_at: datetime | None = None

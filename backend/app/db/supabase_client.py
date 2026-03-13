@@ -572,7 +572,49 @@ class SupabaseDatabase(DatabaseProvider):
         if not response.data:
             return None
         return response.data[0]
-  
+
+    # ================================================================
+    # CATALOG HELPERS
+    # ================================================================
+
+    def get_subject_channel_map(self, registry_id: str) -> dict[str, list[str]]:
+        """Return {subject_name: [broker_types]} for bound subjects."""
+        try:
+            # Fetch all bindings for this registry's channels
+            channels_resp = (
+                self._client.table("channels")
+                .select("id, broker_type")
+                .eq("registry_id", registry_id)
+                .execute()
+            )
+            if not channels_resp.data:
+                return {}
+
+            channel_map = {
+                ch["id"]: ch["broker_type"] for ch in channels_resp.data
+            }
+            channel_ids = list(channel_map.keys())
+
+            bindings_resp = (
+                self._client.table("channel_subjects")
+                .select("channel_id, subject_name")
+                .in_("channel_id", channel_ids)
+                .execute()
+            )
+            if not bindings_resp.data:
+                return {}
+
+            # Aggregate: subject_name → set of broker_types
+            result: dict[str, set[str]] = {}
+            for b in bindings_resp.data:
+                subject = b["subject_name"]
+                broker = channel_map.get(b["channel_id"], "unknown")
+                result.setdefault(subject, set()).add(broker)
+
+            return {k: list(v) for k, v in result.items()}
+        except Exception as e:
+            logger.warning(f"get_subject_channel_map failed: {e}")
+            return {}  
 
     # ================================================================
     # SCHEMA SNAPSHOTS

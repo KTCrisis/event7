@@ -186,13 +186,23 @@ class SchemaService:
     # === Catalog (vue business) ===
 
     async def get_catalog(self) -> list[CatalogEntry]:
+        """Catalogue enrichi = subjects + enrichments + channels + metadata"""
         subjects = await self.list_subjects(enriched=True)
- 
+
+        # Single query: subject → [broker_types]
+        channel_map = self.db.get_subject_channel_map(self.registry_id)
+
+        # Enrichments with updated_at (batch fetch)
+        enrichments_raw = self.db.get_enrichments_for_registry(self.registry_id)
+        enrichment_dates = {
+            e["subject"]: e.get("updated_at")
+            for e in enrichments_raw
+        }
+
         catalog = []
         for s in subjects:
             refs = await self.get_references(s.subject)
-            enrichment = self.db.get_enrichment(self.registry_id, s.subject)
- 
+            brokers = channel_map.get(s.subject, [])
             catalog.append(CatalogEntry(
                 subject=s.subject,
                 format=s.format.value,
@@ -201,9 +211,10 @@ class SchemaService:
                 description=s.description,
                 owner_team=s.owner_team,
                 tags=s.tags,
-                classification=enrichment.get("classification", "internal") if enrichment else "internal",
-                data_layer=enrichment.get("data_layer") if enrichment else None,
                 reference_count=len(refs),
+                broker_types=brokers,
+                channel_count=len(brokers),
+                updated_at=enrichment_dates.get(s.subject),
             ))
- 
+
         return catalog
