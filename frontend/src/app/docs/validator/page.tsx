@@ -182,25 +182,6 @@ export default function ValidatorPage() {
             </div>
           ))}
         </div>
-
-        <div className="mt-4 rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-4 text-sm text-slate-400 leading-relaxed">
-          <span className="text-cyan-400 font-medium">Defense in depth:</span>{" "}
-          The{" "}
-          <code className="text-slate-300 text-xs bg-slate-800/50 px-1.5 py-0.5 rounded">
-            _STRICT_MODES
-          </code>{" "}
-          mechanism means event7 catches breaking changes even when the SR
-          is misconfigured or silently passes them (e.g. the Apicurio ccompat
-          path bug where{" "}
-          <code className="text-slate-300 text-xs bg-slate-800/50 px-1.5 py-0.5 rounded">
-            /api/
-          </code>{" "}
-          vs{" "}
-          <code className="text-slate-300 text-xs bg-slate-800/50 px-1.5 py-0.5 rounded">
-            /apis/
-          </code>{" "}
-          caused all checks to return &ldquo;compatible&rdquo;).
-        </div>
       </section>
 
       {/* Governance evaluators */}
