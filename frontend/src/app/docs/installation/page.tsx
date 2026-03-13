@@ -337,10 +337,10 @@ python scripts/seed_event7.py --skip-rules           # enrichments + channels on
             <p className="text-xs font-semibold text-slate-400">Backend environment variables</p>
           </div>
           <EnvVar name="ENCRYPTION_KEY" required description="Fernet key for encrypting registry credentials at rest. Generate with the python command shown in the Quick Install section above." />
-          <EnvVar name="DB_PROVIDER" defaultVal="supabase" required description="Database mode. Set to 'postgresql' for self-hosted, 'supabase' for SaaS." />
+          <EnvVar name="DB_PROVIDER" defaultVal="postgresql" required description="Database mode. Always 'postgresql' for self-hosted." />
           <EnvVar name="DATABASE_URL" defaultVal="(set by docker-compose)" description="PostgreSQL connection string. Docker Compose sets this automatically. For manual setup: postgresql://user:pass@host:5432/event7" />
           <EnvVar name="REDIS_URL" defaultVal="redis://localhost:6379" description="Redis connection URL. Docker Compose sets this automatically." />
-          <EnvVar name="AUTH_ENABLED" defaultVal="false" description="Enable JWT authentication. Set to 'false' for local evaluation, 'true' for production with Supabase Auth." />
+          <EnvVar name="AUTH_ENABLED" defaultVal="false" description="Enable JWT authentication. Set to 'false' for local evaluation." />
           <EnvVar name="CORS_ORIGINS" defaultVal='["http://localhost:3000"]' description="Allowed CORS origins as a JSON array. Add your frontend URL if not localhost." />
           <EnvVar name="OLLAMA_HOST" description="Ollama API URL for the AI Agent. Example: http://ollama:11434 (local) or https://ollama.com (cloud). Leave empty to disable AI Agent." />
           <EnvVar name="OLLAMA_MODEL" description="LLM model name. Example: llama3.1:8b (local) or kimi-k2.5:cloud (cloud). Required if OLLAMA_HOST is set." />
@@ -359,8 +359,6 @@ python scripts/seed_event7.py --skip-rules           # enrichments + channels on
             </p>
           </div>
           <EnvVar name="NEXT_PUBLIC_API_URL" defaultVal="http://localhost:8000" description="Backend API URL. Docker Compose overrides this to the internal service name." />
-          <EnvVar name="NEXT_PUBLIC_SUPABASE_URL" description="Supabase project URL. Only needed for SaaS mode with Supabase Auth." />
-          <EnvVar name="NEXT_PUBLIC_SUPABASE_ANON_KEY" description="Supabase anon key (the long JWT, not the short publishable key). Only needed for SaaS mode." />
         </div>
 
         {/* Docker Compose note */}
