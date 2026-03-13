@@ -186,7 +186,7 @@ class AsyncAPIImportService:
                 if not isinstance(msg_def, dict):
                     continue
 
-                subject_name, schema_content, schema_role = self._resolve_message(
+                subject_name, schema_content, schema_role, schema_format = self._resolve_message(
                     msg_id, msg_def, component_messages, component_schemas
                 )
                 if not subject_name:
@@ -204,7 +204,7 @@ class AsyncAPIImportService:
                 ))
 
                 if schema_content:
-                    all_schema_refs[subject_name] = schema_content
+                    all_schema_refs[subject_name] = (schema_content, schema_format)
 
                 # Enrichment from message-level extensions
                 msg_desc = msg_def.get("description") or description
@@ -230,14 +230,14 @@ class AsyncAPIImportService:
         # ── Unknown schemas (in spec but not in SR) ──
         unknown_schemas: list[ImportedSchema] = []
         schemas_found = 0
-        for subject_name, schema_content in all_schema_refs.items():
+        for subject_name, (schema_content, schema_format) in all_schema_refs.items():
             if subject_name in known_subjects:
                 schemas_found += 1
             else:
                 unknown_schemas.append(ImportedSchema(
                     subject_name=subject_name,
                     schema_content=schema_content,
-                    format="JSON",
+                    format=schema_format,
                 ))
 
         return AsyncAPIImportPreview(
@@ -276,9 +276,14 @@ class AsyncAPIImportService:
         if request.register_schemas and preview.unknown_schemas:
             for schema in preview.unknown_schemas:
                 try:
+                    content = schema.schema_content
+                    # Ensure JSON Schema has $schema marker for provider format detection
+                    if schema.format == "JSON" and isinstance(content, dict) and "$schema" not in content:
+                        content = {"$schema": "http://json-schema.org/draft-07/schema#", **content}
+
                     await self.provider.create_schema(
                         subject=schema.subject_name,
-                        schema=schema.schema_content,
+                        schema=content,
                     )
                     schemas_registered += 1
                     results.append(ImportEntityResult(
@@ -596,12 +601,13 @@ class AsyncAPIImportService:
         msg_def: dict,
         component_messages: dict,
         component_schemas: dict,
-    ) -> tuple[str | None, dict | None, str]:
+    ) -> tuple[str | None, dict | None, str, str]:
         """
-        Resolve a message definition to (subject_name, schema_content, schema_role).
+        Resolve a message definition to (subject_name, schema_content, schema_role, schema_format).
         Handles $ref resolution for both messages and schemas.
         """
         schema_role = "value"
+        schema_format = "JSON"  # default
 
         # Resolve $ref if message is a reference
         if "$ref" in msg_def:
@@ -610,7 +616,16 @@ class AsyncAPIImportService:
             if resolved:
                 msg_def = resolved
             else:
-                return None, None, schema_role
+                return None, None, schema_role, schema_format
+
+        # Detect format from contentType
+        content_type = (msg_def.get("contentType") or "").lower()
+        if "avro" in content_type:
+            schema_format = "AVRO"
+        elif "protobuf" in content_type or "proto" in content_type:
+            schema_format = "PROTOBUF"
+        else:
+            schema_format = "JSON"
 
         # Schema role from message ID convention
         if msg_id.endswith("Key") or msg_id.endswith("-key"):
@@ -618,7 +633,7 @@ class AsyncAPIImportService:
         elif msg_id.endswith("Header") or msg_id.endswith("-header"):
             schema_role = "header"
 
-        # Extract subject name: prefer x-subject, then name, then infer from schema
+        # Extract subject name
         subject_name = msg_def.get("x-subject") or msg_def.get("name")
 
         # Get payload schema
@@ -628,16 +643,14 @@ class AsyncAPIImportService:
         if "$ref" in payload:
             ref_path = payload["$ref"]
             schema_content = self._resolve_ref(ref_path, component_schemas)
-            # Infer subject name from $ref path
             if not subject_name:
                 subject_name = ref_path.split("/")[-1]
         elif isinstance(payload, dict) and payload:
             schema_content = payload
             if not subject_name:
-                # Try to infer from schema title or msg_id
                 subject_name = payload.get("title") or payload.get("name") or msg_id
 
-        return subject_name, schema_content, schema_role
+        return subject_name, schema_content, schema_role, schema_format
 
     def _resolve_ref(self, ref_path: str, components: dict) -> dict | None:
         """Resolve a $ref like '#/components/schemas/Order' to its definition."""
