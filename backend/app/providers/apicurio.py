@@ -32,7 +32,7 @@ from app.services.diff_service import compute_schema_diff
 
 BASE_PATH = "/apis/registry/v3"
 GROUP_ID = "default"
-CCOMPAT_PATH = "/api/ccompat/v7"
+CCOMPAT_PATH = "/apis/ccompat/v7"
 
 
 class ApicurioError(Exception):

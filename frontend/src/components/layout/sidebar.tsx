@@ -17,7 +17,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   Shield,
-  Network, 
+  Network,
+  ShieldCheck 
 } from "lucide-react";
 
 const navigation = [
@@ -31,6 +32,7 @@ const navigation = [
       { name: "Explorer", href: "/schemas", icon: Search },
       { name: "Diff Viewer", href: "/diff", icon: GitCompare },
       { name: "References", href: "/references", icon: Share2 },
+      { name: "Validate", href: "/validate", icon: ShieldCheck}, 
     ],
   },
   {

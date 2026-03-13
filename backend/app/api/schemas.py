@@ -15,6 +15,8 @@ from app.models.auth import UserContext
 from app.models.schema import SubjectInfo, SchemaDetail, SchemaVersion, SchemaDiff, SchemaReference
 from app.services.schema_service import SchemaService
 from app.utils.auth import get_current_user
+from app.models.validator import SchemaValidateRequest, SchemaValidateResponse
+from app.services.validator_service import SchemaValidatorService
 
 router = APIRouter(prefix="/api/v1/registries/{registry_id}", tags=["schemas"])
 
@@ -187,3 +189,50 @@ async def check_compatibility(
     """Vérifie la compatibilité d'un schema"""
     result = await service.check_compatibility(subject, payload)
     return result
+
+ 
+# === Validate (dry-run) ===
+ 
+ 
+@router.post(
+    "/schemas/validate",
+    response_model=SchemaValidateResponse,
+    tags=["validator"],
+    summary="Validate a schema before publishing",
+    description=(
+        "Dry-run validation combining: "
+        "① SR compatibility check, "
+        "② event7 governance rules evaluation, "
+        "③ field-level diff preview. "
+        "Nothing is written — read-only."
+    ),
+)
+async def validate_schema(
+    payload: SchemaValidateRequest,
+    user: UserContext = Depends(get_current_user),
+    service: SchemaService = Depends(get_schema_service),
+):
+    """
+    Validate a candidate schema against the current version.
+    Returns a unified report with compatibility, governance, diff, and verdict.
+    """
+    # Build ValidatorService from SchemaService internals
+    validator = SchemaValidatorService(
+        provider=service.provider,
+        cache=service.cache,
+        db=service.db,
+        registry_id=service.registry_id,
+    )
+ 
+    try:
+        return await validator.validate(payload)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=422,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Validation failed: {str(e)}",
+        )
