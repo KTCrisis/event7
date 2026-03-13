@@ -17,6 +17,10 @@ import {
   RefreshCw,
   Lock,
   Shield,
+  Network,
+  Upload,
+  FileCode,
+  Route,
 } from "lucide-react";
 
 const features = [
@@ -38,14 +42,43 @@ const features = [
     icon: BookOpen,
     name: "Event Catalog",
     description:
-      "A business-friendly view of your event ecosystem. Search, filter, tag, assign owners, add descriptions and data classifications. Inline editing via a drawer panel. CSV export for governance reports.",
+      "A business-friendly view of your event ecosystem. Search and filter by owner, classification, data layer, and broker type. View broker bindings, update timestamps, and open AsyncAPI specs directly from the catalog. Inline editing via a drawer panel. CSV export for governance reports.",
+    badge: "Community",
+  },
+  {
+    icon: Network,
+    name: "Channel Model",
+    description:
+      "Map schemas to messaging channels across Kafka, RabbitMQ, Pulsar, NATS, Redis Streams, Google Pub/Sub, AWS SNS/SQS, and Azure Service Bus. N:N bindings with strategy (channel_bound, domain_bound, app_bound), data layers (RAW → CORE → REFINED → APPLICATION), and broker-specific config (partitions, routing keys, exchange types).",
+    badge: "Community",
+    link: "/docs/channels",
+  },
+  {
+    icon: Upload,
+    name: "AsyncAPI Import",
+    description:
+      "Import an AsyncAPI v3 spec to create channels, bindings, enrichments, and optionally register schemas — all in one operation. Two-phase flow: preview (dry-run) then apply. Supports all broker protocols (kafka, amqp, nats, pulsar, redis, googlepubsub, sns/sqs, servicebus). Format auto-detected from contentType.",
+    badge: "Community",
+  },
+  {
+    icon: Route,
+    name: "Smart Schema Registration",
+    description:
+      "When importing specs, event7 routes schemas intelligently based on your registry type. Apicurio (broker-agnostic) accepts all schemas. Confluent-like registries (Confluent SR, Karapace, Redpanda) only receive Kafka/Redpanda schemas — other broker schemas are skipped with a clear warning.",
+    badge: "Community",
+  },
+  {
+    icon: FileCode,
+    name: "AsyncAPI Generation",
+    description:
+      "Generate AsyncAPI 3.0 specs from your schemas with Kafka bindings (partitions, replication, Magic Byte encoding), key schema separation, and Avro-to-JSON-Schema conversion. View rendered specs in a drawer or download YAML.",
     badge: "Community",
   },
   {
     icon: Tags,
     name: "Enrichments",
     description:
-      "Tags, ownership, descriptions, and data classification stored in event7's own database — not in your registry. Provider-agnostic by design: enrichments survive registry migrations and work across Confluent, Apicurio, or any future provider.",
+      "Tags, ownership, descriptions, data layers, and data classification stored in event7's own database — not in your registry. Provider-agnostic by design: enrichments survive registry migrations and work across Confluent, Apicurio, or any future provider.",
     badge: "Community",
   },
   {
@@ -55,13 +88,6 @@ const features = [
       "Define rules (CEL conditions, compatibility checks, encryption transforms) and policies (organizational standards, naming conventions, ownership requirements) stored in event7 — provider-agnostic. Four built-in templates for RAW/CORE/REFINED/APPLICATION layers. Three-axis governance scoring with confidence indicator.",
     badge: "Community",
     link: "/docs/governance-rules",
-  },
-  {
-    icon: FileJson,
-    name: "AsyncAPI Generation",
-    description:
-      "Automatically generate AsyncAPI 3.0 specs from your schemas. Avro-to-JSON-Schema conversion built in. View rendered specs or download YAML. Covers your event-driven architecture documentation in one click.",
-    badge: "Community",
   },
   {
     icon: Workflow,
@@ -74,14 +100,14 @@ const features = [
     icon: BarChart3,
     name: "Dashboard & KPIs",
     description:
-      "At-a-glance metrics: schema count, enrichment coverage, governance score, rules by scope, enforcement funnel, compatibility distribution, and top-referenced schemas. Built with Recharts for a clean, real-time overview.",
+      "At-a-glance metrics: schema count, enrichment coverage, governance score, rules by scope, enforcement funnel, compatibility distribution, layer distribution, and top-referenced schemas. Built with Recharts for a clean, real-time overview.",
     badge: "Community",
   },
   {
     icon: Layers,
     name: "Multi-Provider",
     description:
-      "Connect Confluent Cloud (API Key), Confluent Platform (LDAP/RBAC), or Apicurio Registry v3 — all through the same interface. Adapter pattern means adding a new provider is one Python file.",
+      "Connect Confluent Cloud (API Key), Confluent Platform (LDAP/RBAC), or Apicurio Registry v3 — all through the same interface. Adapter pattern means adding a new provider is one Python file. Karapace and Redpanda work out of the box (Confluent-compatible API).",
     badge: "Community",
   },
   {
@@ -102,6 +128,13 @@ const features = [
 
 const comingSoon = [
   {
+    icon: Database,
+    name: "Hosted Registry",
+    description:
+      "No schema registry? event7 provisions an Apicurio instance for you — the catch-all for brokers without a native SR (Redis Streams, RabbitMQ, NATS). Schemas live in a real registry, governed by event7.",
+    badge: "Pro",
+  },
+  {
     icon: ScrollText,
     name: "Provider Rule Sync",
     description:
@@ -109,11 +142,11 @@ const comingSoon = [
     badge: "Pro",
   },
   {
-    icon: Database,
-    name: "Extended Metadata",
+    icon: FileJson,
+    name: "AsyncAPI Export (Mode 3)",
     description:
-      "Custom business attributes beyond tags and ownership. Define structured key-value metadata to capture domain-specific context — data lineage annotations, SLA tiers, data sensitivity levels, and more.",
-    badge: "Community",
+      "Export your real event7 channels, bindings, and enrichments as a complete AsyncAPI spec — multi-broker, multi-message, with accurate broker bindings. The round-trip: import a spec, govern it, export a better one.",
+    badge: "Pro",
   },
   {
     icon: RefreshCw,
@@ -129,9 +162,23 @@ const comingSoon = [
       "Display field-level encryption metadata (CSFLE, custom encryption). Visualize which fields are encrypted across your schemas — without vendor lock-in on the encryption mechanism itself.",
     badge: "Pro",
   },
+  {
+    icon: Route,
+    name: "Multi-Registry Routing",
+    description:
+      "Import a multi-broker AsyncAPI spec and event7 automatically routes schemas to the right registry — Kafka schemas to Confluent, everything else to your Hosted Apicurio. No manual switching.",
+    badge: "Enterprise",
+  },
 ];
 
 function BadgeColor({ tier }: { tier: string }) {
+  if (tier === "Enterprise") {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+        Enterprise
+      </span>
+    );
+  }
   if (tier === "Pro") {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -146,7 +193,7 @@ function BadgeColor({ tier }: { tier: string }) {
   );
 }
 
-function FeatureCard({ feature }: { feature: typeof features[0] }) {
+function FeatureCard({ feature }: { feature: (typeof features)[0] }) {
   const content = (
     <div className="flex items-start gap-4">
       <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-400 group-hover:bg-teal-500/15 transition-colors">
@@ -197,7 +244,8 @@ export default function FeaturesPage() {
       </h1>
       <p className="text-base text-slate-400 leading-relaxed mb-10 max-w-2xl">
         Everything you need to govern your event schemas — from exploration to
-        AI-powered automation. Community features are free and open-source.
+        multi-broker channel mapping and AI-powered automation. Community
+        features are free and open-source.
       </p>
 
       {/* Current features */}

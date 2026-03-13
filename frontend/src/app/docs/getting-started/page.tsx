@@ -1,4 +1,6 @@
-import { Cloud, Container, Terminal, CheckCircle2 } from "lucide-react";
+// src/app/docs/getting-started/page.tsx
+
+import { Cloud, Container, Terminal, CheckCircle2, Upload, Network, Shield } from "lucide-react";
 
 function CodeBlock({ children }: { children: string }) {
   return (
@@ -56,7 +58,7 @@ export default function GettingStartedPage() {
         <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
           <ul className="space-y-2">
             {[
-              "A schema registry (Confluent Cloud, Confluent Platform, Redpanda, Karapace or Apicurio v3)",
+              "A schema registry (Confluent Cloud, Confluent Platform, Redpanda, Karapace, or Apicurio v3) — or start with an empty one",
               "Registry credentials (API Key + Secret for Confluent Cloud, or username/password for on-prem)",
               "For self-hosted: Docker + Docker Compose installed",
             ].map((item) => (
@@ -90,7 +92,7 @@ export default function GettingStartedPage() {
           <p className="text-sm text-slate-400 leading-relaxed mb-3">
             Go to <strong className="text-slate-300">Settings</strong> and click{" "}
             <strong className="text-slate-300">Connect Registry</strong>. Pick your provider, paste
-            your URL and credentials — event7 encrypts them at rest.
+            your URL and credentials — event7 encrypts them at rest (AES-256 Fernet).
           </p>
           <div className="rounded-lg border border-slate-800/60 bg-slate-900/50 p-4 text-sm text-slate-500">
             <p className="font-medium text-slate-400 mb-1">Confluent Cloud example</p>
@@ -104,14 +106,27 @@ export default function GettingStartedPage() {
               API Key / Secret: from Confluent Cloud → Schema Registry → API credentials
             </p>
           </div>
+          <div className="rounded-lg border border-slate-800/60 bg-slate-900/50 p-4 text-sm text-slate-500 mt-3">
+            <p className="font-medium text-slate-400 mb-1">Apicurio example</p>
+            <p>
+              URL:{" "}
+              <code className="text-slate-300 text-xs">
+                http://your-apicurio-host:8080
+              </code>
+            </p>
+            <p>
+              No credentials required for unauthenticated instances.
+            </p>
+          </div>
         </Step>
 
         <Step number={3} title="Explore your schemas" isLast>
           <p className="text-sm text-slate-400 leading-relaxed">
             Once connected, the{" "}
             <strong className="text-slate-300">Schema Explorer</strong> shows all
-            subjects and versions. Click any schema to view its fields, diff
-            versions, or jump to the Event Catalog to add tags and ownership.
+            subjects and versions. From there you can diff versions, inspect
+            references, enrich schemas in the Event Catalog, or import an
+            AsyncAPI spec to create channels and bindings.
           </p>
         </Step>
       </section>
@@ -138,37 +153,101 @@ cp backend/.env.example backend/.env`}
 
         <Step number={2} title="Start the stack">
           <CodeBlock>
-{`docker compose -f docker-compose.local.yml up -d
+{`docker compose -f docker-compose.gke.yml up -d
 
 # Services started:
 #   localhost:3000  → Frontend (Next.js)
 #   localhost:8000  → Backend API (FastAPI)
-#   localhost:8081  → Apicurio Registry (optional)
+#   localhost:8081  → Apicurio Registry v3
 #   postgres:5432   → PostgreSQL 15
 #   redis:6379      → Redis 7`}
           </CodeBlock>
         </Step>
 
-        <Step number={3} title="(Optional) Seed Apicurio with test data">
-          <CodeBlock>
-{`# Populate Apicurio with sample schemas + references
-python scripts/seed_apicurio.py --clean`}
-          </CodeBlock>
-          <p className="text-sm text-slate-400 mt-3 leading-relaxed">
-            Creates 9 Avro + JSON Schema subjects with cross-references — perfect
-            for testing the References Graph and Diff Viewer.
+        <Step number={3} title="Connect the registry">
+          <p className="text-sm text-slate-400 leading-relaxed mb-3">
+            Open{" "}
+            <code className="text-teal-400 bg-teal-500/5 px-1.5 py-0.5 rounded text-xs">
+              http://localhost:3000/settings
+            </code>{" "}
+            and connect the local Apicurio:{" "}
+            <code className="text-slate-300 text-xs">http://apicurio:8080</code>{" "}
+            (the Docker internal hostname).
           </p>
         </Step>
 
-        <Step number={4} title="Verify health" isLast>
+        <Step number={4} title="(Optional) Seed with sample data">
+          <CodeBlock>
+{`# Seed Apicurio with 10 schemas + cross-references
+python scripts/seed_apicurio.py --url http://localhost:8081
+
+# Seed event7 with enrichments, channels, bindings, and rules
+python scripts/seed_event7.py --url http://localhost:8000`}
+          </CodeBlock>
+          <p className="text-sm text-slate-400 mt-3 leading-relaxed">
+            This creates 10 Avro + JSON Schema subjects with references, 9
+            enrichments (4 data layers, 6 teams), 7 channels (Kafka + RabbitMQ +
+            Redis Streams), 9 bindings, and 7 governance rules — a complete
+            demo environment.
+          </p>
+        </Step>
+
+        <Step number={5} title="Verify health" isLast>
           <CodeBlock>
 {`curl http://localhost:8000/health
 
-# Expected response:
+# Expected:
 # {"status": "healthy", "services": {"redis": "ok", "database": "ok"},
 #  "database_provider": "PostgreSQLDatabase", "version": "0.1.0"}`}
           </CodeBlock>
         </Step>
+      </section>
+
+      {/* Two paths: existing schemas vs fresh start */}
+      <section className="mb-14">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
+          Two starting paths
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
+            <div className="text-xs font-semibold uppercase tracking-widest text-cyan-400 mb-2">
+              Existing registry with schemas
+            </div>
+            <p className="text-sm text-slate-400 leading-relaxed mb-3">
+              Connect your registry and event7 discovers all subjects
+              automatically. Then enrich them in the Catalog (tags, ownership,
+              classification, data layers), create channels manually, and
+              generate AsyncAPI specs.
+            </p>
+            <div className="flex items-center gap-2 text-[11px] text-slate-500">
+              <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Connect</span>
+              <span>→</span>
+              <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Explore</span>
+              <span>→</span>
+              <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Enrich</span>
+              <span>→</span>
+              <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Govern</span>
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
+            <div className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-2">
+              Empty registry — start with AsyncAPI
+            </div>
+            <p className="text-sm text-slate-400 leading-relaxed mb-3">
+              Connect an empty registry (e.g. fresh Apicurio), then import an
+              AsyncAPI spec. event7 creates schemas, channels, bindings, and
+              enrichments in one operation. Everything populated from a single
+              YAML/JSON file.
+            </p>
+            <div className="flex items-center gap-2 text-[11px] text-slate-500">
+              <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Connect</span>
+              <span>→</span>
+              <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Import</span>
+              <span>→</span>
+              <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Done</span>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Next steps */}
@@ -176,19 +255,31 @@ python scripts/seed_apicurio.py --clean`}
         <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-4">
           Next steps
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             {
-              icon: Terminal,
-              title: "Try the AI Agent",
-              desc: "Open /ai and type /schemas to get an AI-powered overview of your registry.",
+              icon: Upload,
+              title: "Import AsyncAPI",
+              desc: "Import a spec to create channels, schemas, and enrichments at once.",
               href: "/docs/features",
             },
             {
-              icon: Container,
-              title: "API Reference",
-              desc: "Browse the full REST API — registries, schemas, enrichments, AsyncAPI.",
-              href: "/docs/api-reference",
+              icon: Network,
+              title: "Map Channels",
+              desc: "Bind schemas to Kafka topics, RabbitMQ exchanges, Redis streams, and more.",
+              href: "/docs/channels",
+            },
+            {
+              icon: Shield,
+              title: "Define Rules",
+              desc: "Set governance rules — naming policies, field requirements, compliance checks.",
+              href: "/docs/governance-rules",
+            },
+            {
+              icon: Terminal,
+              title: "Try the AI Agent",
+              desc: "Type /schemas to get an AI-powered overview of your registry.",
+              href: "/docs/features",
             },
           ].map((item) => (
             <a

@@ -214,7 +214,7 @@ export default function GovernanceRulesPage() {
           />
         </div>
         <p className="text-sm text-slate-500 mt-4">
-          Templates don't overwrite existing rules unless you explicitly choose
+          Templates don&apos;t overwrite existing rules unless you explicitly choose
           to. You can apply multiple templates to the same registry.
         </p>
       </Section>
@@ -295,37 +295,7 @@ export default function GovernanceRulesPage() {
         <p className="text-sm text-slate-500">
           For providers without native rule support, event7 stores rules as
           declarative entries. They still contribute to scoring and governance
-          visibility — they're just not enforced at the provider level.
-        </p>
-      </Section>
-
-      {/* API */}
-      <Section title="API Endpoints">
-        <div className="space-y-4">
-          <ApiBlock title="Rules CRUD" endpoints={[
-            { method: "POST", path: "/api/v1/registries/{id}/rules", desc: "Create a rule" },
-            { method: "GET", path: "/api/v1/registries/{id}/rules", desc: "List rules" },
-            { method: "GET", path: "/api/v1/registries/{id}/rules/{rule_id}", desc: "Get a rule" },
-            { method: "PUT", path: "/api/v1/registries/{id}/rules/{rule_id}", desc: "Update" },
-            { method: "DELETE", path: "/api/v1/registries/{id}/rules/{rule_id}", desc: "Delete" },
-          ]} />
-          <ApiBlock title="Templates" endpoints={[
-            { method: "GET", path: "/api/v1/governance/templates", desc: "List templates" },
-            { method: "GET", path: "/api/v1/governance/templates/{id}", desc: "Get template" },
-            { method: "POST", path: "/.../rules/templates/{tid}/apply", desc: "Apply template" },
-          ]} />
-          <ApiBlock title="Scoring" endpoints={[
-            { method: "GET", path: "/api/v1/registries/{id}/governance/score", desc: "Get score" },
-          ]} />
-        </div>
-        <p className="text-sm text-slate-500 mt-4">
-          Filter list with query params:{" "}
-          <code className="text-teal-400/70 text-xs">subject</code>,{" "}
-          <code className="text-teal-400/70 text-xs">scope</code>,{" "}
-          <code className="text-teal-400/70 text-xs">kind</code>,{" "}
-          <code className="text-teal-400/70 text-xs">severity</code>,{" "}
-          <code className="text-teal-400/70 text-xs">enforcement_status</code>,{" "}
-          <code className="text-teal-400/70 text-xs">source</code>.
+          visibility — they&apos;re just not enforced at the provider level.
         </p>
       </Section>
 
@@ -526,30 +496,5 @@ function ProviderRow({ cap, vals }: { cap: string; vals: string[] }) {
         <td key={i} className="py-2.5 px-4 text-center text-slate-400">{v}</td>
       ))}
     </tr>
-  );
-}
-
-function ApiBlock({ title, endpoints }: { title: string; endpoints: { method: string; path: string; desc: string }[] }) {
-  const METHOD_COLORS: Record<string, string> = {
-    GET: "text-emerald-400",
-    POST: "text-teal-400",
-    PUT: "text-amber-400",
-    DELETE: "text-red-400",
-  };
-  return (
-    <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-4">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-3">{title}</div>
-      <div className="space-y-1.5">
-        {endpoints.map((e) => (
-          <div key={e.path + e.method} className="flex items-center gap-3 text-xs">
-            <span className={`font-mono font-bold w-14 ${METHOD_COLORS[e.method] || "text-slate-400"}`}>
-              {e.method}
-            </span>
-            <code className="text-slate-400 font-mono flex-1 truncate text-[11px]">{e.path}</code>
-            <span className="text-slate-600 text-[10px] shrink-0">{e.desc}</span>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
