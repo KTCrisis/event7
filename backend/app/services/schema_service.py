@@ -181,6 +181,15 @@ class SchemaService:
         if update.data_layer is not None:
             payload["data_layer"] = update.data_layer.value
         data = self.db.upsert_enrichment(payload)
+
+        # Invalidate cached views that embed enrichment data
+        import asyncio
+        try:
+            asyncio.ensure_future(self.cache.delete(self._key("catalog")))
+            asyncio.ensure_future(self.cache.delete(self._key("subjects", "enriched")))
+        except Exception:
+            pass  # non-blocking
+
         return Enrichment(**data)
 
     # === Catalog (vue business) ===
@@ -211,6 +220,7 @@ class SchemaService:
                 description=s.description,
                 owner_team=s.owner_team,
                 tags=s.tags,
+                data_layer=s.data_layer,
                 reference_count=len(refs),
                 broker_types=brokers,
                 channel_count=len(brokers),

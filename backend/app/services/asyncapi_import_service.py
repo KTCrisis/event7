@@ -466,24 +466,28 @@ class AsyncAPIImportService:
 
         # ── 6. Surgical cache invalidation (keep warm cache intact) ──
         try:
-            # Catalog view must be refreshed (enrichments changed)
+            # Catalog view (enrichments changed)
             await self.cache.delete(
                 self.cache.cache_key(self.registry_id, "catalog")
+            )
+            # Subject lists (enrichments are embedded in the enriched list)
+            await self.cache.delete(
+                self.cache.cache_key(self.registry_id, "subjects", "enriched")
             )
             # Stored spec
             if spec_stored:
                 await self.cache.delete(
                     self.cache.cache_key(self.registry_id, "asyncapi", spec_subject)
                 )
-            # Subject list only if new schemas were registered in SR
+            # Raw subject list only if new schemas were registered in SR
             if schemas_registered > 0:
                 await self.cache.delete(
-                    self.cache.cache_key(self.registry_id, "subjects")
+                    self.cache.cache_key(self.registry_id, "subjects", "raw")
                 )
             logger.info(
-                f"Cache invalidated: catalog"
+                f"Cache invalidated: catalog + subjects:enriched"
                 f"{' + asyncapi' if spec_stored else ''}"
-                f"{' + subjects' if schemas_registered > 0 else ''}"
+                f"{' + subjects:raw' if schemas_registered > 0 else ''}"
             )
         except Exception as e:
             logger.warning(f"Cache invalidation failed (non-blocking): {e}")
