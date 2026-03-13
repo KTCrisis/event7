@@ -311,15 +311,26 @@ class ApicurioProvider(SchemaRegistryProvider):
 
         versions = []
         for v in result.get("versions", []):
+            version_num = int(v.get("version", v.get("versionOrder", 1)))
+            artifact_type = v.get("artifactType", "AVRO")
+
+            # Fetch content for this version
+            try:
+                v_path = self._version_path(subject, version_num)
+                content_raw = await self._get(f"{v_path}/content")
+                content = self._parse_schema_content(content_raw)
+            except Exception:
+                content = {}
+
             versions.append(SchemaVersion(
-                subject=subject,
-                version=int(v.get("version", v.get("versionOrder", 1))),
+                version=version_num,
                 schema_id=v.get("globalId", 0),
-                created_at=v.get("createdOn"),
+                format=self._parse_format(artifact_type),
+                schema_content=content,
+                registered_at=v.get("createdOn"),
             ))
 
         return sorted(versions, key=lambda v: v.version)
-
 
     async def get_subject_versions(self, subject: str) -> list[int]:
         """Return just version numbers (used by SchemaService.get_versions)."""
