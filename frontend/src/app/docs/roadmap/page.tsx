@@ -12,9 +12,21 @@ const done: RoadmapItem[] = [
   { name: "Apicurio Registry v3 provider", tier: "Community" },
   { name: "Schema Explorer with field-level detail", tier: "Community" },
   { name: "Visual Diff Viewer (LCS-based, Avro + JSON Schema)", tier: "Community" },
+  { name: "Schema Validator — SR compatibility + governance rules + diff preview (PASS/WARN/FAIL)", tier: "Community" },
   { name: "Event Catalog with search, filter, CSV export", tier: "Community" },
+  { name: "Catalog enriched — broker badges, data layers, AsyncAPI drawer", tier: "Community" },
   { name: "Enrichments — tags, owner, description, classification", tier: "Community" },
+  { name: "Governance Rules & Policies — CRUD, templates, scoring", tier: "Community" },
+  { name: "Governance Templates — RAW, CORE, REFINED, APPLICATION layers", tier: "Community" },
+  { name: "Governance Score — 3-axis scoring with confidence indicator", tier: "Community" },
+  { name: "Dashboard governance integration — coverage, rules, enforcement funnel", tier: "Community" },
+  { name: "Catalog score badges with toggle", tier: "Community" },
+  { name: "Channel Model — 9 broker types, N:N bindings, data layers", tier: "Community" },
+  { name: "RabbitMQ exchange/queue support", tier: "Community" },
+  { name: "Cloud broker channels (Pub/Sub, SNS/SQS, Service Bus)", tier: "Community" },
   { name: "AsyncAPI 3.0 generation and export", tier: "Community" },
+  { name: "AsyncAPI Import — preview + apply, multi-broker, smart registration", tier: "Community" },
+  { name: "Smart Schema Registration — provider-type routing (Apicurio all, Confluent Kafka-only)", tier: "Community" },
   { name: "References Graph with dependency visualization", tier: "Community" },
   { name: "Dashboard with governance KPIs", tier: "Community" },
   { name: "AI Agent — BYOM (Ollama, OpenAI, etc.)", tier: "Community" },
@@ -23,39 +35,33 @@ const done: RoadmapItem[] = [
   { name: "Dual-mode database (Supabase + PostgreSQL)", tier: "Community" },
   { name: "Public documentation (/docs)", tier: "Community" },
   { name: "Hosted Registry UX stub (coming soon flow)", tier: "Pro" },
-  { name: "Governance Rules & Policies — CRUD, templates, scoring", tier: "Community" },
-  { name: "Governance Templates — RAW, CORE, REFINED, APPLICATION layers", tier: "Community" },
-  { name: "Governance Score — 3-axis scoring with confidence indicator", tier: "Community" },
-  { name: "Dashboard governance integration — coverage, rules, enforcement funnel", tier: "Community" },
-  { name: "Catalog score badges with toggle", tier: "Community" },
 ];
 
 const next: RoadmapItem[] = [
   { name: "RLS Supabase — multi-tenant security", tier: "Community" },
+  { name: "Hosted registry provisioning (Apicurio-backed)", tier: "Pro" },
+  { name: "AuthProvider abstraction — Supabase vs OIDC", tier: "Enterprise" },
+  { name: "Protobuf support — 3rd schema format", tier: "Community" },
+  { name: "Cross-registry aggregated view (All registries)", tier: "Community" },
   { name: "Provider Rule Sync — import from Confluent ruleSet", tier: "Pro" },
   { name: "Provider Rule Sync — push rules to Confluent", tier: "Pro" },
   { name: "Provider Rule Sync — import Apicurio artifact rules", tier: "Pro" },
   { name: "Drift detection — event7 vs provider comparison", tier: "Pro" },
-  { name: "Hosted registry provisioning (Apicurio-backed)", tier: "Pro" },
-  { name: "Protobuf support — 3rd schema format", tier: "Community" },
-  { name: "Cross-registry aggregated view (All registries)", tier: "Community" },
   { name: "Extended business metadata — custom attributes", tier: "Community" },
   { name: "Confluent Catalog API reader (Stream Governance)", tier: "Community" },
   { name: "Apicurio metadata sync (labels + rules)", tier: "Community" },
   { name: "Encryption tracking (CSFLE metadata)", tier: "Pro" },
-  { name: "Channel model — topics, queues, exchanges", tier: "Community" },
-  { name: "Kafka TNS auto-detect + RNS manual mapping", tier: "Community" },
-  { name: "RabbitMQ exchange/queue support", tier: "Community" },
-  { name: "Cloud broker channels (Pub/Sub, SNS/SQS, Service Bus)", tier: "Community" },
-  { name: "AsyncAPI channel bindings from channel model", tier: "Community" },
 ];
 
 const planned: RoadmapItem[] = [
-  { name: "AuthProvider abstraction — Supabase vs OIDC", tier: "Enterprise" },
+  { name: "CloudEvents support", tier: "Community" },
+  { name: "AsyncAPI Export Mode 3 — real channels → spec (round-trip)", tier: "Pro" },
   { name: "AI Agent Managed — hosted LLM with tokens included", tier: "Pro" },
   { name: "AWS Glue Schema Registry provider", tier: "Community" },
+  { name: "Azure Schema Registry provider", tier: "Community" },
   { name: "Automated policy evaluation (schema content + enrichment checks)", tier: "Community" },
   { name: "Custom governance templates (user-created)", tier: "Community" },
+  { name: "Kafka TNS auto-detect + RNS manual mapping", tier: "Community" },
 ];
 
 const future: RoadmapItem[] = [
@@ -65,6 +71,8 @@ const future: RoadmapItem[] = [
   { name: "Breaking change notifications", tier: "Pro" },
   { name: "Schema health scoring", tier: "Pro" },
   { name: "Audit log export", tier: "Enterprise" },
+  { name: "Google Pub/Sub Schemas provider", tier: "Community" },
+  { name: "Pulsar Schema Registry provider", tier: "Community" },
 ];
 
 function TierBadge({ tier }: { tier: string }) {
@@ -158,7 +166,7 @@ export default function RoadmapPage() {
       <RoadmapSection
         icon={ArrowRight}
         title="Next"
-        subtitle="Actively planned — provider sync, channel model, and multi-tenant security."
+        subtitle="Actively planned — multi-tenant security, hosted registry, provider sync, and OIDC."
         color="text-cyan-400"
         items={next}
       />

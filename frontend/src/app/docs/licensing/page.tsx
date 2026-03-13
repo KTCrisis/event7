@@ -13,11 +13,12 @@ const tiers = [
     description:
       "Try event7 instantly — no install, no credit card. Connect one registry and start governing in minutes.",
     features: [
-      "Full governance core (Explorer, Diff, Catalog, Enrichments, AsyncAPI, Graph, Dashboard)",
+      "Full governance core (Explorer, Diff, Validator, Catalog, Enrichments, AsyncAPI, Graph, Dashboard)",
       "Governance Rules & Policies — templates, scoring, enforcement tracking",
       "Channel Model — map schemas to Kafka, RabbitMQ, Redis Streams, Pulsar, NATS, and cloud brokers",
       "AsyncAPI Import — create channels, bindings, and enrichments from a spec in one click",
       "Smart schema registration — provider-aware routing (Apicurio=all, Confluent=Kafka only)",
+      "Schema Validator — SR compatibility + governance rules + diff preview before publishing",
       "1 registry connection",
       "Up to 50 schemas",
       "AI Agent — bring your own model (Ollama, OpenAI, etc.)",
@@ -32,10 +33,11 @@ const tiers = [
     description:
       "Free and open-source. The full governance engine on your own infrastructure — no limits, no dependencies on event7.",
     features: [
-      "Full governance core (Explorer, Diff, Catalog, Enrichments, AsyncAPI, Graph, Dashboard)",
+      "Full governance core (Explorer, Diff, Validator, Catalog, Enrichments, AsyncAPI, Graph, Dashboard)",
       "Governance Rules & Policies — templates, scoring, enforcement tracking",
       "Channel Model — multi-broker channels with N:N bindings, data layers, broker config",
       "AsyncAPI Import & Generation — bidirectional spec ↔ event7 with smart registration",
+      "Schema Validator — validate before publishing with SR compatibility + governance rules + diff (PASS/WARN/FAIL)",
       "Unlimited registries and schemas",
       "AI Agent — bring your own model (Ollama, OpenAI, etc.)",
       "Multi-provider support (Confluent Cloud, Platform, Apicurio v3, Karapace, Redpanda)",
@@ -117,6 +119,7 @@ const comparisonRows = [
   { label: "Governance Rules & Policies", free: true, community: true, pro: true, enterprise: true },
   { label: "Governance Templates", free: true, community: true, pro: true, enterprise: true },
   { label: "Governance Scoring", free: true, community: true, pro: true, enterprise: true },
+  { label: "Schema Validator", free: true, community: true, pro: true, enterprise: true },
   { label: "Channel Model", free: true, community: true, pro: true, enterprise: true },
   { label: "AsyncAPI Import/Generate", free: true, community: true, pro: true, enterprise: true },
   { label: "Smart Schema Registration", free: true, community: true, pro: true, enterprise: true },
@@ -150,9 +153,10 @@ export default function LicensingPage() {
       </h1>
       <p className="text-base text-slate-400 leading-relaxed mb-10 max-w-2xl">
         event7 follows an <strong className="text-slate-300">open-core</strong>{" "}
-        model. The governance engine — including rules, policies, channels, AsyncAPI
-        import, and scoring — is free and open-source under Apache 2.0. Provider
-        sync, advanced exports, and managed infrastructure are offered in paid tiers.
+        model. The governance engine — including rules, policies, channels, validation,
+        AsyncAPI import, and scoring — is free and open-source under Apache 2.0.
+        Provider sync, advanced exports, and managed infrastructure are offered in
+        paid tiers.
       </p>
 
       {/* Tier cards */}

@@ -13,6 +13,7 @@ import {
   BarChart3,
   Scale,
   Upload,
+  ShieldCheck,
 } from "lucide-react";
 
 const highlights = [
@@ -24,7 +25,12 @@ const highlights = [
   {
     icon: GitCompare,
     title: "Visual Diff",
-    desc: "Side-by-side field-level diff between any two versions of a schema.",
+    desc: "Side-by-side field-level diff between any two versions — with breaking change detection.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Schema Validator",
+    desc: "Validate before publishing: SR compatibility + governance rules + diff preview in one report. PASS / WARN / FAIL.",
   },
   {
     icon: Library,
@@ -49,7 +55,7 @@ const highlights = [
   {
     icon: Workflow,
     title: "References Graph",
-    desc: "Interactive dependency graph between schemas — spot orphans, hotspots, and circular references.",
+    desc: "Interactive dependency graph between schemas — spot orphans, hotspots, and high-impact schemas.",
   },
   {
     icon: Shield,
@@ -64,11 +70,11 @@ const highlights = [
   {
     icon: BarChart3,
     title: "Dashboard & KPIs",
-    desc: "Schema health, drift detection, enrichment coverage, layer distribution — all at a glance.",
+    desc: "Schema health, enrichment coverage, governance score, compatibility distribution — all at a glance.",
   },
   {
     icon: Upload,
-    title: "Smart Schema Registration",
+    title: "Smart Registration",
     desc: "Import AsyncAPI specs and event7 routes schemas to the right registry — Kafka to Confluent, everything else to Apicurio.",
   },
   {
@@ -98,12 +104,21 @@ export default function DocsIntroPage() {
           registry governance
         </h1>
 
-        <p className="text-lg text-slate-400 leading-relaxed max-w-2xl mb-8">
-          event7 is a provider-agnostic governance layer for your schema
-          registries. Explore schemas, map channels across brokers, enforce
-          data rules, import AsyncAPI specs, and manage ownership — whether
-          you run Confluent, Apicurio, Karapace, Redpanda, or any
-          combination. No schema registry yet? event7 can provision one for you.
+        <p className="text-lg text-slate-400 leading-relaxed max-w-2xl mb-4">
+          Explore, validate, and govern your event schemas — across any
+          registry, any broker, any spec.
+        </p>
+
+        <p className="text-base text-slate-500 leading-relaxed max-w-2xl mb-8">
+          Schema registries store schemas. They don&apos;t govern them. event7
+          adds a provider-agnostic governance layer above your registries.
+          Schemas stay in your registry (Confluent, Apicurio, Karapace,
+          Redpanda). Everything else — enrichments, channels, rules, validation,
+          AsyncAPI specs — lives in event7.{" "}
+          <span className="text-slate-400 font-medium">
+            event7 is not a registry. It&apos;s the governance layer your
+            registries are missing.
+          </span>
         </p>
 
         <div className="flex flex-wrap gap-3">
@@ -125,6 +140,37 @@ export default function DocsIntroPage() {
 
       {/* Divider */}
       <div className="h-px bg-gradient-to-r from-transparent via-slate-800 to-transparent mb-12" />
+
+      {/* Two missions */}
+      <section className="mb-14">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
+          Two missions, one platform
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
+            <div className="text-xs font-semibold uppercase tracking-widest text-cyan-400 mb-2">
+              Explore
+            </div>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Help developers version schemas with confidence: visual diff with
+              breaking change detection, dependency graph to anticipate impact,
+              schema validation that combines SR compatibility and governance
+              rules before publishing.
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
+            <div className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-2">
+              Govern
+            </div>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Give organizations a single place to govern events across any
+              registry and any broker: enrichments, ownership, data layers,
+              scoring, channel model, AsyncAPI import/export — all
+              provider-agnostic, all stored in event7.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Highlights grid */}
       <section>
@@ -158,21 +204,24 @@ export default function DocsIntroPage() {
       {/* Architecture overview */}
       <section className="mt-14">
         <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
-          How it works
+          How it fits
         </h2>
         <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-6">
           <pre className="text-sm text-slate-400 font-mono leading-relaxed overflow-x-auto">
-{`┌──────────────────────────────────────────────────────────────┐
-│  event7 UI  (Next.js · Cloudflare Pages)                     │
-│  Explorer · Catalog · Channels · Diff · Graph · Rules · AI   │
-└───────────────────────────┬──────────────────────────────────┘
+{`Schema Registry  ↔  event7                ↔  AsyncAPI / CloudEvents  →  EventCatalog / Backstage
+  (stores)          (governs + validates)      (specifies)                (documents)
+
+┌──────────────────────────────────────────────────────────────────┐
+│  event7 UI  (Next.js · Cloudflare Pages)                         │
+│  Explorer · Diff · Validate · Catalog · Channels · Rules · AI    │
+└───────────────────────────┬──────────────────────────────────────┘
                             │ REST API
-┌───────────────────────────┴──────────────────────────────────┐
-│  event7 API  (FastAPI · Railway / GKE)                       │
-│  Services → Providers → Cache (Redis)                        │
-│            → Database (Supabase / PostgreSQL)                 │
-│            → Channels · Rules · Enrichments · AsyncAPI Specs  │
-└──────┬──────────────┬────────────────────────────────────────┘
+┌───────────────────────────┴──────────────────────────────────────┐
+│  event7 API  (FastAPI · Railway / GKE)                           │
+│  Services → Providers → Cache (Redis)                            │
+│            → Database (Supabase / PostgreSQL)                     │
+│            → Channels · Rules · Enrichments · AsyncAPI Specs      │
+└──────┬──────────────┬────────────────────────────────────────────┘
        │              │
 ┌──────┴─────┐ ┌──────┴──────┐
 │ Confluent  │ │  Apicurio   │   ← your registries (schemas live here)
@@ -190,7 +239,7 @@ export default function DocsIntroPage() {
         <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
           Key flows
         </h2>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
             <div className="text-xs font-semibold uppercase tracking-widest text-cyan-400 mb-2">
               Connect & Explore
@@ -198,6 +247,16 @@ export default function DocsIntroPage() {
             <p className="text-sm text-slate-400 leading-relaxed">
               Register a schema registry, browse subjects, view versions,
               inspect references, and compare diffs — all in one UI.
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
+            <div className="text-xs font-semibold uppercase tracking-widest text-teal-400 mb-2">
+              Validate & Ship
+            </div>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Test a schema before publishing: SR compatibility check,
+              governance rules evaluation, and diff preview — in a single
+              report. PASS, WARN, or FAIL.
             </p>
           </div>
           <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">

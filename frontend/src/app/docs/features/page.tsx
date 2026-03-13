@@ -21,6 +21,7 @@ import {
   Upload,
   FileCode,
   Route,
+  GitBranch,
 } from "lucide-react";
 
 const features = [
@@ -37,6 +38,14 @@ const features = [
     description:
       "Side-by-side, field-level comparison between any two versions of a schema. LCS-based algorithm highlights additions, removals, and modifications with color-coded markers. Works for both Avro and JSON Schema.",
     badge: "Community",
+  },
+  {
+    icon: ShieldCheck,
+    name: "Schema Validator",
+    description:
+      "Validate a schema before publishing — in a single call. Combines three checks: SR compatibility verification (proxy to your registry's dry-run API), event7 governance rules evaluation (naming, required fields, documentation), and field-level diff preview against the current version. Verdict: PASS / WARN / FAIL. event7 detects breaking changes independently of the SR (defense-in-depth). Paste JSON or upload .avsc/.json files.",
+    badge: "Community",
+    link: "/docs/validator",
   },
   {
     icon: BookOpen,
@@ -111,7 +120,7 @@ const features = [
     badge: "Community",
   },
   {
-    icon: ShieldCheck,
+    icon: GitBranch,
     name: "Compatibility Tracking",
     description:
       "View and monitor the compatibility mode of each subject (BACKWARD, FORWARD, FULL, NONE). Detect drift between intended policy and actual configuration across your registries.",
@@ -244,8 +253,8 @@ export default function FeaturesPage() {
       </h1>
       <p className="text-base text-slate-400 leading-relaxed mb-10 max-w-2xl">
         Everything you need to govern your event schemas — from exploration to
-        multi-broker channel mapping and AI-powered automation. Community
-        features are free and open-source.
+        pre-publish validation, multi-broker channel mapping, and AI-powered
+        automation. Community features are free and open-source.
       </p>
 
       {/* Current features */}

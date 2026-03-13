@@ -1,6 +1,6 @@
 // src/app/docs/getting-started/page.tsx
 
-import { Cloud, Container, Terminal, CheckCircle2, Upload, Network, Shield } from "lucide-react";
+import { Cloud, Container, Terminal, CheckCircle2, Upload, Network, Shield, ShieldCheck } from "lucide-react";
 
 function CodeBlock({ children }: { children: string }) {
   return (
@@ -124,9 +124,10 @@ export default function GettingStartedPage() {
           <p className="text-sm text-slate-400 leading-relaxed">
             Once connected, the{" "}
             <strong className="text-slate-300">Schema Explorer</strong> shows all
-            subjects and versions. From there you can diff versions, inspect
-            references, enrich schemas in the Event Catalog, or import an
-            AsyncAPI spec to create channels and bindings.
+            subjects and versions. From there you can diff versions, validate a
+            new version before publishing, inspect references, enrich schemas in
+            the Event Catalog, or import an AsyncAPI spec to create channels and
+            bindings.
           </p>
         </Step>
       </section>
@@ -153,7 +154,7 @@ cp backend/.env.example backend/.env`}
 
         <Step number={2} title="Start the stack">
           <CodeBlock>
-{`docker compose -f docker-compose.gke.yml up -d
+{`docker compose -f docker-compose.local.yml up -d --build
 
 # Services started:
 #   localhost:3000  → Frontend (Next.js)
@@ -215,14 +216,17 @@ python scripts/seed_event7.py --url http://localhost:8000`}
             </div>
             <p className="text-sm text-slate-400 leading-relaxed mb-3">
               Connect your registry and event7 discovers all subjects
-              automatically. Then enrich them in the Catalog (tags, ownership,
-              classification, data layers), create channels manually, and
-              generate AsyncAPI specs.
+              automatically. Then validate new versions before publishing,
+              enrich them in the Catalog (tags, ownership, classification,
+              data layers), create channels manually, and generate AsyncAPI
+              specs.
             </p>
             <div className="flex items-center gap-2 text-[11px] text-slate-500">
               <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Connect</span>
               <span>→</span>
               <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Explore</span>
+              <span>→</span>
+              <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Validate</span>
               <span>→</span>
               <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Enrich</span>
               <span>→</span>
@@ -255,8 +259,14 @@ python scripts/seed_event7.py --url http://localhost:8000`}
         <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-4">
           Next steps
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {[
+            {
+              icon: ShieldCheck,
+              title: "Validate Schemas",
+              desc: "Test a schema before publishing — SR compatibility + governance rules + diff in one report.",
+              href: "/docs/features",
+            },
             {
               icon: Upload,
               title: "Import AsyncAPI",
