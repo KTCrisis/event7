@@ -1,11 +1,12 @@
 // src/app/(dashboard)/catalog/page.tsx
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Search, Download, Edit3, FileCode, Braces, Tag,
   Shield, Users, Layers, Link2, Loader2, AlertCircle,
-  DatabaseZap, ChevronDown, Eye, EyeOff, Library
+  DatabaseZap, ChevronDown, Eye, EyeOff, Library,
+  Network, Clock, Pencil,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import { getCatalog, exportCatalogCsv } from "@/lib/api/governance";
 import { EnrichmentEditor } from "@/components/catalog/enrichment-editor";
 import { CatalogScoreBadge } from "@/components/rules/catalog-score";
 import { DataLayerBadge } from "@/components/catalog/data-layer-badge";
+import { AsyncAPIDrawer } from "@/components/catalog/asyncapi-drawer";
 import type { CatalogEntry, DataClassification, DataLayer } from "@/types/governance";
 
 // Classification badge config
@@ -33,11 +35,37 @@ const CLASS_CONFIG: Record<DataClassification, { label: string; color: string; i
   restricted: { label: "Restricted", color: "bg-red-500/10 text-red-400 border-red-500/20", icon: "🔴" },
 };
 
+// Broker display config
+const BROKER_CONFIG: Record<string, { label: string; color: string }> = {
+  kafka: { label: "Kafka", color: "text-orange-400" },
+  rabbitmq: { label: "RabbitMQ", color: "text-amber-400" },
+  redis_streams: { label: "Redis", color: "text-red-400" },
+  pulsar: { label: "Pulsar", color: "text-purple-400" },
+  nats: { label: "NATS", color: "text-green-400" },
+  google_pubsub: { label: "Pub/Sub", color: "text-blue-400" },
+  aws_sns_sqs: { label: "AWS SNS", color: "text-yellow-400" },
+  azure_servicebus: { label: "Azure SB", color: "text-sky-400" },
+  custom: { label: "Custom", color: "text-zinc-400" },
+};
+
+function timeAgo(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}
+
 type FilterKey = "all" | "documented" | "undocumented" | "with-refs";
 type SortKey = "subject" | "version" | "owner" | "classification";
 
-const GRID_WITH_SCORE = "grid-cols-[36px_1fr_70px_140px_120px_100px_80px_60px_40px]";
-const GRID_NO_SCORE = "grid-cols-[1fr_70px_140px_120px_100px_80px_60px_40px]";
+const GRID_WITH_SCORE = "grid-cols-[36px_1fr_90px_70px_120px_100px_80px_60px_50px_70px_50px]";
+const GRID_NO_SCORE = "grid-cols-[1fr_90px_70px_120px_100px_80px_60px_50px_70px_50px]";
 
 export default function CatalogPage() {
   const { selected: registry } = useRegistry();
@@ -51,6 +79,7 @@ export default function CatalogPage() {
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [classFilter, setClassFilter] = useState<DataClassification | "all">("all");
   const [layerFilter, setLayerFilter] = useState<DataLayer | "all">("all");
+  const [brokerFilter, setBrokerFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<SortKey>("subject");
 
   // Score toggle
@@ -58,6 +87,9 @@ export default function CatalogPage() {
 
   // Editor
   const [editing, setEditing] = useState<CatalogEntry | null>(null);
+
+  // AsyncAPI drawer
+  const [asyncapiSubject, setAsyncapiSubject] = useState<string | null>(null);
 
   const gridCols = showScores ? GRID_WITH_SCORE : GRID_NO_SCORE;
 
@@ -82,6 +114,15 @@ export default function CatalogPage() {
     const set = new Set<string>();
     catalog.forEach((e) => {
       if (e.owner_team) set.add(e.owner_team);
+    });
+    return Array.from(set).sort();
+  }, [catalog]);
+
+  // Unique broker types for filter
+  const brokers = useMemo(() => {
+    const set = new Set<string>();
+    catalog.forEach((e) => {
+      (e.broker_types || []).forEach((b) => set.add(b));
     });
     return Array.from(set).sort();
   }, [catalog]);
@@ -113,8 +154,11 @@ export default function CatalogPage() {
       const matchOwner = ownerFilter === "all" || e.owner_team === ownerFilter;
       const matchClass = classFilter === "all" || e.classification === classFilter;
       const matchLayer = layerFilter === "all" || e.data_layer === layerFilter;
+      const matchBroker =
+        brokerFilter === "all" ||
+        (e.broker_types || []).includes(brokerFilter);
 
-      return matchSearch && matchFilter && matchOwner && matchClass && matchLayer;
+      return matchSearch && matchFilter && matchOwner && matchClass && matchLayer && matchBroker;
     });
 
     result.sort((a, b) => {
@@ -127,7 +171,7 @@ export default function CatalogPage() {
     });
 
     return result;
-  }, [catalog, search, filter, ownerFilter, classFilter, layerFilter, sortBy]);
+  }, [catalog, search, filter, ownerFilter, classFilter, layerFilter, brokerFilter, sortBy]);
 
   // Export CSV
   const handleExport = async () => {
@@ -321,6 +365,30 @@ export default function CatalogPage() {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Broker filter */}
+        {brokers.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1">
+                <Network size={11} />
+                {brokerFilter === "all" ? "All brokers" : BROKER_CONFIG[brokerFilter]?.label || brokerFilter}
+                <ChevronDown size={10} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setBrokerFilter("all")} className="text-xs">
+                All brokers
+              </DropdownMenuItem>
+              {brokers.map((b) => (
+                <DropdownMenuItem key={b} onClick={() => setBrokerFilter(b)} className="text-xs">
+                  <span className={BROKER_CONFIG[b]?.color || "text-zinc-400"}>●</span>
+                  <span className="ml-1.5">{BROKER_CONFIG[b]?.label || b}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Table */}
@@ -329,12 +397,14 @@ export default function CatalogPage() {
         <div className={cn("grid gap-2 px-4 py-2 border-b border-border bg-muted/20 text-[10px] uppercase tracking-wider font-medium text-muted-foreground", gridCols)}>
           {showScores && <div className="text-center">Score</div>}
           <div>Subject</div>
+          <div>Broker</div>
           <div>Layer</div>
           <div>Owner</div>
           <div>Classification</div>
           <div>Tags</div>
           <div className="text-center">Format</div>
           <div className="text-center">Ver.</div>
+          <div>Updated</div>
           <div />
         </div>
 
@@ -372,6 +442,25 @@ export default function CatalogPage() {
                       <div className="text-[11px] text-muted-foreground/40 italic">
                         No description
                       </div>
+                    )}
+                  </div>
+
+                  {/* Broker badges */}
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {(entry.broker_types || []).length > 0 ? (
+                      entry.broker_types.map((b) => (
+                        <span
+                          key={b}
+                          className={cn(
+                            "text-[10px] font-medium px-1.5 py-0.5 rounded border border-border/50 bg-muted/30",
+                            BROKER_CONFIG[b]?.color || "text-zinc-400"
+                          )}
+                        >
+                          {BROKER_CONFIG[b]?.label || b}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground/40">—</span>
                     )}
                   </div>
 
@@ -437,14 +526,27 @@ export default function CatalogPage() {
                     v{entry.latest_version}
                   </div>
 
-                  {/* Edit button */}
-                  <div className="flex justify-center">
+                  {/* Updated */}
+                  <div className="text-[10px] text-muted-foreground flex items-center gap-1" title={entry.updated_at || ""}>
+                    <Clock size={10} />
+                    {timeAgo(entry.updated_at)}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => setAsyncapiSubject(entry.subject)}
+                      className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-cyan-400 transition-colors"
+                      title="View AsyncAPI spec"
+                    >
+                      <FileCode size={13} />
+                    </button>
                     <button
                       onClick={() => setEditing(entry)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted"
+                      className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
                       title="Edit enrichment"
                     >
-                      <Edit3 size={13} className="text-muted-foreground" />
+                      <Edit3 size={13} />
                     </button>
                   </div>
                 </div>
@@ -469,6 +571,16 @@ export default function CatalogPage() {
           entry={editing}
           onClose={() => setEditing(null)}
           onSaved={handleSaved}
+        />
+      )}
+
+      {/* AsyncAPI drawer */}
+      {asyncapiSubject && registry && (
+        <AsyncAPIDrawer
+          open={!!asyncapiSubject}
+          onClose={() => setAsyncapiSubject(null)}
+          registryId={registry.id}
+          subject={asyncapiSubject}
         />
       )}
     </div>
