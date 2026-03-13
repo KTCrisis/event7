@@ -1,336 +1,113 @@
 """
-event7 - Schema Validator Service
-Orchestre la validation d'un schema candidat en combinant 3 checks :
-  1. Compatibility check (proxy SR via provider)
-  2. Governance rules evaluation (event7 DB)
-  3. Diff preview (field-level contre la version actuelle)
+event7 - Schema Validator Models
+Pydantic v2 models pour le Schema Validator.
 
-Placement: backend/app/services/validator_service.py
+Placement: backend/app/models/validator.py
 Design doc: SCHEMA_VALIDATOR_DESIGN.md v1.0.0
-
-Le Validator est stateless — il ne stocke rien, ne modifie rien.
 """
 
-import json
-from datetime import datetime, timezone
+from datetime import datetime
+from enum import Enum
 
-from loguru import logger
+from pydantic import BaseModel, Field
 
-from app.cache.redis_cache import RedisCache
-from app.db.base import DatabaseProvider
-from app.models.schema import DiffChangeType, SchemaFormat
-from app.models.validator import (
-    CompatibilityResult,
-    DiffResult,
-    GovernanceResult,
-    RuleSkipped,
-    RuleViolation,
-    SchemaValidateRequest,
-    SchemaValidateResponse,
-    Verdict,
-)
-from app.providers.base import SchemaRegistryProvider
-from app.services.diff_service import compute_schema_diff
-from app.services.rules_evaluator import evaluate_rules_for_schema
+from app.models.schema import SchemaFormat
 
 
-class SchemaValidatorService:
-    """
-    Orchestre la validation d'un schema candidat.
-    Flow: Route → ValidatorService.validate() → 3 checks → rapport unifié
+# ====================================================================
+# Enums
+# ====================================================================
 
-    Réutilise :
-      - provider.check_compatibility()  (Confluent + Apicurio)
-      - provider.get_compatibility()    (mode du subject)
-      - provider.get_schema()           (version actuelle pour le diff)
-      - diff_service.compute_schema_diff()
-      - rules_evaluator.evaluate_rules_for_schema()  (nouveau)
-    """
 
-    def __init__(
-        self,
-        provider: SchemaRegistryProvider,
-        cache: RedisCache,
-        db: DatabaseProvider,
-        registry_id: str,
-    ):
-        self.provider = provider
-        self.cache = cache
-        self.db = db
-        self.registry_id = registry_id
+class Verdict(str, Enum):
+    """Résultat global de la validation."""
+    PASS = "PASS"
+    WARN = "WARN"
+    FAIL = "FAIL"
 
-    async def validate(self, request: SchemaValidateRequest) -> SchemaValidateResponse:
-        """
-        Point d'entrée principal.
-        Exécute les 3 checks et assemble le rapport.
-        """
-        # Parse le schema candidat
-        try:
-            schema_dict = json.loads(request.schema_content)
-        except (json.JSONDecodeError, TypeError) as e:
-            raise ValueError(f"Invalid JSON in schema_content: {e}")
 
-        # Détecte si le subject existe déjà dans le SR
-        is_new_subject = False
-        current_schema = None
-        compare_version_int = None
+# ====================================================================
+# Request
+# ====================================================================
 
-        try:
-            current_schema = await self.provider.get_schema(request.subject)
-            compare_version_int = current_schema.version
-        except Exception:
-            # Subject n'existe pas encore → premier schema
-            is_new_subject = True
-            logger.info(f"Validator: subject '{request.subject}' is new (not in SR)")
 
-        # ── 1. Compatibility check (async — appel SR) ──
-        compatibility = await self._check_compatibility(
-            request.subject, schema_dict, is_new_subject
-        )
+class SchemaValidateRequest(BaseModel):
+    """Input pour le Schema Validator."""
+    subject: str
+    schema_content: str  # JSON string du schema candidat
+    schema_type: SchemaFormat = SchemaFormat.AVRO
+    references: list[dict] = Field(default_factory=list)
+    compare_version: str = "latest"
 
-        # ── 2. Governance rules evaluation (sync — event7 DB) ──
-        governance = self._evaluate_governance(request.subject, schema_dict)
 
-        # ── 3. Diff preview (sync — comparaison locale) ──
-        diff = self._compute_diff(
-            request.subject,
-            schema_dict,
-            current_schema,
-            request.schema_type,
-            is_new_subject,
-        )
+# ====================================================================
+# Sub-results
+# ====================================================================
 
-        # ── Verdict ──
-        verdict = self._compute_verdict(compatibility, governance, diff)
 
-        return SchemaValidateResponse(
-            subject=request.subject,
-            schema_type=request.schema_type,
-            compare_version=compare_version_int,
-            timestamp=datetime.now(timezone.utc),
-            compatibility=compatibility,
-            governance=governance,
-            diff=diff,
-            verdict=verdict,
-        )
+class CompatibilityResult(BaseModel):
+    """Résultat du check de compatibilité SR."""
+    is_compatible: bool = True
+    mode: str = "UNKNOWN"
+    messages: list[str] = Field(default_factory=list)
+    provider_checked: bool = True
 
-    # ================================================================
-    # 1. Compatibility Check
-    # ================================================================
 
-    async def _check_compatibility(
-        self,
-        subject: str,
-        schema_dict: dict,
-        is_new_subject: bool,
-    ) -> CompatibilityResult:
-        """Proxy vers provider.check_compatibility()."""
-        if is_new_subject:
-            return CompatibilityResult(
-                is_compatible=True,
-                mode="NONE",
-                messages=["New subject — no previous version to compare against"],
-                provider_checked=False,
-            )
+class RuleViolation(BaseModel):
+    """Une rule event7 en violation."""
+    rule_id: str
+    rule_name: str
+    rule_scope: str
+    severity: str
+    message: str
+    category: str = "custom"
 
-        try:
-            # Get compatibility mode
-            mode = await self.provider.get_compatibility(subject)
-            mode_str = mode.value if hasattr(mode, "value") else str(mode)
 
-            # Check compatibility
-            result = await self.provider.check_compatibility(subject, schema_dict)
+class RuleSkipped(BaseModel):
+    """Une rule event7 non évaluable (runtime, control_plane)."""
+    rule_id: str
+    rule_name: str
+    rule_scope: str
+    reason: str = "Scope not evaluable at validation time"
 
-            return CompatibilityResult(
-                is_compatible=result.get("is_compatible", False),
-                mode=mode_str,
-                messages=result.get("messages", []),
-                provider_checked=True,
-            )
-        except Exception as e:
-            logger.warning(f"Validator: compatibility check failed for {subject}: {e}")
-            return CompatibilityResult(
-                is_compatible=False,
-                mode="UNKNOWN",
-                messages=[f"Compatibility check error: {str(e)}"],
-                provider_checked=False,
-            )
 
-    # ================================================================
-    # 2. Governance Rules Evaluation
-    # ================================================================
+class GovernanceResult(BaseModel):
+    """Résultat de l'évaluation des governance rules event7."""
+    score: int = 100
+    violations: list[RuleViolation] = Field(default_factory=list)
+    skipped: list[RuleSkipped] = Field(default_factory=list)
+    passed: int = 0
+    failed: int = 0
+    total: int = 0
 
-    def _evaluate_governance(self, subject: str, schema_dict: dict) -> GovernanceResult:
-        """Évalue les governance rules event7 sur le schema candidat."""
-        try:
-            # Charge les rules applicables (globales + subject-specific)
-            rules_rows = self.db.list_governance_rules(
-                registry_id=self.registry_id,
-                subject=subject,
-            )
 
-            if not rules_rows:
-                return GovernanceResult(
-                    score=100,
-                    passed=0,
-                    failed=0,
-                    total=0,
-                )
+class DiffResult(BaseModel):
+    """Résultat du diff contre la version actuelle."""
+    has_changes: bool = False
+    fields_added: list[str] = Field(default_factory=list)
+    fields_removed: list[str] = Field(default_factory=list)
+    fields_modified: list[str] = Field(default_factory=list)
+    is_breaking: bool = False
+    total_changes: int = 0
+    is_new_subject: bool = False
 
-            # Délègue l'évaluation au rules_evaluator
-            violations, skipped, passed = evaluate_rules_for_schema(
-                rules=rules_rows,
-                schema_content=schema_dict,
-                subject=subject,
-            )
 
-            total = passed + len(violations) + len(skipped)
-            evaluable_total = passed + len(violations)
+# ====================================================================
+# Response
+# ====================================================================
 
-            # Score : % de rules évaluables passées (même logique que le scoring existant)
-            if evaluable_total > 0:
-                score = int((passed / evaluable_total) * 100)
-            else:
-                score = 100  # Aucune rule évaluable → score max
 
-            return GovernanceResult(
-                score=score,
-                violations=violations,
-                skipped=skipped,
-                passed=passed,
-                failed=len(violations),
-                total=total,
-            )
-        except Exception as e:
-            logger.warning(f"Validator: governance evaluation failed for {subject}: {e}")
-            return GovernanceResult(
-                score=0,
-                violations=[
-                    RuleViolation(
-                        rule_id="error",
-                        rule_name="evaluation_error",
-                        rule_scope="audit",
-                        severity="warning",
-                        message=f"Governance evaluation error: {str(e)}",
-                        category="custom",
-                    )
-                ],
-                failed=1,
-                total=1,
-            )
+class SchemaValidateResponse(BaseModel):
+    """Rapport de validation unifié."""
+    subject: str
+    schema_type: SchemaFormat
+    compare_version: int | None = None
+    timestamp: datetime
 
-    # ================================================================
-    # 3. Diff Preview
-    # ================================================================
+    # 3 checks
+    compatibility: CompatibilityResult
+    governance: GovernanceResult
+    diff: DiffResult
 
-    def _compute_diff(
-        self,
-        subject: str,
-        schema_dict: dict,
-        current_schema,
-        schema_type: SchemaFormat,
-        is_new_subject: bool,
-    ) -> DiffResult:
-        """Diff field-level contre la version actuelle."""
-        if is_new_subject or current_schema is None:
-            return DiffResult(
-                has_changes=False,
-                is_new_subject=True,
-            )
-
-        try:
-            diff = compute_schema_diff(
-                subject=subject,
-                version_from=current_schema.version,
-                version_to=current_schema.version + 1,  # Candidat = version suivante
-                schema_from=current_schema.schema_content,
-                schema_to=schema_dict,
-                schema_format=schema_type,
-            )
-
-            fields_added = [
-                c.field_path for c in diff.changes
-                if c.change_type == DiffChangeType.ADDED
-            ]
-            fields_removed = [
-                c.field_path for c in diff.changes
-                if c.change_type == DiffChangeType.REMOVED
-            ]
-            fields_modified = [
-                c.field_path for c in diff.changes
-                if c.change_type == DiffChangeType.MODIFIED
-            ]
-
-            return DiffResult(
-                has_changes=len(diff.changes) > 0,
-                fields_added=fields_added,
-                fields_removed=fields_removed,
-                fields_modified=fields_modified,
-                is_breaking=diff.is_breaking,
-                total_changes=len(diff.changes),
-                is_new_subject=False,
-            )
-        except Exception as e:
-            logger.warning(f"Validator: diff failed for {subject}: {e}")
-            return DiffResult(
-                has_changes=False,
-                is_new_subject=False,
-            )
-
-    # ================================================================
-    # Verdict
-    # ================================================================
-
-    # Modes where breaking changes should be rejected
-    _STRICT_MODES = {
-        "BACKWARD", "BACKWARD_TRANSITIVE",
-        "FORWARD", "FORWARD_TRANSITIVE",
-        "FULL", "FULL_TRANSITIVE",
-    }
-
-    @staticmethod
-    def _compute_verdict(
-        compatibility: CompatibilityResult,
-        governance: GovernanceResult,
-        diff: DiffResult,
-    ) -> Verdict:
-        """
-        Verdict logic:
-          FAIL  = non compatible (SR says no)
-                  OU violations error/critical
-                  OU breaking changes + strict mode (event7 detects independently)
-                  OU breaking changes + NONE mode (SR not protecting)
-          WARN  = breaking changes + non-strict mode
-                  OU violations warning/info
-          PASS  = compatible + no violations + no breaking changes
-        """
-        # Non compatible → FAIL
-        if compatibility.provider_checked and not compatibility.is_compatible:
-            return Verdict.FAIL
-
-        # Violations error/critical → FAIL
-        severe = [
-            v for v in governance.violations
-            if v.severity in ("error", "critical")
-        ]
-        if severe:
-            return Verdict.FAIL
-
-        # Breaking changes + strict compatibility mode → FAIL
-        # event7 detects this independently — don't blindly trust the SR
-        if diff.is_breaking and compatibility.mode in SchemaValidatorService._STRICT_MODES:
-            return Verdict.FAIL
-
-        # Breaking changes with NONE/UNKNOWN mode → FAIL (SR is not protecting you)
-        if diff.is_breaking and compatibility.mode in ("NONE", "UNKNOWN"):
-            return Verdict.FAIL
-
-        # Breaking changes detected (no mode set?) → WARN
-        if diff.is_breaking:
-            return Verdict.WARN
-
-        # Violations warning/info → WARN
-        if governance.violations:
-            return Verdict.WARN
-
-        return Verdict.PASS
+    # Overall verdict
+    verdict: Verdict
