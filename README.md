@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Universal schema registry governance platform</strong><br/>
-  <em>Explore, validate, and govern your event schemas — across any registry, any broker, any spec.</em>
+  <em>Explore, validate, and govern your event schemas — across registries and brokers, without vendor lock-in.</em>
 </p>
 
 <p align="center">
@@ -13,7 +13,6 @@
   <img src="https://img.shields.io/badge/Confluent-000000.svg?logo=confluent&logoColor=white" alt="Confluent" />
   <img src="https://img.shields.io/badge/Apicurio-E6392A.svg" alt="Apicurio" />
   <img src="https://img.shields.io/badge/AsyncAPI-3.0-4F46E5.svg" alt="AsyncAPI" />
-  <img src="https://img.shields.io/badge/CloudEvents-4285F4.svg" alt="CloudEvents" />
   <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-Welcome-brightgreen.svg" alt="PRs Welcome" /></a>
 </p>
 
@@ -41,11 +40,21 @@ event7 adds a **provider-agnostic governance layer** above your registries. Sche
 
 **Govern** — Give organizations a single place to govern events across any registry and any broker: enrichments, ownership, data layers, scoring, channel model, AsyncAPI import/export — all provider-agnostic, all stored in event7.
 
+event7 gives developers confidence to evolve schemas, and gives platform teams a single governance plane across registries and brokers.
+
+### Why teams use event7
+
+- **Govern schemas across registries** — Confluent, Apicurio, Karapace, Redpanda, Red Hat — same rules, same scoring
+- **Map schemas to channels across brokers** — Kafka, RabbitMQ, Pulsar, NATS, Redis Streams, cloud brokers
+- **Validate before publishing** — SR compatibility + governance rules + diff preview in one report
+- **Import/generate AsyncAPI specs** — bidirectional: spec → event7, or event7 → spec
+- **No vendor lock-in** — enrichments, rules, and channels live in event7, not in your registry
+
 ### How event7 fits
 
 ```
-Schema Registry  ↔  event7                ↔  AsyncAPI / CloudEvents  →  EventCatalog / Backstage
-  (stores)          (governs + validates)      (specifies)                (documents)
+Schema Registry  ↔  event7                ↔  AsyncAPI            →  EventCatalog / Backstage
+  (stores)          (governs + validates)      (specifies)            (documents)
 ```
 
 event7 is not a registry, not a documentation portal, not a Kafka ops tool. It's the governance and validation layer that sits between your infrastructure and your documentation.
@@ -84,7 +93,7 @@ event7 is not a registry, not a documentation portal, not a Kafka ops tool. It's
 | **Multi-Provider** | Confluent Cloud, Confluent Platform, Apicurio v3, Karapace, Redpanda — same UI |
 | **AI Agent (BYOM)** | Natural-language governance commands with 6 context fetchers + 3 write actions |
 
-All features above are free and open-source under **Apache 2.0**. Commercial tiers (Pro, Enterprise) are described in the [licensing page](https://event7.pages.dev/docs/licensing).
+The core platform is open-source under **Apache 2.0**. Commercial tiers add managed deployment, provider sync, and enterprise controls. See the [licensing page](https://event7.pages.dev/docs/licensing) for details.
 
 ---
 
