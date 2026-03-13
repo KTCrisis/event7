@@ -158,20 +158,20 @@ Health check: `curl http://localhost:8000/health`
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  Frontend  (Next.js · Cloudflare Pages)                      │
+│  Frontend                                                    │
 │  Explorer · Catalog · Channels · Diff · Graph · Rules · AI   │
 └───────────────────────────┬──────────────────────────────────┘
                             │ REST API
-┌───────────────────────────┴──────────────────────────────────┐
-│  Backend  (FastAPI · Railway / GKE)                          │
-│  Services → Providers → Cache (Redis)                        │
+┌───────────────────────────┴───────────────────────────────────┐
+│  Backend  (FastAPI)                                           │
+│  Services → Providers → Cache (Redis)                         │
 │            → Database (Supabase / PostgreSQL)                 │
 │            → Channels · Rules · Enrichments · AsyncAPI Specs  │
-└──────┬──────────────┬────────────────────────────────────────┘
+└──────┬──────────────┬─────────────────────────────────────────┘
        │              │
 ┌──────┴─────┐ ┌──────┴──────┐
 │ Confluent  │ │  Apicurio   │  ← your registries (schemas live here)
-│ Cloud / CP │ │  Registry   │
+│ SR  / CP   │ │  Registry   │
 └────────────┘ └─────────────┘
 
   event7 = governance layer
@@ -182,7 +182,7 @@ Health check: `curl http://localhost:8000/health`
 **Two adapter patterns:**
 
 1. **SchemaRegistryProvider** — one interface, multiple registry implementations.
-2. **DatabaseProvider** — Supabase for SaaS, PostgreSQL (psycopg2) for self-hosted.
+2. **DatabaseProvider** — Supabase for SaaS, PostgreSQL for self-hosted.
 
 Enrichments, channels, rules, and AsyncAPI specs are stored in event7's own database — never pushed to the registry. This keeps governance provider-agnostic.
 
@@ -223,7 +223,7 @@ event7/
 │   ├── src/components/     # UI components (shadcn/ui, Recharts, d3-force)
 │   ├── src/lib/            # API clients, Supabase helpers
 │   └── src/providers/      # React context (registry, auth)
-├── docker-compose.gke.yml  # Full stack (PG + Redis + Apicurio + backend + frontend)
+├── docker-compose.local.yml  # Full stack (PG + Redis + Apicurio + backend + frontend)
 └── docker-compose.yml      # Dev (Redis only)
 ```
 
@@ -295,15 +295,6 @@ Please open an issue first for major changes so we can discuss the approach.
 ---
 
 ## Licensing
-
-event7 follows an **open-core** model:
-
-| Tier | License | Includes |
-|------|---------|----------|
-| **Free** | SaaS terms | Core governance, 1 registry, 50 schemas, AI Agent BYOM |
-| **Community** | Apache 2.0 | Everything free, unlimited, self-hosted |
-| **Pro** | Commercial | Provider sync, hosted registry, AI managed, AsyncAPI export Mode 3 |
-| **Enterprise** | Commercial | OIDC/SSO, RBAC, channel monitoring, audit logs, SLA |
 
 See the [full licensing details](https://event7.pages.dev/docs/licensing).
 
