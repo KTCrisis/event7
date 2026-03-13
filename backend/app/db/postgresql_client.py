@@ -477,7 +477,177 @@ class PostgreSQLDatabase(DatabaseProvider):
             "SELECT * FROM governance_rule_templates WHERE id = %s::uuid",
             (template_id,),
         )
+
+    # ================================================================
+    # CHANNELS
+    # ================================================================
  
+    def get_channels(self, registry_id: str) -> list[dict]:
+        return self._fetchall(
+            """SELECT c.*,
+                      (SELECT COUNT(*) FROM channel_subjects cs WHERE cs.channel_id = c.id) AS subject_count
+               FROM channels c
+               WHERE c.registry_id = %s::uuid
+               ORDER BY c.created_at DESC""",
+            (registry_id,),
+        )
+ 
+    def get_channel_by_id(self, channel_id: str) -> dict | None:
+        return self._fetchone(
+            "SELECT * FROM channels WHERE id = %s::uuid",
+            (channel_id,),
+        )
+ 
+    def create_channel(self, channel_data: dict) -> dict | None:
+        return self._fetchone(
+            """INSERT INTO channels (
+                   id, registry_id, name, address,
+                   broker_type, resource_kind, messaging_pattern,
+                   broker_config, data_layer,
+                   description, owner, tags,
+                   is_auto_detected, auto_detect_source
+               ) VALUES (
+                   %s, %s::uuid, %s, %s,
+                   %s, %s, %s,
+                   %s::jsonb, %s,
+                   %s, %s, %s::text[],
+                   %s, %s
+               )
+               RETURNING *""",
+            (
+                str(uuid4()),
+                channel_data["registry_id"],
+                channel_data["name"],
+                channel_data["address"],
+                channel_data["broker_type"],
+                channel_data["resource_kind"],
+                channel_data["messaging_pattern"],
+                json.dumps(channel_data.get("broker_config", {})),
+                channel_data.get("data_layer"),
+                channel_data.get("description"),
+                channel_data.get("owner"),
+                channel_data.get("tags", []),
+                channel_data.get("is_auto_detected", False),
+                channel_data.get("auto_detect_source"),
+            ),
+        )
+ 
+    def update_channel(self, channel_id: str, updates: dict) -> dict | None:
+        # Build SET clause dynamically from non-None updates
+        allowed = {
+            "name", "address", "broker_type", "resource_kind",
+            "messaging_pattern", "data_layer", "description",
+            "owner", "tags", "broker_config",
+        }
+        sets = []
+        params = []
+        for key, value in updates.items():
+            if key not in allowed:
+                continue
+            if key == "broker_config":
+                sets.append(f"{key} = %s::jsonb")
+                params.append(json.dumps(value))
+            elif key == "tags":
+                sets.append(f"{key} = %s::text[]")
+                params.append(value)
+            else:
+                sets.append(f"{key} = %s")
+                params.append(value)
+ 
+        if not sets:
+            return self.get_channel_by_id(channel_id)
+ 
+        params.append(channel_id)
+        return self._fetchone(
+            f"""UPDATE channels SET {', '.join(sets)}
+                WHERE id = %s::uuid
+                RETURNING *""",
+            tuple(params),
+        )
+ 
+    def delete_channel(self, channel_id: str) -> bool:
+        return self._execute(
+            "DELETE FROM channels WHERE id = %s::uuid",
+            (channel_id,),
+        ) > 0
+ 
+    # ================================================================
+    # CHANNEL-SUBJECT BINDINGS
+    # ================================================================
+ 
+    def get_bindings_for_channel(self, channel_id: str) -> list[dict]:
+        return self._fetchall(
+            """SELECT * FROM channel_subjects
+               WHERE channel_id = %s::uuid
+               ORDER BY subject_name""",
+            (channel_id,),
+        )
+ 
+    def get_channels_for_subject(self, registry_id: str, subject_name: str) -> list[dict]:
+        return self._fetchall(
+            """SELECT c.*, cs.binding_strategy, cs.schema_role,
+                      cs.binding_origin, cs.binding_selector,
+                      cs.binding_status, cs.last_verified_at,
+                      cs.id AS binding_id
+               FROM channel_subjects cs
+               JOIN channels c ON c.id = cs.channel_id
+               WHERE c.registry_id = %s::uuid
+                 AND cs.subject_name = %s
+               ORDER BY c.name""",
+            (registry_id, subject_name),
+        )
+ 
+    def create_binding(self, binding_data: dict) -> dict | None:
+        return self._fetchone(
+            """INSERT INTO channel_subjects (
+                   id, channel_id, subject_name,
+                   binding_strategy, schema_role,
+                   binding_origin, binding_selector,
+                   binding_status, is_auto_detected
+               ) VALUES (
+                   %s, %s::uuid, %s,
+                   %s, %s,
+                   %s, %s,
+                   %s, %s
+               )
+               RETURNING *""",
+            (
+                str(uuid4()),
+                binding_data["channel_id"],
+                binding_data["subject_name"],
+                binding_data["binding_strategy"],
+                binding_data.get("schema_role", "value"),
+                binding_data.get("binding_origin", "manual"),
+                binding_data.get("binding_selector"),
+                binding_data.get("binding_status", "unverified"),
+                binding_data.get("is_auto_detected", False),
+            ),
+        )
+ 
+    def delete_binding(self, binding_id: str) -> bool:
+        return self._execute(
+            "DELETE FROM channel_subjects WHERE id = %s::uuid",
+            (binding_id,),
+        ) > 0
+ 
+    def update_binding_status(
+        self, binding_id: str, status: str, verified_at: str | None = None
+    ) -> dict | None:
+        if verified_at:
+            return self._fetchone(
+                """UPDATE channel_subjects
+                   SET binding_status = %s, last_verified_at = %s::timestamptz
+                   WHERE id = %s::uuid
+                   RETURNING *""",
+                (status, verified_at, binding_id),
+            )
+        return self._fetchone(
+            """UPDATE channel_subjects
+               SET binding_status = %s
+               WHERE id = %s::uuid
+               RETURNING *""",
+            (status, binding_id),
+        )
     # ================================================================
     # SCHEMA SNAPSHOTS
     # ================================================================

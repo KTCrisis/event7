@@ -414,7 +414,165 @@ class SupabaseDatabase(DatabaseProvider):
         )
         data = response.data
         return data[0] if data else None
+
+    # ================================================================
+    # CHANNELS
+    # ================================================================
  
+    def get_channels(self, registry_id: str) -> list[dict]:
+        """List all channels for a registry."""
+        response = (
+            self.client.table("channels")
+            .select("*")
+            .eq("registry_id", registry_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        channels = response.data or []
+        # Add subject_count per channel
+        for ch in channels:
+            count_resp = (
+                self.client.table("channel_subjects")
+                .select("id", count="exact")
+                .eq("channel_id", ch["id"])
+                .execute()
+            )
+            ch["subject_count"] = count_resp.count if count_resp.count is not None else 0
+        return channels
+ 
+    def get_channel_by_id(self, channel_id: str) -> dict | None:
+        """Fetch a single channel by ID."""
+        response = (
+            self.client.table("channels")
+            .select("*")
+            .eq("id", channel_id)
+            .execute()
+        )
+        data = response.data
+        if not data:
+            return None
+        return data[0]
+ 
+    def create_channel(self, channel_data: dict) -> dict | None:
+        """Insert a new channel."""
+        response = (
+            self.client.table("channels")
+            .insert(channel_data)
+            .execute()
+        )
+        if not response.data:
+            logger.error("Failed to create channel: no data returned")
+            return None
+        return response.data[0]
+ 
+    def update_channel(self, channel_id: str, updates: dict) -> dict | None:
+        """Update a channel. Returns updated row or None."""
+        allowed = {
+            "name", "address", "broker_type", "resource_kind",
+            "messaging_pattern", "data_layer", "description",
+            "owner", "tags", "broker_config",
+        }
+        filtered = {k: v for k, v in updates.items() if k in allowed}
+        if not filtered:
+            return self.get_channel_by_id(channel_id)
+ 
+        response = (
+            self.client.table("channels")
+            .update(filtered)
+            .eq("id", channel_id)
+            .execute()
+        )
+        if not response.data:
+            logger.warning(f"update_channel: no row affected for {channel_id}")
+            return None
+        return response.data[0]
+ 
+    def delete_channel(self, channel_id: str) -> bool:
+        """Delete a channel (cascades to channel_subjects)."""
+        response = (
+            self.client.table("channels")
+            .delete()
+            .eq("id", channel_id)
+            .execute()
+        )
+        return bool(response.data)
+ 
+    # ================================================================
+    # CHANNEL-SUBJECT BINDINGS
+    # ================================================================
+ 
+    def get_bindings_for_channel(self, channel_id: str) -> list[dict]:
+        """List all subject bindings for a channel."""
+        response = (
+            self.client.table("channel_subjects")
+            .select("*")
+            .eq("channel_id", channel_id)
+            .order("subject_name")
+            .execute()
+        )
+        return response.data or []
+ 
+    def get_channels_for_subject(self, registry_id: str, subject_name: str) -> list[dict]:
+        """List all channels bound to a subject (reverse lookup via join)."""
+        # Supabase supports foreign key joins with select syntax
+        response = (
+            self.client.table("channel_subjects")
+            .select("*, channels!inner(*)")
+            .eq("channels.registry_id", registry_id)
+            .eq("subject_name", subject_name)
+            .execute()
+        )
+        if not response.data:
+            return []
+ 
+        # Flatten: merge channel data into each binding row
+        results = []
+        for row in response.data:
+            channel = row.pop("channels", {})
+            merged = {**channel, **row, "binding_id": row["id"]}
+            results.append(merged)
+        return results
+ 
+    def create_binding(self, binding_data: dict) -> dict | None:
+        """Create a channel-subject binding."""
+        response = (
+            self.client.table("channel_subjects")
+            .insert(binding_data)
+            .execute()
+        )
+        if not response.data:
+            logger.error("Failed to create binding: no data returned")
+            return None
+        return response.data[0]
+ 
+    def delete_binding(self, binding_id: str) -> bool:
+        """Delete a channel-subject binding."""
+        response = (
+            self.client.table("channel_subjects")
+            .delete()
+            .eq("id", binding_id)
+            .execute()
+        )
+        return bool(response.data)
+ 
+    def update_binding_status(
+        self, binding_id: str, status: str, verified_at: str | None = None
+    ) -> dict | None:
+        """Update binding_status and last_verified_at."""
+        update_data: dict = {"binding_status": status}
+        if verified_at:
+            update_data["last_verified_at"] = verified_at
+ 
+        response = (
+            self.client.table("channel_subjects")
+            .update(update_data)
+            .eq("id", binding_id)
+            .execute()
+        )
+        if not response.data:
+            return None
+        return response.data[0]
+  
 
     # ================================================================
     # SCHEMA SNAPSHOTS

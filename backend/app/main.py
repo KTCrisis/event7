@@ -63,6 +63,7 @@ from app.api.governance import router as governance_router
 from app.api.asyncapi import router as asyncapi_router
 from app.api.hosted import router as hosted_router
 from app.api.rules import router as rules_router
+from app.api.channels import router as channels_router
 
 app.include_router(hosted_router)
 app.include_router(registries_router)
@@ -71,6 +72,8 @@ app.include_router(governance_router)
 app.include_router(asyncapi_router)
 app.include_router(ai_router)
 app.include_router(rules_router)
+app.include_router(channels_router)
+
 # === Health Check ===
 @app.get("/health")
 async def health():
