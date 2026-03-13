@@ -15,6 +15,9 @@ const tiers = [
     features: [
       "Full governance core (Explorer, Diff, Catalog, Enrichments, AsyncAPI, Graph, Dashboard)",
       "Governance Rules & Policies — templates, scoring, enforcement tracking",
+      "Channel Model — map schemas to Kafka, RabbitMQ, Redis Streams, Pulsar, NATS, and cloud brokers",
+      "AsyncAPI Import — create channels, bindings, and enrichments from a spec in one click",
+      "Smart schema registration — provider-aware routing (Apicurio=all, Confluent=Kafka only)",
       "1 registry connection",
       "Up to 50 schemas",
       "AI Agent — bring your own model (Ollama, OpenAI, etc.)",
@@ -31,12 +34,14 @@ const tiers = [
     features: [
       "Full governance core (Explorer, Diff, Catalog, Enrichments, AsyncAPI, Graph, Dashboard)",
       "Governance Rules & Policies — templates, scoring, enforcement tracking",
+      "Channel Model — multi-broker channels with N:N bindings, data layers, broker config",
+      "AsyncAPI Import & Generation — bidirectional spec ↔ event7 with smart registration",
       "Unlimited registries and schemas",
       "AI Agent — bring your own model (Ollama, OpenAI, etc.)",
-      "Multi-provider support (Confluent Cloud, Platform, Apicurio v3)",
+      "Multi-provider support (Confluent Cloud, Platform, Apicurio v3, Karapace, Redpanda)",
       "Self-hosted — Docker, Kubernetes, or bare metal",
       "PostgreSQL + Redis, no external dependencies",
-      "Credentials encrypted at rest",
+      "Credentials encrypted at rest (AES-256 Fernet)",
     ],
   },
   {
@@ -48,8 +53,10 @@ const tiers = [
       "For teams that want zero-config AI, provider sync, and managed infrastructure. Everything in Community plus:",
     features: [
       "Provider Rule Sync — import from Confluent ruleSet, push rules to provider, drift detection",
+      "AsyncAPI Export Mode 3 — export real event7 channels as multi-broker AsyncAPI specs",
+      "Multi-registry import routing — auto-route schemas to the right registry by broker type",
       "AI Agent Managed — hosted LLM with tokens included, zero config",
-      "Hosted Registry — fully managed Apicurio instance (no infra to maintain)",
+      "Hosted Registry — fully managed Apicurio instance for brokers without native SR",
       "Unlimited registries and schemas on event7 SaaS",
       "Email support",
     ],
@@ -64,6 +71,8 @@ const tiers = [
     features: [
       "OIDC / SSO integration (Okta, Azure AD, Keycloak)",
       "RBAC — role-based access control per registry and subject",
+      "Channel health monitoring (lag, throughput, consumer groups)",
+      "Channel-level governance rules",
       "Audit log export",
       "On-prem / private cloud deployment",
       "SLA and dedicated support",
@@ -108,13 +117,20 @@ const comparisonRows = [
   { label: "Governance Rules & Policies", free: true, community: true, pro: true, enterprise: true },
   { label: "Governance Templates", free: true, community: true, pro: true, enterprise: true },
   { label: "Governance Scoring", free: true, community: true, pro: true, enterprise: true },
+  { label: "Channel Model", free: true, community: true, pro: true, enterprise: true },
+  { label: "AsyncAPI Import/Generate", free: true, community: true, pro: true, enterprise: true },
+  { label: "Smart Schema Registration", free: true, community: true, pro: true, enterprise: true },
   { label: "Provider Rule Sync", free: false, community: false, pro: true, enterprise: true },
   { label: "Drift Detection", free: false, community: false, pro: true, enterprise: true },
+  { label: "AsyncAPI Export Mode 3", free: false, community: false, pro: true, enterprise: true },
+  { label: "Multi-registry routing", free: false, community: false, pro: true, enterprise: true },
   { label: "AI Agent (BYOM)", free: true, community: true, pro: true, enterprise: true },
   { label: "AI Managed (hosted LLM)", free: false, community: false, pro: true, enterprise: true },
   { label: "Hosted Registry", free: false, community: false, pro: true, enterprise: true },
   { label: "SSO / OIDC", free: false, community: false, pro: false, enterprise: true },
   { label: "RBAC", free: false, community: false, pro: false, enterprise: true },
+  { label: "Channel health monitoring", free: false, community: false, pro: false, enterprise: true },
+  { label: "Channel-level rules", free: false, community: false, pro: false, enterprise: true },
   { label: "Audit logs", free: false, community: false, pro: false, enterprise: true },
   { label: "Support", free: "Community", community: "Community", pro: "Email", enterprise: "SLA" },
   { label: "Best for", free: "Evaluation", community: "Labs / self-hosting", pro: "Teams", enterprise: "Regulated orgs" },
@@ -134,9 +150,9 @@ export default function LicensingPage() {
       </h1>
       <p className="text-base text-slate-400 leading-relaxed mb-10 max-w-2xl">
         event7 follows an <strong className="text-slate-300">open-core</strong>{" "}
-        model. The governance engine — including rules, policies, templates, and
-        scoring — is free and open-source under Apache 2.0. Provider sync and
-        managed infrastructure are offered in paid tiers.
+        model. The governance engine — including rules, policies, channels, AsyncAPI
+        import, and scoring — is free and open-source under Apache 2.0. Provider
+        sync, advanced exports, and managed infrastructure are offered in paid tiers.
       </p>
 
       {/* Tier cards */}

@@ -26,7 +26,7 @@ const navigation = [
     items: [{ name: "Dashboard", href: "/", icon: LayoutDashboard }],
   },
   {
-    group: "Schemas",
+    group: "Explore",
     items: [
       { name: "Explorer", href: "/schemas", icon: Search },
       { name: "Diff Viewer", href: "/diff", icon: GitCompare },
@@ -34,16 +34,16 @@ const navigation = [
     ],
   },
   {
-    group: "Business",
+    group: "Govern",
     items: [
       { name: "Catalog", href: "/catalog", icon: Library },
-      { name: "Channels", href: "/channels", icon: Network }, 
-      { name: "Rules", href: "/rules", icon: Shield }, 
+      { name: "Channels", href: "/channels", icon: Network },
+      { name: "Rules", href: "/rules", icon: Shield },
       { name: "AsyncAPI", href: "/asyncapi", icon: FileCode },
     ],
   },
   {
-    group: "Admin",
+    group: "Tools",
     items: [
       { name: "AI Agent", href: "/ai", icon: Bot },
       { name: "Settings", href: "/settings", icon: Settings },

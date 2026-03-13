@@ -1,19 +1,27 @@
-# event7
+<p align="center">
+  <img src="assets/logo-event7.svg" alt="event7" width="360" />
+</p>
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776AB.svg?logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Next.js](https://img.shields.io/badge/Next.js-000000.svg?logo=next.js&logoColor=white)](https://nextjs.org)
-[![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)](docker-compose.gke.yml)
-[![AsyncAPI 3.0](https://img.shields.io/badge/AsyncAPI-3.0-4F46E5.svg?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyTDIgN3Y3YzAgNS41NSA0LjI1IDEwLjc0IDEwIDEyIDUuNzUtMS4yNiAxMC02LjQ1IDEwLTEyVjdMMTIgMnoiLz48L3N2Zz4=)](https://www.asyncapi.com)
-[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)](CONTRIBUTING.md)
+<p align="center">
+  <strong>Universal schema registry governance platform</strong><br/>
+  <em>Explore, govern, and document your event schemas — regardless of your registry provider.</em>
+</p>
 
-**Cross-registry schema governance platform for exploring, comparing, enriching, and governing event schemas.**
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License" /></a>
+  <img src="https://img.shields.io/badge/Python-3.12+-3776AB.svg?logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/FastAPI-009688.svg?logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/Next.js-000000.svg?logo=next.js&logoColor=white" alt="Next.js" />
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/AsyncAPI-3.0-4F46E5.svg" alt="AsyncAPI" />
+  <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-Welcome-brightgreen.svg" alt="PRs Welcome" /></a>
+</p>
 
-> One platform to govern your schemas — regardless of your registry provider.  
-> Deploy as SaaS or self-hosted. Same codebase, one env var to switch.
-
-📖 **[Full documentation →](https://event7.pages.dev/docs)**
+<p align="center">
+  📖 <a href="https://event7.pages.dev/docs"><strong>Documentation</strong></a> · 
+  🚀 <a href="https://event7.pages.dev"><strong>Live Demo</strong></a> · 
+  💬 <a href="https://github.com/KTCrisis/event7/issues"><strong>Issues</strong></a>
+</p>
 
 ---
 
@@ -21,36 +29,53 @@
 
 Schema registries store schemas. They don't govern them.
 
-Teams building event-driven systems face the same problems: schemas scattered across registries and environments, no connection between technical metadata and business meaning, painful version comparison, drifting event contracts, and governance locked inside vendor-specific tools.
+Teams building event-driven systems face the same problems: schemas scattered across registries, no connection between technical metadata and business meaning, drifting event contracts, and governance locked inside vendor-specific tools.
 
-event7 adds a **provider-agnostic governance layer** above your registries — with business metadata, visual diffing, dependency graphs, catalog capabilities, AI-assisted analysis, and AsyncAPI generation.
+event7 adds a **provider-agnostic governance layer** above your registries. Schemas stay in your registry (Confluent, Apicurio, Karapace, Redpanda). Everything else — enrichments, channels, rules, AsyncAPI specs — lives in event7.
+
+**event7 is not a registry. It's the governance layer your registries are missing.**
 
 ---
 
 ## Features
 
+### Explore
+
 | Feature | Description | Tier |
 |---------|-------------|------|
-| **Schema Explorer** | Browse subjects, versions, formats, and compatibility settings across registries | Community |
-| **Visual Diff Viewer** | Side-by-side, field-level diff — additions, removals, modifications, breaking change detection | Community |
-| **Event Catalog** | Business-friendly view with search, filter, inline enrichment editing, CSV export | Community |
-| **Enrichments** | Tags, ownership, descriptions, classification — stored in event7, not your registry | Community |
-| **AsyncAPI Generation** | Auto-generate AsyncAPI 3.0 specs with Avro-to-JSON-Schema conversion | Community |
-| **References Graph** | Interactive dependency graph — spot orphans, shared components, and high-impact schemas | Community |
-| **Dashboard KPIs** | Schema count, enrichment coverage, compatibility distribution, recent activity | Community |
-| **Multi-Provider** | Confluent Cloud, Confluent Platform, Apicurio v3 — one adapter pattern, one UI | Community |
-| **AI Agent (BYOM)** | Natural-language governance commands — bring your own LLM (Ollama, OpenAI, etc.) | Community |
-| **AI Agent Managed** | Hosted LLM with tokens included — zero config | Pro |
-| **Hosted Registry** | Managed Apicurio instance — no infra to maintain | Pro |
-| **Governance Rules** | Define validation, quality, and migration rules — stored in event7, provider-agnostic | Community |
-| **Extended Metadata** | Custom business attributes beyond tags/owner — structured key-value metadata | Community |
-| **Registry Metadata Sync** | Read tags, rules, and metadata from Confluent Catalog API or Apicurio labels | Community |
-| **Channel Model** | Map schemas to topics, queues, and exchanges — Kafka, RabbitMQ, Pub/Sub, and more | Community |
-| **Kafka TNS/RNS Support** | Auto-detect TopicNameStrategy or manually map RecordNameStrategy subjects to topics | Community |
-| **Multi-Broker Channels** | RabbitMQ exchanges, Google Pub/Sub, AWS SNS/SQS, Azure Service Bus, NATS, Pulsar | Community |
-| **Encryption Tracking** | Display field-level encryption metadata (CSFLE) — visibility without vendor lock-in | Pro |
+| **Schema Explorer** | Browse subjects, versions, formats, and compatibility across registries | Community |
+| **Visual Diff Viewer** | Side-by-side field-level diff with breaking change detection (Avro + JSON Schema) | Community |
+| **References Graph** | Interactive dependency graph — spot orphans, shared components, and hotspots | Community |
+| **Dashboard KPIs** | Schema count, enrichment coverage, compatibility distribution, layer distribution | Community |
 
-event7 follows an **open-core** model. The governance engine is free and open-source under **Apache 2.0**. Features with infrastructure costs (AI, managed hosting) are available in paid tiers. See [Licensing](#licensing).
+### Govern
+
+| Feature | Description | Tier |
+|---------|-------------|------|
+| **Event Catalog** | Business view with broker badges, data layers, ownership, classification, AsyncAPI drawer | Community |
+| **Enrichments** | Tags, ownership, descriptions, data layers, classification — stored in event7, not your registry | Community |
+| **Governance Rules** | Conditions, transforms, validations, policies — 4 built-in templates (RAW/CORE/REFINED/APP) | Community |
+| **Governance Scoring** | Three-axis scoring (enrichments + rules + schema quality) with confidence indicator | Community |
+| **Channel Model** | Map schemas to Kafka topics, RabbitMQ exchanges, Redis streams, Pulsar, NATS, cloud brokers | Community |
+| **AsyncAPI Import** | Import a spec → creates channels, bindings, enrichments, and registers schemas in one click | Community |
+| **AsyncAPI Generation** | Generate 3.0 specs with Kafka bindings, key schema, Avro conversion, examples | Community |
+| **Smart Registration** | Routes schemas to the right registry — Apicurio accepts all, Confluent-like only Kafka schemas | Community |
+
+### Tools
+
+| Feature | Description | Tier |
+|---------|-------------|------|
+| **Multi-Provider** | Confluent Cloud, Confluent Platform, Apicurio v3, Karapace, Redpanda — same UI | Community |
+| **AI Agent (BYOM)** | Natural-language governance commands with 6 context fetchers + 3 write actions | Community |
+| **AI Agent Managed** | Hosted LLM with tokens included — zero config | Pro |
+| **Hosted Registry** | Managed Apicurio for brokers without native SR (Redis, RabbitMQ, NATS) | Pro |
+| **Provider Rule Sync** | Import/push Confluent ruleSet + Apicurio rules, drift detection | Pro |
+| **AsyncAPI Export Mode 3** | Export real event7 channels as multi-broker specs | Pro |
+| **Channel Health** | Lag, throughput, consumer group monitoring | Enterprise |
+| **OIDC / SSO** | Okta, Azure AD, Keycloak integration | Enterprise |
+| **RBAC** | Role-based access per registry and subject | Enterprise |
+
+event7 follows an **open-core** model. The governance engine is free and open-source under **Apache 2.0**. See [Licensing](#licensing).
 
 ---
 
@@ -63,17 +88,15 @@ event7 follows an **open-core** model. The governance engine is free and open-so
 | Karapace (Aiven) | ✅ Compatible (Confluent API) |
 | Redpanda Schema Registry | ✅ Compatible (Confluent API) |
 | AWS Glue Schema Registry | 🔜 Planned |
-| Azure Schema Registry (Event Hubs) | 🔜 Planned |
+| Azure Schema Registry | 🔜 Planned |
 | Google Pub/Sub Schemas | 📋 Future |
 | Pulsar Schema Registry | 📋 Future |
-| Custom / compatible backends | Extensible by design |
-
 
 Adding a new provider means creating **one file** — no changes to services, routes, or frontend. See [Adding a New Provider](#adding-a-new-provider).
 
 ---
 
-## Quick Start (Self-Hosted)
+## Quick Start
 
 ### Docker — full stack in one command
 
@@ -89,38 +112,41 @@ cp backend/.env.example backend/.env
 # Edit backend/.env — set ENCRYPTION_KEY, DB_PROVIDER=postgresql
 
 # Start everything
-docker compose -f docker-compose.local.yml up -d
+docker compose -f docker-compose.gke.yml up -d
 ```
-
-This starts PostgreSQL 15, Redis 7, Apicurio Registry, backend (FastAPI), and frontend (Next.js).
 
 ```
 http://localhost:3000  → Frontend
 http://localhost:8000  → Backend API + Swagger (/docs)
-http://localhost:8081  → Apicurio Registry UI
+http://localhost:8081  → Apicurio Registry
 ```
 
-Seed Apicurio with sample schemas to test immediately:
+### Seed with sample data
 
 ```bash
-python scripts/seed_apicurio.py --clean
+# 10 schemas with cross-references in Apicurio
+python scripts/seed_apicurio.py --url http://localhost:8081
+
+# 9 enrichments, 7 channels (Kafka + RabbitMQ + Redis), 9 bindings, 7 rules
+python scripts/seed_event7.py --url http://localhost:8000
 ```
 
-Creates 9 Avro + JSON Schema subjects with cross-references — perfect for testing the diff viewer and references graph.
+### Two starting paths
+
+**Existing registry with schemas** → Connect → Explore → Enrich → Govern
+
+**Empty registry** → Connect → Import AsyncAPI spec → Everything created in one click
 
 ### Manual setup
 
 ```bash
 # Backend
-cd backend
-python -m venv .venv && source .venv/bin/activate
+cd backend && python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env  # Edit: Redis, DB provider, encryption key
-uvicorn app.main:app --reload --port 8000
+cp .env.example .env && uvicorn app.main:app --reload --port 8000
 
 # Frontend
-cd frontend
-cp .env.example .env.local  # Edit: NEXT_PUBLIC_API_URL
+cd frontend && cp .env.example .env.local
 npm install && npm run dev
 ```
 
@@ -131,34 +157,34 @@ Health check: `curl http://localhost:8000/health`
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  Frontend  (Next.js · React · TypeScript)           │
-│  Explorer · Catalog · Diff · Graph · AI · Dashboard │
-└──────────────────────┬──────────────────────────────┘
-                       │ REST API
-┌──────────────────────┴──────────────────────────────┐
-│  Backend  (FastAPI · Python 3.12)                   │
-│  Routes → Services → Providers + Cache + DB         │
-└──────┬──────────────┬───────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Frontend  (Next.js · Cloudflare Pages)                      │
+│  Explorer · Catalog · Channels · Diff · Graph · Rules · AI   │
+└───────────────────────────┬──────────────────────────────────┘
+                            │ REST API
+┌───────────────────────────┴──────────────────────────────────┐
+│  Backend  (FastAPI · Railway / GKE)                          │
+│  Services → Providers → Cache (Redis)                        │
+│            → Database (Supabase / PostgreSQL)                 │
+│            → Channels · Rules · Enrichments · AsyncAPI Specs  │
+└──────┬──────────────┬────────────────────────────────────────┘
        │              │
 ┌──────┴─────┐ ┌──────┴──────┐
-│ Confluent  │ │  Apicurio   │  ← your registries
+│ Confluent  │ │  Apicurio   │  ← your registries (schemas live here)
 │ Cloud / CP │ │  Registry   │
 └────────────┘ └─────────────┘
-```
 
-**Layered architecture** — each request flows top-down, no layer skips another:
-
-```
-HTTP Request → API Routes → Services → Providers + Cache + DB
+  event7 = governance layer
+  schemas → registry (external)
+  channels + rules + enrichments → event7 DB
 ```
 
 **Two adapter patterns:**
 
-1. **SchemaRegistryProvider** — one interface, multiple registry implementations. Factory in `providers/factory.py`.
-2. **DatabaseProvider** — Supabase for SaaS, PostgreSQL (psycopg2) for self-hosted. Factory in `db/factory.py`, switched via `DB_PROVIDER`.
+1. **SchemaRegistryProvider** — one interface, multiple registry implementations.
+2. **DatabaseProvider** — Supabase for SaaS, PostgreSQL (psycopg2) for self-hosted.
 
-Enrichments (tags, ownership, descriptions, classification) are stored in event7's own database — never pushed to the registry. This keeps the platform provider-agnostic.
+Enrichments, channels, rules, and AsyncAPI specs are stored in event7's own database — never pushed to the registry. This keeps governance provider-agnostic.
 
 ---
 
@@ -181,19 +207,20 @@ Enrichments (tags, ownership, descriptions, classification) are stored in event7
 event7/
 ├── backend/
 │   ├── app/
-│   │   ├── api/            # FastAPI routers (registries, schemas, governance, asyncapi, ai)
-│   │   ├── services/       # Business logic, diff engine, AsyncAPI generation
+│   │   ├── api/            # FastAPI routers (registries, schemas, governance, channels, asyncapi, rules, ai)
+│   │   ├── services/       # Business logic, diff, AsyncAPI generation + import, channel service, rules
 │   │   ├── providers/      # Registry adapters (Confluent, Apicurio)
 │   │   ├── models/         # Pydantic v2 data contracts
 │   │   ├── db/             # Database abstraction (Supabase + PostgreSQL)
 │   │   ├── cache/          # Redis with TTL and hierarchical keys
 │   │   └── utils/          # AES-256 encryption, helpers
-│   ├── tests/              # pytest + pytest-asyncio
-│   ├── migrations/         # SQL schema (bootstrap.sql)
-│   └── scripts/            # Seed data, test scripts
+│   ├── tests/              # pytest + pytest-asyncio (import fixtures, unit tests)
+│   ├── migrations/         # SQL schema (bootstrap.sql, channel_model, governance_rules)
+│   └── scripts/            # Seed data (seed_apicurio.py, seed_event7.py)
 ├── frontend/
 │   ├── src/app/            # App Router — dashboard, docs, auth
-│   ├── src/components/     # UI components (shadcn/ui, Recharts)
+│   │   └── docs/           # Public documentation (intro, features, channels, rules, API ref, licensing)
+│   ├── src/components/     # UI components (shadcn/ui, Recharts, d3-force)
 │   ├── src/lib/            # API clients, Supabase helpers
 │   └── src/providers/      # React context (registry, auth)
 ├── docker-compose.gke.yml  # Full stack (PG + Redis + Apicurio + backend + frontend)
@@ -210,15 +237,13 @@ event7/
 
 No changes to services, routes, or frontend. The Apicurio provider was added exactly this way — one file, one factory branch.
 
-The abstract interface covers: `health_check`, `list_subjects`, `get_schema`, `create_schema`, `delete_subject`, `get_versions`, `diff_versions`, `get_references`, `get_dependents`, `get_compatibility`, `check_compatibility`.
-
 ---
 
 ## Tech Stack
 
 | Layer | Technologies |
 |-------|-------------|
-| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS v4, shadcn/ui, Recharts |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS v4, shadcn/ui, Recharts, d3-force |
 | Backend | Python 3.12, FastAPI, Pydantic v2, httpx, loguru |
 | Database | Supabase Cloud or PostgreSQL 15 (dual-mode) |
 | Cache | Redis 7 with TTL and hierarchical keys |
@@ -229,36 +254,30 @@ The abstract interface covers: `health_check`, `list_subjects`, `get_schema`, `c
 
 ## Roadmap
 
-| Phase | Status |
-|-------|--------|
+| Feature | Status |
+|---------|--------|
 | Confluent + Apicurio providers | ✅ Done |
-| Schema CRUD, visual diff, references, catalog | ✅ Done |
-| AsyncAPI 3.0 generation | ✅ Done |
-| References graph visualization | ✅ Done |
-| Dashboard KPIs | ✅ Done |
-| AI Agent (LLM-powered governance) | ✅ Done |
+| Schema Explorer, Visual Diff, References Graph | ✅ Done |
+| Event Catalog with enrichments | ✅ Done |
+| AsyncAPI 3.0 generation (Kafka bindings, key schema) | ✅ Done |
+| Dashboard KPIs (Recharts) | ✅ Done |
+| AI Agent (6 context commands + 3 actions) | ✅ Done |
+| Governance Rules engine (CRUD, templates, scoring) | ✅ Done |
+| Channel Model (9 broker types, N:N bindings, data layers) | ✅ Done |
+| AsyncAPI Import (preview + apply, multi-broker) | ✅ Done |
+| Smart schema registration (provider-type routing) | ✅ Done |
+| Catalog enriched (broker badges, updated, AsyncAPI drawer) | ✅ Done |
 | Dual-mode deployment (SaaS + self-hosted) | ✅ Done |
 | Public documentation (/docs) | ✅ Done |
 | RLS multi-tenant security | 🔜 Next |
 | Hosted registry provisioning (Apicurio-backed) | 🔜 Next |
+| AuthProvider OIDC | 🔜 Next |
 | Protobuf support | 🔜 Next |
-| Karapace + Redpanda validation & docs | 🔜 Next |
-| AWS Glue Schema Registry provider | 🔜 Planned |
-| Azure Schema Registry provider | 🔜 Planned |
-| Google Pub/Sub / Pulsar providers | 📋 Future |
 | Cross-registry aggregated view | 🔜 Next |
-| Governance Rules engine (provider-agnostic) | 🔜 Next |
-| Extended business metadata | 🔜 Next |
-| Confluent Catalog API reader (Stream Governance) | 🔜 Next |
-| Apicurio metadata sync (labels + rules) | 🔜 Next |
-| Encryption tracking (CSFLE metadata) | 🔜 Next |
-| Channel model (topics, queues, exchanges) | 🔜 Next |
-| Kafka TNS auto-detect + RNS mapping | 🔜 Next |
-| RabbitMQ exchange/queue support | 🔜 Next |
-| Cloud broker channels (Pub/Sub, SNS/SQS, Service Bus) | 🔜 Next |
-| AsyncAPI channel bindings from channel model | 🔜 Next |
-| AuthProvider abstraction (OIDC / SSO) | 🔜 Planned |
-| RBAC, public API, notifications, health scores | 📋 Future |
+| Provider Rule Sync (Confluent + Apicurio) | 🔜 Planned |
+| AsyncAPI Export Mode 3 (real channels → spec) | 🔜 Planned |
+| AWS Glue / Azure SR providers | 🔜 Planned |
+| RBAC, SSO, audit logs | 📋 Future |
 
 ---
 
@@ -279,12 +298,14 @@ Please open an issue first for major changes so we can discuss the approach.
 
 event7 follows an **open-core** model:
 
-- **Free** (SaaS terms) — Core governance, 1 registry, 50 schemas, AI Agent BYOM
-- **Community** (Apache 2.0) — Everything free, unlimited, self-hosted, AI Agent BYOM
-- **Pro** (Commercial) — AI Managed, Hosted Registry, email support
-- **Enterprise** (Commercial) — OIDC/SSO, RBAC, audit logs, SLA
+| Tier | License | Includes |
+|------|---------|----------|
+| **Free** | SaaS terms | Core governance, 1 registry, 50 schemas, AI Agent BYOM |
+| **Community** | Apache 2.0 | Everything free, unlimited, self-hosted |
+| **Pro** | Commercial | Provider sync, hosted registry, AI managed, AsyncAPI export Mode 3 |
+| **Enterprise** | Commercial | OIDC/SSO, RBAC, channel monitoring, audit logs, SLA |
 
-See the [full licensing details](https://event7.dev/docs/licensing).
+See the [full licensing details](https://event7.pages.dev/docs/licensing).
 
 ---
 
