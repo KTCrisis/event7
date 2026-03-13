@@ -1,5 +1,6 @@
 // src/lib/api/asyncapi.ts
 // AsyncAPI API module — wraps event7 backend routes
+// v2: Added import preview + apply functions
 //
 // Placement: frontend/src/lib/api/asyncapi.ts
 
@@ -8,12 +9,16 @@ import type {
   AsyncAPISpec,
   AsyncAPIGenerateRequest,
   AsyncAPIYamlExport,
+  AsyncAPIImportRequest,
+  AsyncAPIImportPreview,
+  AsyncAPIImportResult,
 } from "@/types/asyncapi";
 
-/**
- * Generate an AsyncAPI spec from a subject's schema + enrichments.
- * POST /api/v1/registries/{registryId}/subjects/{subject}/asyncapi/generate
- */
+// ════════════════════════════════════════════════════════════════════
+// GENERATE / VIEW / EDIT (existing)
+// ════════════════════════════════════════════════════════════════════
+
+/** Generate an AsyncAPI spec from a subject's schema + enrichments. */
 export async function generateAsyncAPI(
   registryId: string,
   subject: string,
@@ -25,10 +30,7 @@ export async function generateAsyncAPI(
   );
 }
 
-/**
- * Get an existing AsyncAPI spec (from cache/DB).
- * GET /api/v1/registries/{registryId}/subjects/{subject}/asyncapi
- */
+/** Get an existing AsyncAPI spec (from cache/DB). */
 export async function getAsyncAPI(
   registryId: string,
   subject: string
@@ -38,15 +40,11 @@ export async function getAsyncAPI(
       `/api/v1/registries/${registryId}/subjects/${encodeURIComponent(subject)}/asyncapi`
     );
   } catch {
-    // 404 = no spec generated yet
     return null;
   }
 }
 
-/**
- * Update an AsyncAPI spec manually.
- * PUT /api/v1/registries/{registryId}/subjects/{subject}/asyncapi
- */
+/** Update an AsyncAPI spec manually. */
 export async function updateAsyncAPI(
   registryId: string,
   subject: string,
@@ -58,10 +56,7 @@ export async function updateAsyncAPI(
   );
 }
 
-/**
- * Export the spec as YAML string.
- * GET /api/v1/registries/{registryId}/subjects/{subject}/asyncapi/yaml
- */
+/** Export the spec as YAML string. */
 export async function exportAsyncAPIYaml(
   registryId: string,
   subject: string
@@ -70,4 +65,37 @@ export async function exportAsyncAPIYaml(
     `/api/v1/registries/${registryId}/subjects/${encodeURIComponent(subject)}/asyncapi/yaml`
   );
   return data.content;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// IMPORT (new)
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * Preview what would be created from an AsyncAPI spec (dry-run).
+ * Nothing is persisted.
+ */
+export async function importPreview(
+  registryId: string,
+  specContent: Record<string, unknown>
+): Promise<AsyncAPIImportPreview> {
+  return api.post<AsyncAPIImportPreview>(
+    `/api/v1/registries/${registryId}/asyncapi/import/preview`,
+    { spec_content: specContent } satisfies AsyncAPIImportRequest
+  );
+}
+
+/**
+ * Parse an AsyncAPI spec and persist all extracted entities.
+ * Creates channels, bindings, enrichments, and optionally registers schemas.
+ */
+export async function importApply(
+  registryId: string,
+  specContent: Record<string, unknown>,
+  registerSchemas: boolean = false
+): Promise<AsyncAPIImportResult> {
+  return api.post<AsyncAPIImportResult>(
+    `/api/v1/registries/${registryId}/asyncapi/import/apply`,
+    { spec_content: specContent, register_schemas: registerSchemas } satisfies AsyncAPIImportRequest
+  );
 }

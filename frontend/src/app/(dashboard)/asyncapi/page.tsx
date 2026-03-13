@@ -1,8 +1,9 @@
 // src/app/(dashboard)/asyncapi/page.tsx
+// AsyncAPI page with Viewer + Import tabs
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { FileCode, List, Loader2, Zap, AlertCircle } from "lucide-react";
+import { FileCode, List, Loader2, Zap, AlertCircle, Upload, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,7 @@ import {
   exportAsyncAPIYaml,
 } from "@/lib/api/asyncapi";
 import { AsyncApiViewer } from "@/components/asyncapi/asyncapi-viewer";
+import { AsyncAPIImport } from "@/components/asyncapi/asyncapi-import";
 import type { AsyncAPISpec } from "@/types/asyncapi";
 
 interface SubjectInfo {
@@ -24,10 +26,15 @@ interface SubjectInfo {
   schema_id?: number;
 }
 
+type Tab = "viewer" | "import";
+
 export default function AsyncApiPage() {
   const { selected } = useRegistry();
   const registryId = selected?.id;
 
+  const [activeTab, setActiveTab] = useState<Tab>("viewer");
+
+  // Viewer state
   const [subjects, setSubjects] = useState<SubjectInfo[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [spec, setSpec] = useState<AsyncAPISpec | null>(null);
@@ -36,6 +43,7 @@ export default function AsyncApiPage() {
   const [error, setError] = useState<string | null>(null);
   const [subjectsLoading, setSubjectsLoading] = useState(false);
 
+  // ── Load subjects ──
   useEffect(() => {
     if (!registryId) {
       setSubjects([]);
@@ -61,6 +69,7 @@ export default function AsyncApiPage() {
     return () => { cancelled = true; };
   }, [registryId]);
 
+  // ── Load or generate spec ──
   useEffect(() => {
     if (!registryId || !selectedSubject) {
       setSpec(null);
@@ -125,6 +134,7 @@ export default function AsyncApiPage() {
     }
   }, [registryId, selectedSubject]);
 
+  // ── No registry ──
   if (!registryId) {
     return (
       <div className="flex flex-col items-center justify-center h-[600px] text-muted-foreground">
@@ -136,116 +146,157 @@ export default function AsyncApiPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-      <h1 className="text-lg font-semibold flex items-center gap-2">
-        <FileCode size={18} className="text-cyan-400" />
-        AsyncAPI
-      </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Generate and browse AsyncAPI 3.0 specs from your registry schemas.
-        </p>
+    <div className="space-y-4 p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold flex items-center gap-2">
+            <FileCode size={18} className="text-cyan-400" />
+            AsyncAPI
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Generate, browse, and import AsyncAPI 3.0 specs.
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-3">
-          <div className="border rounded-lg bg-card p-4 h-fit max-h-[800px] overflow-y-auto">
-            <h3 className="text-sm font-semibold flex items-center gap-2 mb-3 text-muted-foreground">
-              <List size={16} /> Subjects ({subjects.length})
-            </h3>
-            {subjectsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 size={20} className="animate-spin text-muted-foreground" />
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-border pb-0">
+        <button
+          onClick={() => setActiveTab("viewer")}
+          className={cn(
+            "flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+            activeTab === "viewer"
+              ? "border-cyan-400 text-cyan-400"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Eye size={14} />
+          Viewer
+        </button>
+        <button
+          onClick={() => setActiveTab("import")}
+          className={cn(
+            "flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+            activeTab === "import"
+              ? "border-cyan-400 text-cyan-400"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Upload size={14} />
+          Import
+        </button>
+      </div>
+
+      {/* ── Tab: Viewer ── */}
+      {activeTab === "viewer" && (
+        <div className="grid grid-cols-12 gap-6">
+          {/* Subject list */}
+          <div className="col-span-3">
+            <div className="border rounded-lg bg-card p-4 h-fit max-h-[800px] overflow-y-auto">
+              <h3 className="text-sm font-semibold flex items-center gap-2 mb-3 text-muted-foreground">
+                <List size={16} /> Subjects ({subjects.length})
+              </h3>
+              {subjectsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 size={20} className="animate-spin text-muted-foreground" />
+                </div>
+              ) : subjects.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-4 text-center">No subjects found.</p>
+              ) : (
+                <div className="space-y-1">
+                  {subjects.map((s) => (
+                    <button
+                      key={s.subject}
+                      onClick={() => setSelectedSubject(s.subject)}
+                      className={cn(
+                        "w-full text-left p-2 text-xs rounded-md transition-colors",
+                        selectedSubject === s.subject
+                          ? "bg-primary/10 text-primary border-l-2 border-primary font-semibold"
+                          : "hover:bg-muted text-muted-foreground"
+                      )}
+                    >
+                      <span className="block truncate">{s.subject}</span>
+                      <div className="flex gap-1 mt-1">
+                        {s.format && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0">{s.format}</Badge>
+                        )}
+                        {s.latest_version && (
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0">v{s.latest_version}</Badge>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Spec viewer */}
+          <div className="col-span-9">
+            {!selectedSubject ? (
+              <div className="border rounded-lg border-dashed flex flex-col items-center justify-center h-[600px] bg-card">
+                <div className="bg-muted p-4 rounded-full mb-4">
+                  <FileCode size={40} className="text-muted-foreground" />
+                </div>
+                <p className="text-lg font-medium text-muted-foreground">Select a subject</p>
+                <p className="text-sm text-muted-foreground mt-1">Pick a subject from the sidebar to view its AsyncAPI spec.</p>
               </div>
-            ) : subjects.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-4 text-center">No subjects found.</p>
+            ) : loading ? (
+              <div className="border rounded-lg flex items-center justify-center h-[600px] bg-card">
+                <Loader2 size={32} className="animate-spin text-muted-foreground" />
+              </div>
             ) : (
-              <div className="space-y-1">
-                {subjects.map((s) => (
-                  <button
-                    key={s.subject}
-                    onClick={() => setSelectedSubject(s.subject)}
-                    className={cn(
-                      "w-full text-left p-2 text-xs rounded-md transition-colors",
-                      selectedSubject === s.subject
-                        ? "bg-primary/10 text-primary border-l-2 border-primary font-semibold"
-                        : "hover:bg-muted text-muted-foreground"
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold truncate max-w-lg">{selectedSubject}</h2>
+                    {spec?.updated_at && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Last updated: {new Date(spec.updated_at).toLocaleString()}
+                      </p>
                     )}
-                  >
-                    <span className="block truncate">{s.subject}</span>
-                    <div className="flex gap-1 mt-1">
-                      {s.format && (
-                        <Badge variant="outline" className="text-[10px] px-1 py-0">{s.format}</Badge>
-                      )}
-                      {s.latest_version && (
-                        <Badge variant="secondary" className="text-[10px] px-1 py-0">v{s.latest_version}</Badge>
-                      )}
+                  </div>
+                  <Button onClick={handleGenerate} disabled={generating} size="sm">
+                    {generating && <Loader2 size={14} className="mr-1 animate-spin" />}
+                    {!generating && <Zap size={14} className="mr-1" />}
+                    {generating ? "Generating..." : spec ? "Regenerate" : "Generate AsyncAPI"}
+                  </Button>
+                </div>
+
+                {error && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                    <AlertCircle size={16} /> {error}
+                  </div>
+                )}
+
+                {spec ? (
+                  <AsyncApiViewer
+                    schema={spec.spec_content}
+                    isAutoGenerated={spec.is_auto_generated}
+                    onExportYaml={handleExportYaml}
+                  />
+                ) : !generating && !error ? (
+                  <div className="border rounded-lg border-dashed flex flex-col items-center justify-center h-[500px] bg-card">
+                    <div className="bg-muted p-4 rounded-full mb-4">
+                      <Zap size={32} className="text-muted-foreground" />
                     </div>
-                  </button>
-                ))}
+                    <p className="text-muted-foreground font-medium">No spec generated yet</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Click &quot;Generate AsyncAPI&quot; to create a spec from this schema.
+                    </p>
+                  </div>
+                ) : null}
               </div>
             )}
           </div>
         </div>
+      )}
 
-        <div className="col-span-9">
-          {!selectedSubject ? (
-            <div className="border rounded-lg border-dashed flex flex-col items-center justify-center h-[600px] bg-card">
-              <div className="bg-muted p-4 rounded-full mb-4">
-                <FileCode size={40} className="text-muted-foreground" />
-              </div>
-              <p className="text-lg font-medium text-muted-foreground">Select a subject</p>
-              <p className="text-sm text-muted-foreground mt-1">Pick a subject from the sidebar to view its AsyncAPI spec.</p>
-            </div>
-          ) : loading ? (
-            <div className="border rounded-lg flex items-center justify-center h-[600px] bg-card">
-              <Loader2 size={32} className="animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-semibold truncate max-w-lg">{selectedSubject}</h2>
-                  {spec?.updated_at && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Last updated: {new Date(spec.updated_at).toLocaleString()}
-                    </p>
-                  )}
-                </div>
-                <Button onClick={handleGenerate} disabled={generating} size="sm">
-                  {generating && <Loader2 size={14} className="mr-1 animate-spin" />}
-                  {!generating && <Zap size={14} className="mr-1" />}
-                  {generating ? "Generating..." : spec ? "Regenerate" : "Generate AsyncAPI"}
-                </Button>
-              </div>
-
-              {error && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                  <AlertCircle size={16} /> {error}
-                </div>
-              )}
-
-              {spec ? (
-                <AsyncApiViewer
-                  schema={spec.spec_content}
-                  isAutoGenerated={spec.is_auto_generated}
-                  onExportYaml={handleExportYaml}
-                />
-              ) : !generating && !error ? (
-                <div className="border rounded-lg border-dashed flex flex-col items-center justify-center h-[500px] bg-card">
-                  <div className="bg-muted p-4 rounded-full mb-4">
-                    <Zap size={32} className="text-muted-foreground" />
-                  </div>
-                  <p className="text-muted-foreground font-medium">No spec generated yet</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Click &quot;Generate AsyncAPI&quot; to create a spec from this schema.
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          )}
-        </div>
-      </div>
+      {/* ── Tab: Import ── */}
+      {activeTab === "import" && (
+        <AsyncAPIImport registryId={registryId} />
+      )}
     </div>
   );
 }
