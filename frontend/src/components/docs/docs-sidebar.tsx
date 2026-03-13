@@ -10,7 +10,8 @@ import {
   Scale,
   ChevronRight,
   Map,
-  Shield
+  Shield,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,7 @@ const sections = [
     label: "Guides",
     items: [
       { name: "Getting Started", href: "/docs/getting-started", icon: Rocket },
+      { name: "Channel Model", href: "/docs/channels", icon: Network },
       { name: "Governance Rules", href: "/docs/governance-rules", icon: Shield },
     ],
   },

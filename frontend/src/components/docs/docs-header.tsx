@@ -10,12 +10,12 @@ const mobileLinks = [
   { name: "Introduction", href: "/docs" },
   { name: "Features", href: "/docs/features" },
   { name: "Getting Started", href: "/docs/getting-started" },
+  { name: "Channel Model", href: "/docs/channels" },
   { name: "Governance Rules", href: "/docs/governance-rules" },
   { name: "API Reference", href: "/docs/api-reference" },
   { name: "Licensing", href: "/docs/licensing" },
   { name: "Roadmap", href: "/docs/roadmap" },
 ];
-
 export function DocsHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();

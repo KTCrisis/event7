@@ -1,6 +1,6 @@
 // src/app/docs/api-reference/page.tsx
 
-import { Server, Database, BookOpen, FileJson, Bot, Shield, ScrollText } from "lucide-react";
+import { Server, Database, BookOpen, FileJson, Bot, Shield, ScrollText, Network, Upload } from "lucide-react";
 
 interface Endpoint {
   method: "GET" | "POST" | "PUT" | "DELETE";
@@ -53,12 +53,29 @@ const groups: EndpointGroup[] = [
     name: "Governance",
     icon: BookOpen,
     prefix: "/api/v1/registries/{id}",
-    description: "Event catalog, enrichments (tags, owner, description, classification).",
+    description: "Event catalog with broker bindings, enrichments (tags, owner, description, classification, data layer).",
     endpoints: [
-      { method: "GET", path: "/catalog", description: "Full event catalog with enrichments" },
+      { method: "GET", path: "/catalog", description: "Full event catalog with enrichments, broker_types, channel_count, updated_at" },
       { method: "GET", path: "/catalog/export?format=csv", description: "Export catalog as CSV or JSON" },
       { method: "GET", path: "/subjects/{subject}/enrichment", description: "Get enrichment for a subject" },
-      { method: "PUT", path: "/subjects/{subject}/enrichment", description: "Update enrichment (tags, owner, description, classification)" },
+      { method: "PUT", path: "/subjects/{subject}/enrichment", description: "Update enrichment (tags, owner, description, classification, data_layer)" },
+    ],
+  },
+  {
+    name: "Channels",
+    icon: Network,
+    prefix: "/api/v1/registries/{id}",
+    description: "Messaging channels (Kafka topics, RabbitMQ exchanges, Redis streams, etc.) and subject bindings. Supports multi-broker with broker_config JSONB.",
+    endpoints: [
+      { method: "POST", path: "/channels", description: "Create a channel (address, broker_type, resource_kind, messaging_pattern, broker_config)" },
+      { method: "GET", path: "/channels", description: "List channels with optional filters (?broker_type=kafka&data_layer=core)" },
+      { method: "GET", path: "/channels/{channel_id}", description: "Get a single channel with its bindings" },
+      { method: "PUT", path: "/channels/{channel_id}", description: "Update a channel" },
+      { method: "DELETE", path: "/channels/{channel_id}", description: "Delete a channel and its bindings" },
+      { method: "POST", path: "/channels/{channel_id}/bindings", description: "Create a subject binding (subject_name, binding_strategy, schema_role)" },
+      { method: "DELETE", path: "/channels/{channel_id}/bindings/{binding_id}", description: "Remove a subject binding" },
+      { method: "GET", path: "/channels/reverse/{subject}", description: "Find all channels bound to a subject" },
+      { method: "GET", path: "/channels/channel-map", description: "Aggregated channel map (channels + bindings + status)" },
     ],
   },
   {
@@ -90,30 +107,41 @@ const groups: EndpointGroup[] = [
     name: "AsyncAPI",
     icon: FileJson,
     prefix: "/api/v1/registries/{id}",
-    description: "Generate, retrieve, edit, and export AsyncAPI 3.0 specs.",
+    description: "Generate, retrieve, edit, and export AsyncAPI 3.0 specs from schemas + enrichments.",
     endpoints: [
-      { method: "POST", path: "/subjects/{subject}/asyncapi/generate", description: "Generate spec from schema + enrichments" },
-      { method: "GET", path: "/subjects/{subject}/asyncapi", description: "Retrieve existing spec" },
-      { method: "PUT", path: "/subjects/{subject}/asyncapi", description: "Manually update a spec" },
+      { method: "POST", path: "/subjects/{subject}/asyncapi/generate", description: "Generate spec from schema + enrichments (Kafka bindings, key schema, examples)" },
+      { method: "GET", path: "/subjects/{subject}/asyncapi", description: "Retrieve existing spec (cache → DB)" },
+      { method: "PUT", path: "/subjects/{subject}/asyncapi", description: "Manually update a spec (sets is_auto_generated=false)" },
+      { method: "DELETE", path: "/subjects/{subject}/asyncapi", description: "Delete a stored spec" },
       { method: "GET", path: "/subjects/{subject}/asyncapi/yaml", description: "Export spec as YAML" },
+    ],
+  },
+  {
+    name: "AsyncAPI Import",
+    icon: Upload,
+    prefix: "/api/v1/registries/{id}",
+    description: "Import an AsyncAPI v3 spec to create channels, bindings, enrichments, and optionally register schemas. Two-phase: preview (dry-run) then apply. Smart registration routes schemas based on registry type (Apicurio=all, Confluent-like=Kafka only).",
+    endpoints: [
+      { method: "POST", path: "/asyncapi/import/preview", description: "Parse spec and preview what would be created (channels, bindings, enrichments, unknown schemas)" },
+      { method: "POST", path: "/asyncapi/import/apply", description: "Parse and persist all entities. Set register_schemas=true to push compatible schemas to SR." },
     ],
   },
   {
     name: "AI Agent",
     icon: Bot,
     prefix: "/api/v1/ai",
-    description: "LLM-powered commands and actions. Requires OLLAMA_HOST configured.",
+    description: "LLM-powered commands and actions. Requires OLLAMA_HOST configured. SSE streaming responses.",
     endpoints: [
       { method: "GET", path: "/status", description: "AI agent status (enabled, model, provider)" },
-      { method: "POST", path: "/chat", description: "Send a command — returns SSE stream" },
-      { method: "POST", path: "/execute", description: "Execute a confirmed action (enrich, generate, delete)" },
+      { method: "POST", path: "/chat", description: "Send a command — returns SSE stream (/health, /schemas, /drift, /catalog, /refs, /asyncapi)" },
+      { method: "POST", path: "/execute", description: "Execute a confirmed action (enrich, generate, delete) with confirmation UI" },
     ],
   },
   {
     name: "Hosted Registry",
     icon: Server,
     prefix: "/api/v1/registries/hosted",
-    description: "Managed Apicurio instances. Coming soon (currently returns 501).",
+    description: "Managed Apicurio instances for brokers without a native SR (Redis, RabbitMQ, NATS). Coming soon (currently returns 501).",
     endpoints: [
       { method: "POST", path: "/", description: "Provision a hosted registry" },
       { method: "DELETE", path: "/{id}", description: "Deprovision a hosted registry" },
