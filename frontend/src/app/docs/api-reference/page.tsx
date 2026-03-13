@@ -1,6 +1,6 @@
 // src/app/docs/api-reference/page.tsx
 
-import { Server, Database, BookOpen, FileJson, Bot, Shield, ScrollText, Network, Upload } from "lucide-react";
+import { Server, Database, BookOpen, FileJson, Bot, Shield, ScrollText, Network, Upload, ShieldCheck } from "lucide-react";
 
 interface Endpoint {
   method: "GET" | "POST" | "PUT" | "DELETE";
@@ -47,6 +47,15 @@ const groups: EndpointGroup[] = [
       { method: "GET", path: "/subjects/{subject}/dependents", description: "Schemas that depend on this subject" },
       { method: "GET", path: "/subjects/{subject}/compatibility", description: "Current compatibility mode" },
       { method: "POST", path: "/subjects/{subject}/compatibility/check", description: "Check schema compatibility" },
+    ],
+  },
+  {
+    name: "Schema Validator",
+    icon: ShieldCheck,
+    prefix: "/api/v1/registries/{id}",
+    description: "Validate a schema before publishing. Combines SR compatibility check, event7 governance rules evaluation, and field-level diff preview in a single report. Stateless — nothing is stored. Verdict: PASS / WARN / FAIL.",
+    endpoints: [
+      { method: "POST", path: "/schemas/validate", description: "Validate a schema candidate (subject, schema_content, schema_type, compare_version). Returns unified report: compatibility + governance + diff + verdict." },
     ],
   },
   {

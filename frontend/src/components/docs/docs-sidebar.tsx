@@ -12,6 +12,7 @@ import {
   Map,
   Shield,
   Network,
+  ShieldCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ const sections = [
     label: "Guides",
     items: [
       { name: "Getting Started", href: "/docs/getting-started", icon: Rocket },
+      { name: "Schema Validator", href: "/docs/validator", icon: ShieldCheck },
       { name: "Channel Model", href: "/docs/channels", icon: Network },
       { name: "Governance Rules", href: "/docs/governance-rules", icon: Shield },
     ],
