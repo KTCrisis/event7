@@ -9,27 +9,18 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License" /></a>
-  <img src="https://img.shields.io/badge/Python-3.12+-3776AB.svg?logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/FastAPI-009688.svg?logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/Next.js-000000.svg?logo=next.js&logoColor=white" alt="Next.js" />
-  <img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/Apache%20Kafka-231F20.svg?logo=apachekafka&logoColor=white" alt="Kafka" />
+  <img src="https://img.shields.io/badge/Confluent-000000.svg?logo=confluent&logoColor=white" alt="Confluent" />
+  <img src="https://img.shields.io/badge/Apicurio-E6392A.svg" alt="Apicurio" />
+  <img src="https://img.shields.io/badge/AsyncAPI-3.0-4F46E5.svg" alt="AsyncAPI" />
+  <img src="https://img.shields.io/badge/CloudEvents-4285F4.svg" alt="CloudEvents" />
   <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-Welcome-brightgreen.svg" alt="PRs Welcome" /></a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Apache%20Kafka-231F20.svg?logo=apachekafka&logoColor=white" alt="Kafka" />
-  <img src="https://img.shields.io/badge/Confluent-000000.svg?logo=confluent&logoColor=white" alt="Confluent" />
-  <img src="https://img.shields.io/badge/Apicurio-E6392A.svg" alt="Apicurio" />
-  <img src="https://img.shields.io/badge/PostgreSQL-4169E1.svg?logo=postgresql&logoColor=white" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/Redis-DC382D.svg?logo=redis&logoColor=white" alt="Redis" />
-  <img src="https://img.shields.io/badge/AsyncAPI-3.0-4F46E5.svg" alt="AsyncAPI" />
-  <img src="https://img.shields.io/badge/CloudEvents-4285F4.svg" alt="CloudEvents" />
-</p>
-
-<p align="center">
   📖 <a href="https://event7.pages.dev/docs"><strong>Documentation</strong></a> · 
-  🚀 <a href="https://event7.pages.dev"><strong>Live Demo</strong></a> · 
-  💬 <a href="https://github.com/KTCrisis/event7/issues"><strong>Issues</strong></a>
+  💬 <a href="https://github.com/KTCrisis/event7/issues"><strong>Issues</strong></a> · 
+  ✉️ <a href="mailto:flux7art@gmail.com?subject=event7%20demo%20access"><strong>Request Demo</strong></a>
 </p>
 
 ---
@@ -407,6 +398,16 @@ Please open an issue first for major changes so we can discuss the approach.
 ## Licensing
 
 See the [full licensing details](https://event7.pages.dev/docs/licensing).
+
+---
+
+## Acknowledgments
+
+event7 stands on the shoulders of great open-source projects:
+
+- **[Confluent](https://www.confluent.io/)** — for defining schema registry as a category, and for the Schema Registry API that became an industry standard
+- **[Apicurio](https://www.apicur.io/)** — for building an excellent open-source registry (Apache 2.0) that made multi-provider governance possible
+- **[AsyncAPI](https://www.asyncapi.com/)** — for bringing a specification standard to the event-driven world
 
 ---
 
