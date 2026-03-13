@@ -70,6 +70,7 @@ event7 is not a registry, not a documentation portal, not a Kafka ops tool. It's
 | **Schema Explorer** | Browse subjects, versions, formats, and compatibility across registries |
 | **Visual Diff Viewer** | Side-by-side field-level diff with breaking change detection (Avro + JSON Schema) |
 | **References Graph** | Interactive dependency graph — spot orphans, shared components, and hotspots |
+| **Schema Validator** | Validate before publishing: SR compatibility + governance rules + diff preview in one report (PASS/WARN/FAIL) |
 | **Dashboard KPIs** | Schema count, enrichment coverage, compatibility distribution, governance score funnel |
 
 ### Govern
@@ -237,6 +238,7 @@ python scripts/seed_event7.py --skip-rules           # enrichments + channels on
 | **Event Catalog** | Business view with broker badges (Kafka/RabbitMQ/Redis), data layers, ownership, classification |
 | **Channels** | 7 channels across 3 broker types, with bindings and data layers |
 | **Rules** | 7 governance rules — some global, some per-subject, with severity levels |
+| **Validate** | Paste a modified User schema → get PASS/WARN/FAIL verdict with compatibility + governance + diff |
 
 ---
 
@@ -264,7 +266,7 @@ You'll need PostgreSQL 15+ and Redis 7+ running separately, plus an Apicurio or 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  Frontend                                                    │
-│  Explorer · Catalog · Channels · Diff · Graph · Rules · AI   │
+│  Explorer · Catalog · Channels · Diff · Validate · Graph · Rules · AI   │
 └───────────────────────────┬──────────────────────────────────┘
                             │ REST API
 ┌───────────────────────────┴───────────────────────────────────┐
@@ -374,6 +376,7 @@ No changes to services, routes, or frontend. The Apicurio provider was added exa
 | Catalog enriched (broker badges, updated, AsyncAPI drawer) | ✅ Done |
 | Dual-mode deployment (SaaS + self-hosted) | ✅ Done |
 | Public documentation (/docs) | ✅ Done |
+| Schema Validator (SR compat + governance rules + diff) | ✅ Done |
 | RLS multi-tenant security | 🔜 Next |
 | Hosted registry provisioning (Apicurio-backed) | 🔜 Next |
 | AuthProvider OIDC | 🔜 Next |
