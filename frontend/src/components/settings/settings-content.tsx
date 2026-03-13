@@ -28,12 +28,17 @@ export function SettingsContent() {
   const closeDialog = () => setStep("closed");
 
   return (
-    <div className="min-h-screen p-6 md:p-8">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <Settings2 size={20} className="text-slate-400" />
-          <h1 className="text-lg font-semibold text-slate-100">Registry Connections</h1>
-        </div>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+      <div>
+        <h1 className="text-lg font-semibold flex items-center gap-2">
+          <Settings2 size={18} className="text-cyan-400" />
+          Settings
+        </h1>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Manage your registry connections
+        </p>
+      </div>
         <button onClick={openDialog} className="flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500 transition-colors">
           <Plus size={16} /> Add Registry
         </button>

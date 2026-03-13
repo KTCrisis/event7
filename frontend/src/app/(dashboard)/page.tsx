@@ -205,7 +205,10 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white">Dashboard</h1>
+          <h1 className="text-lg font-semibold text-white flex items-center gap-2">
+            <LayoutDashboard size={18} className="text-cyan-400" />
+            Dashboard
+          </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
             {selected.name} · {selected.environment}
           </p>

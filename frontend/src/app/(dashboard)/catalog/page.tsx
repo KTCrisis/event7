@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from "react";
 import {
   Search, Download, Edit3, FileCode, Braces, Tag,
   Shield, Users, Layers, Link2, Loader2, AlertCircle,
-  DatabaseZap, ChevronDown, Eye, EyeOff,
+  DatabaseZap, ChevronDown, Eye, EyeOff, Library
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -177,11 +177,14 @@ export default function CatalogPage() {
   }
 
   return (
-    <div className="space-y-4 p-2">
+    <div className="space-y-4 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold">Event Catalog</h1>
+          <h1 className="text-lg font-semibold flex items-center gap-2">
+            <Library size={18} className="text-cyan-400" />
+            Event Catalog
+          </h1>
           <p className="text-xs text-muted-foreground">
             Business view of schemas — document, tag, and classify your events.
           </p>

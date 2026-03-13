@@ -208,7 +208,10 @@ export default function RulesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-        <h1 className="text-lg font-semibold">Governance Rules</h1>
+          <h1 className="text-lg font-semibold flex items-center gap-2">
+            <Shield size={18} className="text-cyan-400" />
+            Governance Rules
+          </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             Rules, policies, and standards for {registry.name}
           </p>
