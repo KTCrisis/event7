@@ -94,11 +94,13 @@ class AsyncAPIImportService:
         cache: RedisCache,
         db: DatabaseProvider,
         registry_id: str,
+        provider_type: str = "apicurio",
     ):
         self.provider = provider
         self.cache = cache
         self.db = db
         self.registry_id = registry_id
+        self.provider_type = provider_type
 
     # ================================================================
     # PREVIEW (dry-run)
@@ -274,10 +276,37 @@ class AsyncAPIImportService:
 
         # ── 1. Register unknown schemas (if requested) ──
         if request.register_schemas and preview.unknown_schemas:
+            # Apicurio = broker-agnostic (accepts all schemas)
+            # Confluent-like (confluent, karapace, redpanda) = Kafka/Redpanda only
+            BROKER_AGNOSTIC_REGISTRIES = {"apicurio"}
+
+            if self.provider_type in BROKER_AGNOSTIC_REGISTRIES:
+                importable_subjects = {s.subject_name for s in preview.unknown_schemas}
+            else:
+                importable_subjects = set()
+                for binding in preview.bindings:
+                    for ch in preview.channels:
+                        if ch.address == binding.channel_address:
+                            if ch.broker_type in ("kafka", "redpanda", "custom"):
+                                importable_subjects.add(binding.subject_name)
+                            break
+
             for schema in preview.unknown_schemas:
+                if schema.subject_name not in importable_subjects:
+                    results.append(ImportEntityResult(
+                        entity_type="schema",
+                        name=schema.subject_name,
+                        status="skipped",
+                        detail="Broker has no native SR — schema not pushed to registry",
+                    ))
+                    warnings.append(
+                        f"Schema '{schema.subject_name}' skipped: bound to a non-Kafka broker. "
+                        f"Use a Hosted Registry to store these schemas."
+                    )
+                    continue
+
                 try:
                     content = schema.schema_content
-                    # Ensure JSON Schema has $schema marker for provider format detection
                     if schema.format == "JSON" and isinstance(content, dict) and "$schema" not in content:
                         content = {"$schema": "http://json-schema.org/draft-07/schema#", **content}
 
@@ -300,7 +329,6 @@ class AsyncAPIImportService:
                         detail=str(e)[:200],
                     ))
                     warnings.append(f"Failed to register schema '{schema.subject_name}': {e}")
-
         # ── 2. Create channels ──
         channel_id_map: dict[str, str] = {}  # address → channel_id
         for ch in preview.channels:
@@ -492,7 +520,7 @@ class AsyncAPIImportService:
         except Exception as e:
             logger.warning(f"Cache invalidation failed (non-blocking): {e}")
             warnings.append("Cache invalidation failed — data may take up to 5 min to refresh")
-            
+
         logger.info(
             f"AsyncAPI import applied: {channels_created} channels, {bindings_created} bindings, "
             f"{enrichments_updated} enrichments, {schemas_registered} schemas"

@@ -50,15 +50,24 @@ def _get_asyncapi_service(
 
 def _get_import_service(
     service: SchemaService = Depends(get_schema_service),
+    user: UserContext = Depends(get_current_user),
 ) -> AsyncAPIImportService:
-    """Construit un AsyncAPIImportService depuis le SchemaService injecté."""
+    """Construit un AsyncAPIImportService avec provider_type détecté."""
+    provider_type = "apicurio"
+    try:
+        reg = service.db.get_registry_by_id(service.registry_id, str(user.user_id))
+        if reg:
+            provider_type = reg.get("provider_type", "apicurio")
+    except Exception:
+        pass
+
     return AsyncAPIImportService(
         provider=service.provider,
         cache=service.cache,
         db=service.db,
         registry_id=service.registry_id,
+        provider_type=provider_type,
     )
-
 
 # ================================================================
 # GENERATE
