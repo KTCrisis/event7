@@ -29,7 +29,7 @@ class SubjectInfo(BaseModel):
     description: str | None = None
     owner_team: str | None = None
     tags: list[str] = Field(default_factory=list)
-
+    data_layer: str | None = None
 
 class SchemaDetail(BaseModel):
     """Détail complet d'un schema à une version donnée"""

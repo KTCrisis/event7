@@ -22,7 +22,8 @@ import { useRegistry } from "@/providers/registry-provider";
 import { getCatalog, exportCatalogCsv } from "@/lib/api/governance";
 import { EnrichmentEditor } from "@/components/catalog/enrichment-editor";
 import { CatalogScoreBadge } from "@/components/rules/catalog-score";
-import type { CatalogEntry, DataClassification } from "@/types/governance";
+import { DataLayerBadge } from "@/components/catalog/data-layer-badge";
+import type { CatalogEntry, DataClassification, DataLayer } from "@/types/governance";
 
 // Classification badge config
 const CLASS_CONFIG: Record<DataClassification, { label: string; color: string; icon: string }> = {
@@ -35,8 +36,8 @@ const CLASS_CONFIG: Record<DataClassification, { label: string; color: string; i
 type FilterKey = "all" | "documented" | "undocumented" | "with-refs";
 type SortKey = "subject" | "version" | "owner" | "classification";
 
-const GRID_WITH_SCORE = "grid-cols-[36px_1fr_140px_120px_100px_80px_60px_40px]";
-const GRID_NO_SCORE = "grid-cols-[1fr_140px_120px_100px_80px_60px_40px]";
+const GRID_WITH_SCORE = "grid-cols-[36px_1fr_70px_140px_120px_100px_80px_60px_40px]";
+const GRID_NO_SCORE = "grid-cols-[1fr_70px_140px_120px_100px_80px_60px_40px]";
 
 export default function CatalogPage() {
   const { selected: registry } = useRegistry();
@@ -49,6 +50,7 @@ export default function CatalogPage() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [classFilter, setClassFilter] = useState<DataClassification | "all">("all");
+  const [layerFilter, setLayerFilter] = useState<DataLayer | "all">("all");
   const [sortBy, setSortBy] = useState<SortKey>("subject");
 
   // Score toggle
@@ -110,8 +112,9 @@ export default function CatalogPage() {
 
       const matchOwner = ownerFilter === "all" || e.owner_team === ownerFilter;
       const matchClass = classFilter === "all" || e.classification === classFilter;
+      const matchLayer = layerFilter === "all" || e.data_layer === layerFilter;
 
-      return matchSearch && matchFilter && matchOwner && matchClass;
+      return matchSearch && matchFilter && matchOwner && matchClass && matchLayer;
     });
 
     result.sort((a, b) => {
@@ -124,7 +127,7 @@ export default function CatalogPage() {
     });
 
     return result;
-  }, [catalog, search, filter, ownerFilter, classFilter, sortBy]);
+  }, [catalog, search, filter, ownerFilter, classFilter, layerFilter, sortBy]);
 
   // Export CSV
   const handleExport = async () => {
@@ -297,6 +300,27 @@ export default function CatalogPage() {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Layer filter */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1">
+              <Layers size={11} />
+              {layerFilter === "all" ? "All layers" : layerFilter.toUpperCase()}
+              <ChevronDown size={10} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setLayerFilter("all")} className="text-xs">
+              All layers
+            </DropdownMenuItem>
+            {(["raw", "core", "refined", "application"] as DataLayer[]).map((l) => (
+              <DropdownMenuItem key={l} onClick={() => setLayerFilter(l)} className="text-xs">
+                <DataLayerBadge layer={l} size="sm" />
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Table */}
@@ -305,6 +329,7 @@ export default function CatalogPage() {
         <div className={cn("grid gap-2 px-4 py-2 border-b border-border bg-muted/20 text-[10px] uppercase tracking-wider font-medium text-muted-foreground", gridCols)}>
           {showScores && <div className="text-center">Score</div>}
           <div>Subject</div>
+          <div>Layer</div>
           <div>Owner</div>
           <div>Classification</div>
           <div>Tags</div>
@@ -348,6 +373,11 @@ export default function CatalogPage() {
                         No description
                       </div>
                     )}
+                  </div>
+
+                  {/* Data Layer */}
+                  <div>
+                    <DataLayerBadge layer={entry.data_layer} />
                   </div>
 
                   {/* Owner */}

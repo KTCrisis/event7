@@ -60,7 +60,7 @@ class SchemaService:
                     subject.description = enrichment.get("description")
                     subject.owner_team = enrichment.get("owner_team")
                     subject.tags = enrichment.get("tags", [])
-
+                    subject.data_layer = enrichment.get("data_layer")
         await self.cache.set(cache_key, [s.model_dump() for s in subjects], self.CACHE_TTL)
         return subjects
 
@@ -178,19 +178,21 @@ class SchemaService:
             payload["tags"] = update.tags
         if update.classification is not None:
             payload["classification"] = update.classification.value
-
+        if update.data_layer is not None:
+            payload["data_layer"] = update.data_layer.value
         data = self.db.upsert_enrichment(payload)
         return Enrichment(**data)
 
     # === Catalog (vue business) ===
 
     async def get_catalog(self) -> list[CatalogEntry]:
-        """Catalogue enrichi = subjects + enrichments + metadata"""
         subjects = await self.list_subjects(enriched=True)
-
+ 
         catalog = []
         for s in subjects:
             refs = await self.get_references(s.subject)
+            enrichment = self.db.get_enrichment(self.registry_id, s.subject)
+ 
             catalog.append(CatalogEntry(
                 subject=s.subject,
                 format=s.format.value,
@@ -199,7 +201,9 @@ class SchemaService:
                 description=s.description,
                 owner_team=s.owner_team,
                 tags=s.tags,
+                classification=enrichment.get("classification", "internal") if enrichment else "internal",
+                data_layer=enrichment.get("data_layer") if enrichment else None,
                 reference_count=len(refs),
             ))
-
+ 
         return catalog

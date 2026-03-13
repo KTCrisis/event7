@@ -1,6 +1,6 @@
 // Placement: frontend/src/app/(dashboard)/page.tsx
 // Phase 6 — Enriched Dashboard with KPIs, charts, governance rules, quick links
-// Updated: Unified governance section (coverage + rules + score)
+// Updated: Unified governance section (coverage + rules + score) + Data Layer donut
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -17,6 +17,7 @@ import { getCatalog } from "@/lib/api/governance";
 import { buildGraph, extractNamespace, computeStats } from "@/lib/api/references";
 import { RegistryChooser } from "@/components/settings/registry-chooser";
 import { DashboardGovernance } from "@/components/rules/dashboard-governance";
+import { LAYER_COLORS } from "@/components/catalog/data-layer-badge";
 import type { SubjectInfo } from "@/types/schema";
 import type { CatalogEntry } from "@/types/governance";
 
@@ -40,6 +41,7 @@ interface DashboardStats {
   withOwner: number;
   withTags: number;
   formatData: { name: string; value: number; color: string }[];
+  layerData: { name: string; value: number; color: string }[];
   namespaceData: { name: string; count: number }[];
   topVersioned: SubjectInfo[];
   undocumentedSubjects: CatalogEntry[];
@@ -77,6 +79,20 @@ function computeDashboardStats(data: DashboardData): DashboardStats {
   ];
   if (protoCount > 0) formatData.push({ name: "Protobuf", value: protoCount, color: FORMAT_COLORS.PROTOBUF });
 
+  // Layer distribution (from catalog enrichments)
+  const layerCounts: Record<string, number> = {};
+  for (const c of catalog) {
+    const layer = c.data_layer || "unknown";
+    layerCounts[layer] = (layerCounts[layer] || 0) + 1;
+  }
+  const layerData = Object.entries(layerCounts)
+    .map(([name, value]) => ({
+      name: name === "application" ? "APP" : name.toUpperCase(),
+      value,
+      color: LAYER_COLORS[name] || LAYER_COLORS.unknown,
+    }))
+    .sort((a, b) => b.value - a.value);
+
   const nsMap = new Map<string, number>();
   for (const s of subjects) {
     const ns = extractNamespace(s.subject);
@@ -108,6 +124,7 @@ function computeDashboardStats(data: DashboardData): DashboardStats {
     withOwner,
     withTags,
     formatData,
+    layerData,
     namespaceData,
     topVersioned,
     undocumentedSubjects,
@@ -231,8 +248,8 @@ export default function DashboardPage() {
         <KpiCard icon={AlertCircle} label="Undocumented" value={stats.undocumented} accent={stats.undocumented > 0 ? "#f87171" : undefined} />
       </div>
 
-      {/* Charts row: Format + Namespace */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Charts row: Format + Layer + Namespace */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Format Distribution — Donut */}
         <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
           <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Format Distribution</h3>
@@ -262,6 +279,43 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Data Layer Distribution — Donut */}
+        <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
+          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Subjects by Layer</h3>
+          {stats.layerData.length > 0 && stats.layerData.some((d) => d.name !== "UNKNOWN") ? (
+            <div className="flex items-center gap-6">
+              <div className="w-36 h-36">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={stats.layerData} dataKey="value" cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={3} strokeWidth={0}>
+                      {stats.layerData.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "6px", fontSize: "12px", color: "#e2e8f0" }}
+                      itemStyle={{ color: "#e2e8f0" }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-2">
+                {stats.layerData.map((d) => (
+                  <div key={d.name} className="flex items-center gap-2 text-sm">
+                    <div className="w-3 h-3 rounded-sm" style={{ background: d.color }} />
+                    <span className="text-zinc-400">{d.name}</span>
+                    <span className="text-white font-semibold ml-auto tabular-nums">{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-36">
+              <p className="text-xs text-zinc-600">No layers assigned yet — edit in Catalog</p>
+            </div>
+          )}
         </div>
 
         {/* Namespace Breakdown — Bar */}

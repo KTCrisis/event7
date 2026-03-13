@@ -52,7 +52,8 @@ async def export_catalog(
     writer = csv.writer(output)
     writer.writerow([
         "subject", "format", "latest_version", "version_count",
-        "description", "owner_team", "tags", "classification", "reference_count",
+        "description", "owner_team", "tags", "classification",
+        "data_layer", "reference_count",
     ])
     for entry in catalog:
         writer.writerow([
@@ -63,10 +64,11 @@ async def export_catalog(
             entry.description or "",
             entry.owner_team or "",
             ";".join(entry.tags),
-            entry.classification.value,
+            entry.classification.value if hasattr(entry.classification, 'value') else entry.classification,
+            entry.data_layer.value if entry.data_layer else "",
             entry.reference_count,
         ])
-
+ 
     output.seek(0)
     return StreamingResponse(
         output,

@@ -1,12 +1,20 @@
 """
 event7 - Governance Models
 Modèles pour la compatibilité, les enrichissements et le catalogue.
+
+Placement: backend/app/models/governance.py
+
+Changelog:
+- v0.4.0: Added data_layer field to Enrichment, EnrichmentUpdate, CatalogEntry
+           (imports DataLayer from models/channel.py)
 """
 
 from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field
+
+from app.models.channel import DataLayer
 
 
 # === Compatibility ===
@@ -27,7 +35,7 @@ class CompatibilityResult(BaseModel):
     messages: list[str] = Field(default_factory=list)
 
 
-# === Enrichments (stockés en Supabase) ===
+# === Enrichments (stockés en DB) ===
 
 
 class DataClassification(str, Enum):
@@ -45,6 +53,7 @@ class Enrichment(BaseModel):
     owner_team: str | None = None
     tags: list[str] = Field(default_factory=list)
     classification: DataClassification = DataClassification.INTERNAL
+    data_layer: DataLayer | None = None
     updated_at: datetime | None = None
 
 
@@ -55,6 +64,7 @@ class EnrichmentUpdate(BaseModel):
     owner_team: str | None = None
     tags: list[str] | None = None
     classification: DataClassification | None = None
+    data_layer: DataLayer | None = None
 
 
 # === Catalogue (vue combinée registry + enrichments) ===
@@ -73,6 +83,7 @@ class CatalogEntry(BaseModel):
     owner_team: str | None = None
     tags: list[str] = Field(default_factory=list)
     classification: DataClassification = DataClassification.INTERNAL
+    data_layer: DataLayer | None = None
 
     # Calculé
     has_asyncapi: bool = False

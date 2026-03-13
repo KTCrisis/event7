@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { updateEnrichment } from "@/lib/api/governance";
-import type { CatalogEntry, DataClassification } from "@/types/governance";
+import { DataLayerBadge } from "@/components/catalog/data-layer-badge";
+import type { CatalogEntry, DataClassification, DataLayer } from "@/types/governance";
 import { toast } from "sonner";
 
 interface EnrichmentEditorProps {
@@ -25,11 +26,20 @@ const CLASSIFICATIONS: { value: DataClassification; label: string; color: string
   { value: "restricted", label: "Restricted", color: "bg-red-500/10 text-red-400 border-red-500/30" },
 ];
 
+const LAYERS: { value: DataLayer | null; label: string }[] = [
+  { value: null, label: "None" },
+  { value: "raw", label: "RAW" },
+  { value: "core", label: "CORE" },
+  { value: "refined", label: "REFINED" },
+  { value: "application", label: "APP" },
+];
+
 export function EnrichmentEditor({ registryId, entry, onClose, onSaved }: EnrichmentEditorProps) {
   const [description, setDescription] = useState(entry.description || "");
   const [ownerTeam, setOwnerTeam] = useState(entry.owner_team || "");
   const [tags, setTags] = useState<string[]>(entry.tags || []);
   const [classification, setClassification] = useState<DataClassification>(entry.classification || "internal");
+  const [dataLayer, setDataLayer] = useState<DataLayer | null>(entry.data_layer ?? null);
   const [newTag, setNewTag] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -53,6 +63,7 @@ export function EnrichmentEditor({ registryId, entry, onClose, onSaved }: Enrich
         owner_team: ownerTeam || null,
         tags,
         classification,
+        data_layer: dataLayer,
       });
 
       onSaved({
@@ -61,6 +72,7 @@ export function EnrichmentEditor({ registryId, entry, onClose, onSaved }: Enrich
         owner_team: ownerTeam || null,
         tags,
         classification,
+        data_layer: dataLayer,
       });
 
       toast.success("Enrichment updated");
@@ -136,6 +148,34 @@ export function EnrichmentEditor({ registryId, entry, onClose, onSaved }: Enrich
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Data Layer */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Data Layer</label>
+            <div className="flex flex-wrap gap-1.5">
+              {LAYERS.map((l) => {
+                const isActive = dataLayer === l.value;
+                return (
+                  <button
+                    key={l.value ?? "none"}
+                    type="button"
+                    onClick={() => setDataLayer(l.value)}
+                    className={cn(
+                      "rounded px-2.5 py-1.5 text-xs font-medium transition-all border",
+                      isActive
+                        ? "bg-cyan-500/15 text-cyan-300 border-cyan-500/30 ring-1 ring-cyan-500/20"
+                        : "bg-muted/30 text-muted-foreground border-transparent hover:border-border"
+                    )}
+                  >
+                    {l.value ? <DataLayerBadge layer={l.value} size="sm" /> : "None"}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-muted-foreground/60">
+              Data maturity: RAW → CORE → REFINED → APP
+            </p>
           </div>
 
           {/* Tags */}

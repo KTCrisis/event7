@@ -148,14 +148,15 @@ class PostgreSQLDatabase(DatabaseProvider):
     def upsert_enrichment(self, enrichment_data: dict) -> dict | None:
         return self._fetchone(
             """INSERT INTO enrichments (registry_id, subject, description,
-                                        owner_team, tags, classification)
-               VALUES (%s::uuid, %s, %s, %s, %s::jsonb, %s)
+                                        owner_team, tags, classification, data_layer)
+               VALUES (%s::uuid, %s, %s, %s, %s::jsonb, %s, %s)
                ON CONFLICT (registry_id, subject)
                DO UPDATE SET
                    description = EXCLUDED.description,
                    owner_team = EXCLUDED.owner_team,
                    tags = EXCLUDED.tags,
                    classification = EXCLUDED.classification,
+                   data_layer = EXCLUDED.data_layer,
                    updated_at = now()
                RETURNING *""",
             (
@@ -165,6 +166,7 @@ class PostgreSQLDatabase(DatabaseProvider):
                 enrichment_data.get("owner_team"),
                 json.dumps(enrichment_data.get("tags", [])),
                 enrichment_data.get("classification", "internal"),
+                enrichment_data.get("data_layer"),
             ),
         )
 
