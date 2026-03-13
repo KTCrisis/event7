@@ -16,7 +16,8 @@ import {
   Settings,
   PanelLeftClose,
   PanelLeft,
-  Shield
+  Shield,
+  Network, 
 } from "lucide-react";
 
 const navigation = [
@@ -36,6 +37,7 @@ const navigation = [
     group: "Business",
     items: [
       { name: "Catalog", href: "/catalog", icon: Library },
+      { name: "Channels", href: "/channels", icon: Network }, 
       { name: "Rules", href: "/rules", icon: Shield }, 
       { name: "AsyncAPI", href: "/asyncapi", icon: FileCode },
     ],
