@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Universal schema registry governance platform</strong><br/>
-  <em>Explore, govern, and document your event schemas — regardless of your registry provider.</em>
+  <em>Explore, validate, and govern your event schemas — across any registry, any broker, any spec.</em>
 </p>
 
 <p align="center">
@@ -13,8 +13,17 @@
   <img src="https://img.shields.io/badge/FastAPI-009688.svg?logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/Next.js-000000.svg?logo=next.js&logoColor=white" alt="Next.js" />
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white" alt="Docker" />
-  <img src="https://img.shields.io/badge/AsyncAPI-3.0-4F46E5.svg" alt="AsyncAPI" />
   <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-Welcome-brightgreen.svg" alt="PRs Welcome" /></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Apache%20Kafka-231F20.svg?logo=apachekafka&logoColor=white" alt="Kafka" />
+  <img src="https://img.shields.io/badge/Confluent-000000.svg?logo=confluent&logoColor=white" alt="Confluent" />
+  <img src="https://img.shields.io/badge/Apicurio-E6392A.svg" alt="Apicurio" />
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1.svg?logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Redis-DC382D.svg?logo=redis&logoColor=white" alt="Redis" />
+  <img src="https://img.shields.io/badge/AsyncAPI-3.0-4F46E5.svg" alt="AsyncAPI" />
+  <img src="https://img.shields.io/badge/CloudEvents-4285F4.svg?logo=cloudfoundry&logoColor=white" alt="CloudEvents" />
 </p>
 
 <p align="center">
@@ -34,6 +43,21 @@ Teams building event-driven systems face the same problems: schemas scattered ac
 event7 adds a **provider-agnostic governance layer** above your registries. Schemas stay in your registry (Confluent, Apicurio, Karapace, Redpanda). Everything else — enrichments, channels, rules, AsyncAPI specs — lives in event7.
 
 **event7 is not a registry. It's the governance layer your registries are missing.**
+
+### Two missions, one platform
+
+**Explore** — Help developers version schemas with confidence: visual diff with breaking change detection, dependency graph to anticipate impact, and governance rules that validate schemas both technically (compatibility) and functionally (naming, required fields, documentation).
+
+**Govern** — Give organizations a single place to govern events across any registry and any broker: enrichments, ownership, data layers, scoring, channel model, AsyncAPI import/export — all provider-agnostic, all stored in event7.
+
+### How event7 fits
+
+```
+Schema Registry  →  event7                →  AsyncAPI / CloudEvents  →  EventCatalog / Backstage
+  (stores)          (governs + validates)      (specifies)                (documents)
+```
+
+event7 is not a registry, not a documentation portal, not a Kafka ops tool. It's the governance and validation layer that sits between your infrastructure and your documentation.
 
 ---
 
@@ -98,7 +122,13 @@ Adding a new provider means creating **one file** — no changes to services, ro
 
 ## Quick Start
 
-### Docker — full stack in one command
+### Prerequisites
+
+- **Docker** and **Docker Compose** (v2)
+- **Python 3.12+** (for seed scripts only — not needed if you skip seeding)
+- **Git**
+
+### 1. Clone and configure
 
 ```bash
 git clone https://github.com/KTCrisis/event7.git
@@ -107,50 +137,132 @@ cd event7
 # Generate an encryption key
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 
-# Configure
+# Configure backend
 cp backend/.env.example backend/.env
-# Edit backend/.env — set ENCRYPTION_KEY, DB_PROVIDER=postgresql
-
-# Start everything
-docker compose -f docker-compose.local.yml up -d
+# Edit backend/.env — set ENCRYPTION_KEY with the key above, set DB_PROVIDER=postgresql
 ```
 
-```
-http://localhost:3000  → Frontend
-http://localhost:8000  → Backend API + Swagger (/docs)
-http://localhost:8081  → Apicurio Registry
-```
-
-### Seed with sample data
+### 2. Start the full stack
 
 ```bash
-# 10 schemas with cross-references in Apicurio
-python scripts/seed_apicurio.py --url http://localhost:8081
+docker compose -f docker-compose.local.yml up -d --build
+```
 
-# 9 enrichments, 7 channels (Kafka + RabbitMQ + Redis), 9 bindings, 7 rules
+This starts 5 services:
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Frontend** | http://localhost:3000 | Next.js UI |
+| **Backend** | http://localhost:8000 | FastAPI + Swagger (`/docs`) |
+| **Apicurio** | http://localhost:8081 | Schema Registry (empty) |
+| **PostgreSQL** | localhost:5432 | Database (auto-migrated) |
+| **Redis** | localhost:6379 | Cache |
+
+Verify everything is running:
+
+```bash
+curl http://localhost:8000/health
+# → {"status":"ok","database":"ok","cache":"ok"}
+```
+
+### 3. Connect Apicurio in event7
+
+1. Open http://localhost:3000/settings
+2. Click **Connect Registry**
+3. Fill in:
+   - **Name:** `Local Apicurio`
+   - **Provider:** `Apicurio`
+   - **URL:** `http://apicurio:8080` (internal Docker network name — not localhost)
+4. Save — event7 tests the connection and encrypts the credentials
+
+> **Note:** Use `apicurio:8080` (the Docker service name), not `localhost:8081`. The backend connects from inside the Docker network.
+
+At this point you have two options:
+
+---
+
+### Path A — Explore empty (import an AsyncAPI spec)
+
+With an empty registry and a connected Apicurio, you can import an AsyncAPI spec to bootstrap everything:
+
+1. Go to **AsyncAPI** → **Import** tab
+2. Paste or upload an AsyncAPI 3.0 YAML/JSON spec
+3. Click **Preview** — event7 shows what will be created (channels, bindings, enrichments, schemas)
+4. Click **Apply** — channels, bindings, enrichments are created in event7, and schemas are registered in Apicurio via Smart Registration
+
+This is the fastest way to go from zero to a fully governed set of events.
+
+---
+
+### Path B — Seed with sample data (recommended for evaluation)
+
+The seed scripts create a realistic e-commerce domain with cross-references, multi-broker channels, and governance rules.
+
+#### Step 1: Seed schemas into Apicurio
+
+```bash
+cd backend
+pip install requests pyyaml   # if not already installed
+
+python scripts/seed_apicurio.py --url http://localhost:8081
+```
+
+This creates **10 Avro + JSON Schema subjects** with cross-references (Order → Customer → Address, etc.) and multiple versions (User v1 → v2 with role field).
+
+#### Step 2: Connect the registry in event7
+
+If you haven't already (step 3 above), connect Apicurio in Settings. Once connected, go to **Schema Explorer** — you should see all 10 subjects with their versions, formats, and compatibility modes.
+
+#### Step 3: Seed event7 governance data
+
+```bash
 python scripts/seed_event7.py --url http://localhost:8000
 ```
 
-### Two starting paths
+This creates:
+- **9 enrichments** — descriptions, owners, tags, classification, data layers (RAW/CORE/REFINED/APP)
+- **7 channels** — 5 Kafka topics + 1 RabbitMQ exchange + 1 Redis stream
+- **9 bindings** — N:N mappings between channels and subjects (value + key roles)
+- **7 governance rules** — naming conventions, required fields, compliance checks
 
-**Existing registry with schemas** → Connect → Explore → Enrich → Govern
+You can skip specific sections:
 
-**Empty registry** → Connect → Import AsyncAPI spec → Everything created in one click
+```bash
+python scripts/seed_event7.py --skip-enrichments    # channels + rules only
+python scripts/seed_event7.py --skip-channels        # enrichments + rules only
+python scripts/seed_event7.py --skip-rules           # enrichments + channels only
+```
 
-### Manual setup
+#### What you should see
+
+| Page | What's there |
+|------|-------------|
+| **Dashboard** | Schema count, enrichment coverage %, compatibility distribution, data layer chart, governance score funnel |
+| **Schema Explorer** | 10 subjects, multiple versions, Avro + JSON Schema formats |
+| **Visual Diff** | Pick `com.event7.User` → diff v1 vs v2 → see `role` field added (non-breaking) |
+| **References Graph** | Interactive d3-force graph — `Order` → `Customer` → `Address` chain, orphan detection |
+| **Event Catalog** | Business view with broker badges (Kafka/RabbitMQ/Redis), data layers, ownership, classification |
+| **Channels** | 7 channels across 3 broker types, with bindings and data layers |
+| **Rules** | 7 governance rules — some global, some per-subject, with severity levels |
+
+---
+
+### Manual setup (without Docker)
 
 ```bash
 # Backend
 cd backend && python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env && uvicorn app.main:app --reload --port 8000
+cp .env.example .env
+# Edit .env — set DATABASE_URL, REDIS_URL, ENCRYPTION_KEY
+uvicorn app.main:app --reload --port 8000
 
-# Frontend
+# Frontend (separate terminal)
 cd frontend && cp .env.example .env.local
 npm install && npm run dev
 ```
 
-Health check: `curl http://localhost:8000/health`
+You'll need PostgreSQL 15+ and Redis 7+ running separately, plus an Apicurio or Confluent SR to connect to.
 
 ---
 
@@ -214,8 +326,8 @@ event7/
 │   │   ├── db/             # Database abstraction (Supabase + PostgreSQL)
 │   │   ├── cache/          # Redis with TTL and hierarchical keys
 │   │   └── utils/          # AES-256 encryption, helpers
-│   ├── tests/              # pytest + pytest-asyncio (import fixtures, unit tests)
-│   ├── migrations/         # SQL schema (bootstrap.sql, channel_model, governance_rules)
+│   ├── tests/              # pytest + pytest-asyncio (unit + import fixtures)
+│   ├── migrations/         # SQL schema (bootstrap, channel_model, governance_rules)
 │   └── scripts/            # Seed data (seed_apicurio.py, seed_event7.py)
 ├── frontend/
 │   ├── src/app/            # App Router — dashboard, docs, auth
@@ -276,6 +388,7 @@ No changes to services, routes, or frontend. The Apicurio provider was added exa
 | Cross-registry aggregated view | 🔜 Next |
 | Provider Rule Sync (Confluent + Apicurio) | 🔜 Planned |
 | AsyncAPI Export Mode 3 (real channels → spec) | 🔜 Planned |
+| CloudEvents support | 🔜 Planned |
 | AWS Glue / Azure SR providers | 🔜 Planned |
 | RBAC, SSO, audit logs | 📋 Future |
 
