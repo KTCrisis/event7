@@ -105,6 +105,7 @@ All features above are free and open-source under **Apache 2.0**. Commercial tie
 | Apicurio Registry v3 | ✅ Implemented |
 | Karapace (Aiven) | ✅ Compatible (Confluent API) |
 | Redpanda Schema Registry | ✅ Compatible (Confluent API) |
+| Red Hat Service Registry | ✅ Compatible (Apicurio) |
 | AWS Glue Schema Registry | 🔜 Planned |
 | Azure Schema Registry | 🔜 Planned |
 | Google Pub/Sub Schemas | 📋 Future |
