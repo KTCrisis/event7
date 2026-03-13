@@ -23,7 +23,7 @@
   <img src="https://img.shields.io/badge/PostgreSQL-4169E1.svg?logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Redis-DC382D.svg?logo=redis&logoColor=white" alt="Redis" />
   <img src="https://img.shields.io/badge/AsyncAPI-3.0-4F46E5.svg" alt="AsyncAPI" />
-  <img src="https://img.shields.io/badge/CloudEvents-4285F4.svg?logo=cloudfoundry&logoColor=white" alt="CloudEvents" />
+  <img src="https://img.shields.io/badge/CloudEvents-4285F4.svg" alt="CloudEvents" />
 </p>
 
 <p align="center">
@@ -65,41 +65,34 @@ event7 is not a registry, not a documentation portal, not a Kafka ops tool. It's
 
 ### Explore
 
-| Feature | Description | Tier |
-|---------|-------------|------|
-| **Schema Explorer** | Browse subjects, versions, formats, and compatibility across registries | Community |
-| **Visual Diff Viewer** | Side-by-side field-level diff with breaking change detection (Avro + JSON Schema) | Community |
-| **References Graph** | Interactive dependency graph — spot orphans, shared components, and hotspots | Community |
-| **Dashboard KPIs** | Schema count, enrichment coverage, compatibility distribution, layer distribution | Community |
+| Feature | Description |
+|---------|-------------|
+| **Schema Explorer** | Browse subjects, versions, formats, and compatibility across registries |
+| **Visual Diff Viewer** | Side-by-side field-level diff with breaking change detection (Avro + JSON Schema) |
+| **References Graph** | Interactive dependency graph — spot orphans, shared components, and hotspots |
+| **Dashboard KPIs** | Schema count, enrichment coverage, compatibility distribution, governance score funnel |
 
 ### Govern
 
-| Feature | Description | Tier |
-|---------|-------------|------|
-| **Event Catalog** | Business view with broker badges, data layers, ownership, classification, AsyncAPI drawer | Community |
-| **Enrichments** | Tags, ownership, descriptions, data layers, classification — stored in event7, not your registry | Community |
-| **Governance Rules** | Conditions, transforms, validations, policies — 4 built-in templates (RAW/CORE/REFINED/APP) | Community |
-| **Governance Scoring** | Three-axis scoring (enrichments + rules + schema quality) with confidence indicator | Community |
-| **Channel Model** | Map schemas to Kafka topics, RabbitMQ exchanges, Redis streams, Pulsar, NATS, cloud brokers | Community |
-| **AsyncAPI Import** | Import a spec → creates channels, bindings, enrichments, and registers schemas in one click | Community |
-| **AsyncAPI Generation** | Generate 3.0 specs with Kafka bindings, key schema, Avro conversion, examples | Community |
-| **Smart Registration** | Routes schemas to the right registry — Apicurio accepts all, Confluent-like only Kafka schemas | Community |
+| Feature | Description |
+|---------|-------------|
+| **Event Catalog** | Business view with broker badges, data layers, ownership, classification, AsyncAPI drawer |
+| **Enrichments** | Tags, ownership, descriptions, data layers, classification — stored in event7, not your registry |
+| **Governance Rules** | Conditions, transforms, validations, policies — 4 built-in templates (RAW/CORE/REFINED/APP) |
+| **Governance Scoring** | Three-axis scoring (enrichments + rules + schema quality) with confidence indicator |
+| **Channel Model** | Map schemas to Kafka topics, RabbitMQ exchanges, Redis streams, Pulsar, NATS, cloud brokers |
+| **AsyncAPI Import** | Import a spec → creates channels, bindings, enrichments, and registers schemas in one click |
+| **AsyncAPI Generation** | Generate 3.0 specs with Kafka bindings, key schema, Avro conversion, examples |
+| **Smart Registration** | Routes schemas to the right registry — Apicurio accepts all, Confluent-like only Kafka schemas |
 
 ### Tools
 
-| Feature | Description | Tier |
-|---------|-------------|------|
-| **Multi-Provider** | Confluent Cloud, Confluent Platform, Apicurio v3, Karapace, Redpanda — same UI | Community |
-| **AI Agent (BYOM)** | Natural-language governance commands with 6 context fetchers + 3 write actions | Community |
-| **AI Agent Managed** | Hosted LLM with tokens included — zero config | Pro |
-| **Hosted Registry** | Managed Apicurio for brokers without native SR (Redis, RabbitMQ, NATS) | Pro |
-| **Provider Rule Sync** | Import/push Confluent ruleSet + Apicurio rules, drift detection | Pro |
-| **AsyncAPI Export Mode 3** | Export real event7 channels as multi-broker specs | Pro |
-| **Channel Health** | Lag, throughput, consumer group monitoring | Enterprise |
-| **OIDC / SSO** | Okta, Azure AD, Keycloak integration | Enterprise |
-| **RBAC** | Role-based access per registry and subject | Enterprise |
+| Feature | Description |
+|---------|-------------|
+| **Multi-Provider** | Confluent Cloud, Confluent Platform, Apicurio v3, Karapace, Redpanda — same UI |
+| **AI Agent (BYOM)** | Natural-language governance commands with 6 context fetchers + 3 write actions |
 
-event7 follows an **open-core** model. The governance engine is free and open-source under **Apache 2.0**. See [Licensing](#licensing).
+All features above are free and open-source under **Apache 2.0**. Commercial tiers (Pro, Enterprise) are described in the [licensing page](https://event7.pages.dev/docs/licensing).
 
 ---
 
