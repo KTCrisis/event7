@@ -1,6 +1,6 @@
 // src/app/docs/licensing/page.tsx
 
-import { Cloud, Scale, Check, Star, Building2, X } from "lucide-react";
+import { Cloud, Scale, Check, Star, Building2, X, Mail } from "lucide-react";
 
 type TierColor = "cyan" | "teal" | "amber" | "violet";
 
@@ -8,10 +8,10 @@ const tiers = [
   {
     name: "Free",
     icon: Cloud,
-    license: "SaaS terms",
+    license: "Preview",
     color: "cyan" as TierColor,
     description:
-      "Try event7 instantly — no install, no credit card. Connect one registry and start governing in minutes.",
+      "The hosted version of event7 is currently in preview. Accounts are created manually upon request — no limits during beta. Self-service signup and multi-tenant isolation are in progress.",
     features: [
       "Full governance core (Explorer, Diff, Validator, Catalog, Enrichments, AsyncAPI, Graph, Dashboard)",
       "Governance Rules & Policies — templates, scoring, enforcement tracking",
@@ -19,8 +19,7 @@ const tiers = [
       "AsyncAPI Import — create channels, bindings, and enrichments from a spec in one click",
       "Smart schema registration — provider-aware routing (Apicurio=all, Confluent=Kafka only)",
       "Schema Validator — SR compatibility + governance rules + diff preview before publishing",
-      "1 registry connection",
-      "Up to 50 schemas",
+      "No limits during beta — unlimited registries and schemas",
       "AI Agent — bring your own model (Ollama, OpenAI, etc.)",
       "Hosted on event7 SaaS",
     ],
@@ -112,9 +111,9 @@ const colorMap: Record<TierColor, { badge: string; border: string; icon: string;
 
 const comparisonRows = [
   { label: "Deployment", free: "event7 SaaS", community: "Self-hosted", pro: "event7 SaaS", enterprise: "On-prem / private" },
-  { label: "License", free: "SaaS terms", community: "Apache 2.0", pro: "Commercial", enterprise: "Commercial" },
-  { label: "Registries", free: "1", community: "Unlimited", pro: "Unlimited", enterprise: "Unlimited" },
-  { label: "Schemas", free: "50", community: "Unlimited", pro: "Unlimited", enterprise: "Unlimited" },
+  { label: "License", free: "Preview (free)", community: "Apache 2.0", pro: "Commercial", enterprise: "Commercial" },
+  { label: "Registries", free: "No limits (beta)", community: "Unlimited", pro: "Unlimited", enterprise: "Unlimited" },
+  { label: "Schemas", free: "No limits (beta)", community: "Unlimited", pro: "Unlimited", enterprise: "Unlimited" },
   { label: "Governance core", free: true, community: true, pro: true, enterprise: true },
   { label: "Governance Rules & Policies", free: true, community: true, pro: true, enterprise: true },
   { label: "Governance Templates", free: true, community: true, pro: true, enterprise: true },
@@ -136,7 +135,7 @@ const comparisonRows = [
   { label: "Channel-level rules", free: false, community: false, pro: false, enterprise: true },
   { label: "Audit logs", free: false, community: false, pro: false, enterprise: true },
   { label: "Support", free: "Community", community: "Community", pro: "Email", enterprise: "SLA" },
-  { label: "Best for", free: "Evaluation", community: "Labs / self-hosting", pro: "Teams", enterprise: "Regulated orgs" },
+  { label: "Best for", free: "Early testers", community: "Labs / self-hosting", pro: "Teams", enterprise: "Regulated orgs" },
 ];
 
 function CellValue({ value }: { value: string | boolean }) {
@@ -155,7 +154,7 @@ export default function LicensingPage() {
         event7 follows an <strong className="text-slate-300">open-core</strong>{" "}
         model. The governance engine — including rules, policies, channels, validation,
         AsyncAPI import, and scoring — is free and open-source under Apache 2.0.
-        Provider sync, advanced exports, and managed infrastructure are offered in
+        Provider sync, advanced exports, and managed infrastructure are planned for
         paid tiers.
       </p>
 
@@ -176,6 +175,11 @@ export default function LicensingPage() {
                 >
                   {tier.license}
                 </span>
+                {tier.name === "Free" && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    Beta
+                  </span>
+                )}
               </div>
 
               <p className="text-sm text-slate-400 leading-relaxed mb-5 max-w-xl">
@@ -195,6 +199,16 @@ export default function LicensingPage() {
                   </li>
                 ))}
               </ul>
+
+              {tier.name === "Free" && (
+                <a
+                  href="mailto:flux7art@gmail.com?subject=event7%20demo%20access"
+                  className="inline-flex items-center gap-2 mt-5 px-4 py-2 rounded-lg text-xs font-medium text-slate-950 bg-teal-400 hover:bg-teal-300 transition-colors"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  Request demo access
+                </a>
+              )}
             </div>
           );
         })}
@@ -251,7 +265,7 @@ export default function LicensingPage() {
             is required: include the license notice in redistributed copies.
           </p>
           <p>
-            Pro and Enterprise features are licensed separately under commercial
+            Pro and Enterprise features will be licensed separately under commercial
             terms. Contact us for details.
           </p>
         </div>
