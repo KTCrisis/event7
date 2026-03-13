@@ -11,7 +11,7 @@ export const metadata = {
   title: "event7",
   description: "Universal Schema Registry Governance",
   icons: {
-    icon: "/icon.svg?v=2",
+    icon: "/icon.svg",
   },
 };
 
