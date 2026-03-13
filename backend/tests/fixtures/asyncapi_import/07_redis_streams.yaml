@@ -1,0 +1,224 @@
+asyncapi: 3.0.0
+info:
+  title: Real-Time Cache Sync — Redis Streams
+  version: 1.0.0
+  description: >
+    Redis Streams for real-time cache invalidation and event sourcing.
+    Lightweight setup — no native schema registry, perfect for event7 Hosted Registry.
+    Demonstrates redis protocol detection and stream resource_kind.
+  contact:
+    name: Cache Infrastructure Team
+  x-owner: cache-infra-team
+  x-tags:
+    - redis
+    - cache
+    - event-sourcing
+    - real-time
+
+servers:
+  production:
+    host: redis-cluster.internal.company.com:6379
+    protocol: redis
+    description: Redis 7 cluster (6 nodes, 3 masters + 3 replicas)
+
+channels:
+  # ── Product catalog cache invalidation ──
+  product-cache-invalidation:
+    address: streams:product:cache:invalidation
+    title: Product Cache Invalidation
+    description: Signals cache invalidation when product data changes
+    x-data-layer: application
+    x-owner: product-team
+    x-tags:
+      - cache-invalidation
+      - product
+    messages:
+      productInvalidation:
+        $ref: "#/components/messages/productInvalidation"
+
+  # ── Session events (login, logout, expiry) ──
+  session-events:
+    address: streams:auth:session:events
+    title: Session Events
+    description: User session lifecycle events for distributed session management
+    x-data-layer: core
+    x-owner: identity-team
+    x-tags:
+      - session
+      - auth
+    messages:
+      sessionEvent:
+        $ref: "#/components/messages/sessionEvent"
+
+  # ── Real-time pricing updates ──
+  pricing-updates:
+    address: streams:pricing:updates
+    title: Real-Time Pricing
+    description: Dynamic pricing updates streamed to all frontend instances
+    x-data-layer: refined
+    x-owner: pricing-team
+    x-tags:
+      - pricing
+      - real-time
+    messages:
+      priceUpdate:
+        $ref: "#/components/messages/priceUpdate"
+
+  # ── Shipment tracking (uses Apicurio subject) ──
+  shipment-tracking:
+    address: streams:logistics:shipment:tracking
+    title: Shipment Tracking
+    description: Real-time shipment position updates
+    x-data-layer: core
+    x-owner: logistics-team
+    x-tags:
+      - tracking
+      - logistics
+    messages:
+      shipmentUpdate:
+        $ref: "#/components/messages/shipmentUpdate"
+
+operations:
+  invalidateProductCache:
+    action: send
+    channel:
+      $ref: "#/channels/product-cache-invalidation"
+    summary: Product service publishes cache invalidation events
+  publishSessionEvent:
+    action: send
+    channel:
+      $ref: "#/channels/session-events"
+    summary: Auth service publishes session lifecycle events
+  updatePricing:
+    action: send
+    channel:
+      $ref: "#/channels/pricing-updates"
+    summary: Pricing engine publishes real-time price updates
+  trackShipment:
+    action: send
+    channel:
+      $ref: "#/channels/shipment-tracking"
+    summary: Logistics service publishes shipment tracking updates
+
+components:
+  messages:
+    productInvalidation:
+      name: cache.product.Invalidation
+      description: Product cache invalidation signal
+      x-data-layer: application
+      x-owner: product-team
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/ProductInvalidation"
+    sessionEvent:
+      name: auth.session.SessionEvent
+      description: Session lifecycle event
+      x-data-layer: core
+      x-owner: identity-team
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/SessionEvent"
+    priceUpdate:
+      name: pricing.PriceUpdate
+      description: Dynamic price update
+      x-data-layer: refined
+      x-owner: pricing-team
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/PriceUpdate"
+    shipmentUpdate:
+      name: com.event7.Shipment
+      description: Shipment tracking — matches Apicurio subject
+      x-subject: com.event7.Shipment
+      x-data-layer: core
+      x-owner: logistics-team
+      x-tags:
+        - tracking
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/ShipmentUpdate"
+
+  schemas:
+    ProductInvalidation:
+      type: object
+      title: ProductInvalidation
+      required:
+        - product_id
+        - action
+      properties:
+        product_id:
+          type: string
+        action:
+          type: string
+          enum: [update, delete, price_change, stock_change]
+        changed_fields:
+          type: array
+          items:
+            type: string
+        invalidated_at:
+          type: string
+          format: date-time
+    SessionEvent:
+      type: object
+      title: SessionEvent
+      required:
+        - session_id
+        - event_type
+      properties:
+        session_id:
+          type: string
+        user_id:
+          type: string
+        event_type:
+          type: string
+          enum: [login, logout, expired, refreshed]
+        ip_address:
+          type: string
+        user_agent:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    PriceUpdate:
+      type: object
+      title: PriceUpdate
+      required:
+        - sku
+        - new_price
+      properties:
+        sku:
+          type: string
+        old_price:
+          type: number
+        new_price:
+          type: number
+        currency:
+          type: string
+        reason:
+          type: string
+          enum: [demand, promotion, competitor, cost_change]
+        effective_at:
+          type: string
+          format: date-time
+    ShipmentUpdate:
+      type: object
+      title: ShipmentUpdate
+      description: Matches com.event7.Shipment in Apicurio
+      properties:
+        shipment_id:
+          type: string
+        order_id:
+          type: string
+        status:
+          type: string
+          enum: [dispatched, in_transit, out_for_delivery, delivered, returned]
+        location:
+          type: object
+          properties:
+            lat:
+              type: number
+            lon:
+              type: number
+        updated_at:
+          type: string
+          format: date-time

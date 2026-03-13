@@ -1,0 +1,228 @@
+asyncapi: 3.0.0
+info:
+  title: E-Commerce Platform — Kafka TNS
+  version: 1.0.0
+  description: >
+    Classic Kafka TopicNameStrategy setup.
+    Each topic has its own value schema (1:1 coupling).
+    Covers all 4 data layers (raw → core → refined → application).
+  contact:
+    name: Platform Team
+  x-owner: platform-team
+  x-tags:
+    - ecommerce
+    - kafka
+    - tns
+
+servers:
+  production:
+    host: pkc-abc123.eu-west-1.aws.confluent.cloud:9092
+    protocol: kafka-secure
+    description: Confluent Cloud production cluster
+
+channels:
+  # ── RAW layer: ingestion topic, TNS coupled ──
+  raw-order-ingestion:
+    address: corp.dev.ecom.kafka.raw.orders.v1.log
+    description: Raw order events ingested from POS systems
+    x-data-layer: raw
+    x-owner: ingestion-team
+    x-tags:
+      - pos
+      - raw-ingestion
+    bindings:
+      kafka:
+        partitions: 12
+        replicas: 3
+        topicConfiguration:
+          retention.ms: 604800000
+          cleanup.policy: delete
+    messages:
+      orderRawValue:
+        $ref: "#/components/messages/orderRawValue"
+      orderRawKey:
+        $ref: "#/components/messages/orderRawKey"
+
+  # ── CORE layer: domain event, existing in Apicurio SR ──
+  core-order-events:
+    address: ecom.orders.OrderCreated.v1
+    description: Core domain event for order creation — schema registered in Apicurio
+    x-data-layer: core
+    x-owner: order-domain-team
+    x-tags:
+      - domain-event
+      - order
+    bindings:
+      kafka:
+        partitions: 6
+        replicas: 3
+        topicConfiguration:
+          retention.ms: 2592000000
+          cleanup.policy: compact
+    messages:
+      orderCreatedValue:
+        $ref: "#/components/messages/orderCreatedValue"
+
+  # ── REFINED layer: aggregated view ──
+  refined-order-daily:
+    address: ecom.orders.OrderCreated.agg.daily.v1
+    description: Daily aggregated order statistics
+    x-data-layer: refined
+    x-owner: analytics-team
+    x-tags:
+      - aggregation
+      - daily
+    bindings:
+      kafka:
+        partitions: 3
+        replicas: 3
+    messages:
+      orderDailyAgg:
+        $ref: "#/components/messages/orderDailyAgg"
+
+  # ── APPLICATION layer: app-specific view ──
+  app-dashboard-orders:
+    address: dashboard.ecom.OrderSummary.v1
+    description: Application-specific view for the operations dashboard
+    x-data-layer: application
+    x-owner: dashboard-team
+    x-tags:
+      - dashboard
+      - ops
+    bindings:
+      kafka:
+        partitions: 1
+        replicas: 3
+    messages:
+      orderSummary:
+        $ref: "#/components/messages/orderSummary"
+
+operations:
+  publishRawOrder:
+    action: send
+    channel:
+      $ref: "#/channels/raw-order-ingestion"
+    summary: POS system publishes raw order events
+  consumeRawOrder:
+    action: receive
+    channel:
+      $ref: "#/channels/raw-order-ingestion"
+    summary: Ingestion pipeline consumes raw orders
+  publishCoreOrder:
+    action: send
+    channel:
+      $ref: "#/channels/core-order-events"
+    summary: Order service publishes domain events
+  subscribeDailyAgg:
+    action: receive
+    channel:
+      $ref: "#/channels/refined-order-daily"
+    summary: Analytics consumes daily aggregates
+  subscribeDashboard:
+    action: receive
+    channel:
+      $ref: "#/channels/app-dashboard-orders"
+    summary: Dashboard consumes order summaries
+
+components:
+  messages:
+    orderRawValue:
+      name: corp.dev.ecom.kafka.raw.orders.v1.log-value
+      description: Raw order payload from POS
+      x-data-layer: raw
+      contentType: application/vnd.apache.avro+json
+      payload:
+        $ref: "#/components/schemas/RawOrderEvent"
+    orderRawKey:
+      name: corp.dev.ecom.kafka.raw.orders.v1.log-key
+      description: Order key (store + transaction ID)
+      contentType: application/vnd.apache.avro+json
+      payload:
+        $ref: "#/components/schemas/RawOrderKey"
+    orderCreatedValue:
+      name: com.event7.Order
+      description: Core order domain event — matches Apicurio subject
+      x-data-layer: core
+      x-owner: order-domain-team
+      contentType: application/vnd.apache.avro+json
+      payload:
+        $ref: "#/components/schemas/Order"
+    orderDailyAgg:
+      name: ecom.orders.OrderDailyAggregation
+      description: Daily order aggregation
+      x-data-layer: refined
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/OrderDailyAggregation"
+    orderSummary:
+      name: dashboard.ecom.OrderSummaryView
+      description: Dashboard-specific order summary
+      x-data-layer: application
+      x-owner: dashboard-team
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/OrderSummaryView"
+
+  schemas:
+    RawOrderEvent:
+      type: object
+      title: RawOrderEvent
+      properties:
+        store_id:
+          type: string
+        transaction_id:
+          type: string
+        raw_payload:
+          type: string
+        received_at:
+          type: string
+          format: date-time
+    RawOrderKey:
+      type: object
+      title: RawOrderKey
+      properties:
+        store_id:
+          type: string
+        transaction_id:
+          type: string
+    Order:
+      type: object
+      title: Order
+      description: Matches com.event7.Order in Apicurio
+      properties:
+        order_id:
+          type: string
+        customer_id:
+          type: string
+        total_amount:
+          type: number
+        currency:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    OrderDailyAggregation:
+      type: object
+      title: OrderDailyAggregation
+      properties:
+        date:
+          type: string
+          format: date
+        total_orders:
+          type: integer
+        total_revenue:
+          type: number
+        avg_order_value:
+          type: number
+    OrderSummaryView:
+      type: object
+      title: OrderSummaryView
+      properties:
+        order_id:
+          type: string
+        status:
+          type: string
+        customer_name:
+          type: string
+        total:
+          type: number

@@ -1,0 +1,198 @@
+asyncapi: 3.0.0
+info:
+  title: Notification Service — RabbitMQ
+  version: 1.2.0
+  description: >
+    RabbitMQ-based notification pipeline.
+    Uses topic exchange with routing key patterns.
+    Demonstrates AMQP bindings and pubsub messaging pattern.
+  contact:
+    name: Notification Team
+  x-owner: notification-team
+  x-tags:
+    - notifications
+    - rabbitmq
+    - amqp
+
+servers:
+  production:
+    host: rabbitmq.internal.company.com:5672
+    protocol: amqp
+    description: RabbitMQ production cluster (3-node)
+    bindings:
+      amqp:
+        vhost: /notifications
+
+channels:
+  # ── Exchange for email notifications ──
+  notification-email-exchange:
+    address: notifications.email
+    title: Email Notification Exchange
+    description: Topic exchange routing email notifications by priority and category
+    x-data-layer: application
+    x-owner: notification-team
+    x-tags:
+      - email
+      - notifications
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: notifications.email
+          type: topic
+          durable: true
+          autoDelete: false
+    messages:
+      emailNotification:
+        $ref: "#/components/messages/emailNotification"
+
+  # ── Exchange for SMS notifications ──
+  notification-sms-exchange:
+    address: notifications.sms
+    title: SMS Notification Exchange
+    description: Direct exchange for SMS delivery
+    x-data-layer: application
+    x-owner: notification-team
+    x-tags:
+      - sms
+      - notifications
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: notifications.sms
+          type: direct
+          durable: true
+    messages:
+      smsNotification:
+        $ref: "#/components/messages/smsNotification"
+
+  # ── Exchange for webhook callbacks ──
+  notification-webhook-exchange:
+    address: notifications.webhook
+    title: Webhook Callback Exchange
+    description: Fanout exchange broadcasting webhook events
+    x-data-layer: application
+    x-owner: integrations-team
+    x-tags:
+      - webhook
+      - integrations
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: notifications.webhook
+          type: fanout
+          durable: true
+    messages:
+      webhookCallback:
+        $ref: "#/components/messages/webhookCallback"
+
+operations:
+  sendEmailNotification:
+    action: send
+    channel:
+      $ref: "#/channels/notification-email-exchange"
+    summary: Application sends email notification requests
+    bindings:
+      amqp:
+        routingKey: "notification.email.{priority}.{category}"
+  sendSms:
+    action: send
+    channel:
+      $ref: "#/channels/notification-sms-exchange"
+    summary: Application sends SMS notifications
+  broadcastWebhook:
+    action: send
+    channel:
+      $ref: "#/channels/notification-webhook-exchange"
+    summary: Integration service broadcasts webhook callbacks
+
+components:
+  messages:
+    emailNotification:
+      name: notification.EmailNotification
+      description: Email notification request
+      x-data-layer: application
+      x-owner: notification-team
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/EmailNotification"
+    smsNotification:
+      name: notification.SmsNotification
+      description: SMS notification request
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/SmsNotification"
+    webhookCallback:
+      name: notification.WebhookCallback
+      description: Webhook callback event
+      x-owner: integrations-team
+      x-tags:
+        - callback
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/WebhookCallback"
+
+  schemas:
+    EmailNotification:
+      type: object
+      title: EmailNotification
+      required:
+        - to
+        - subject
+        - body
+      properties:
+        to:
+          type: string
+          format: email
+        subject:
+          type: string
+        body:
+          type: string
+        priority:
+          type: string
+          enum: [low, normal, high, critical]
+        category:
+          type: string
+          enum: [transactional, marketing, system]
+        template_id:
+          type: string
+        metadata:
+          type: object
+    SmsNotification:
+      type: object
+      title: SmsNotification
+      required:
+        - phone_number
+        - message
+      properties:
+        phone_number:
+          type: string
+        message:
+          type: string
+          maxLength: 160
+        provider:
+          type: string
+          enum: [twilio, vonage, aws_sns]
+    WebhookCallback:
+      type: object
+      title: WebhookCallback
+      required:
+        - url
+        - event_type
+        - payload
+      properties:
+        url:
+          type: string
+          format: uri
+        event_type:
+          type: string
+        payload:
+          type: object
+        retry_count:
+          type: integer
+          default: 0
+        max_retries:
+          type: integer
+          default: 3

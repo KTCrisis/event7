@@ -1,0 +1,187 @@
+asyncapi: 3.0.0
+info:
+  title: Data Pipeline — Google Cloud Pub/Sub
+  version: 1.0.0
+  description: >
+    Google Cloud Pub/Sub for data pipeline orchestration.
+    Uses ordering keys and message attributes for routing.
+    Demonstrates googlepubsub protocol detection.
+  contact:
+    name: Data Engineering
+  x-owner: data-engineering
+  x-tags:
+    - gcp
+    - pubsub
+    - data-pipeline
+
+servers:
+  gcp-production:
+    host: pubsub.googleapis.com
+    protocol: googlepubsub
+    description: Google Cloud Pub/Sub (project my-company-prod)
+    bindings:
+      googlepubsub:
+        project: my-company-prod
+
+channels:
+  # ── Raw data ingestion from external sources ──
+  raw-data-ingestion:
+    address: projects/my-company-prod/topics/raw-data-ingestion
+    title: Raw Data Ingestion
+    description: Ingests raw data from external partners and APIs
+    x-data-layer: raw
+    x-owner: data-engineering
+    x-tags:
+      - ingestion
+      - external
+    bindings:
+      googlepubsub:
+        messageRetentionDuration: "604800s"
+        messageStoragePolicy:
+          allowedPersistenceRegions:
+            - europe-west1
+            - europe-west4
+    messages:
+      rawDataEvent:
+        $ref: "#/components/messages/rawDataEvent"
+
+  # ── Processed / enriched data events ──
+  enriched-customer-data:
+    address: projects/my-company-prod/topics/enriched-customer-data
+    title: Enriched Customer Data
+    description: Customer data after enrichment and validation pipeline
+    x-data-layer: refined
+    x-owner: data-engineering
+    x-tags:
+      - enriched
+      - customer
+    bindings:
+      googlepubsub:
+        messageRetentionDuration: "2592000s"
+    messages:
+      enrichedCustomer:
+        $ref: "#/components/messages/enrichedCustomer"
+
+  # ── Analytics events for BigQuery streaming ──
+  analytics-events:
+    address: projects/my-company-prod/topics/analytics-events
+    title: Analytics Events
+    description: Events streamed to BigQuery for real-time analytics
+    x-data-layer: application
+    x-owner: analytics-team
+    x-tags:
+      - analytics
+      - bigquery
+      - streaming
+    messages:
+      analyticsEvent:
+        $ref: "#/components/messages/analyticsEvent"
+
+operations:
+  ingestRawData:
+    action: send
+    channel:
+      $ref: "#/channels/raw-data-ingestion"
+    summary: External connectors push raw data
+  publishEnrichedData:
+    action: send
+    channel:
+      $ref: "#/channels/enriched-customer-data"
+    summary: Enrichment pipeline publishes validated customer data
+  streamAnalytics:
+    action: send
+    channel:
+      $ref: "#/channels/analytics-events"
+    summary: Services publish analytics events for BigQuery ingestion
+
+components:
+  messages:
+    rawDataEvent:
+      name: pipeline.raw.DataEvent
+      description: Raw data event from external source
+      x-data-layer: raw
+      x-owner: data-engineering
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/RawDataEvent"
+    enrichedCustomer:
+      name: pipeline.enriched.CustomerProfile
+      description: Enriched and validated customer profile
+      x-data-layer: refined
+      x-owner: data-engineering
+      x-tags:
+        - pii
+        - gdpr
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/EnrichedCustomerProfile"
+    analyticsEvent:
+      name: pipeline.analytics.Event
+      description: Generic analytics event for BigQuery
+      x-data-layer: application
+      x-owner: analytics-team
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/AnalyticsEvent"
+
+  schemas:
+    RawDataEvent:
+      type: object
+      title: RawDataEvent
+      required:
+        - source
+        - event_id
+        - data
+      properties:
+        source:
+          type: string
+        event_id:
+          type: string
+          format: uuid
+        data:
+          type: object
+        received_at:
+          type: string
+          format: date-time
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+    EnrichedCustomerProfile:
+      type: object
+      title: EnrichedCustomerProfile
+      properties:
+        customer_id:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        segment:
+          type: string
+          enum: [vip, regular, new, churning]
+        lifetime_value:
+          type: number
+        enriched_at:
+          type: string
+          format: date-time
+    AnalyticsEvent:
+      type: object
+      title: AnalyticsEvent
+      required:
+        - event_name
+        - timestamp
+      properties:
+        event_name:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        user_id:
+          type: string
+        session_id:
+          type: string
+        properties:
+          type: object
+          additionalProperties: true

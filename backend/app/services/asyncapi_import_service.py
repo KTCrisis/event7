@@ -156,7 +156,7 @@ class AsyncAPIImportService:
             # Broker type from bindings or default server
             broker_type = self._detect_broker_from_bindings(ch_bindings) or default_broker
             resource_kind = BROKER_TO_RESOURCE.get(broker_type, "topic")
-            messaging_pattern = channel_patterns.get(channel_id, BROKER_TO_PATTERN.get(broker_type, "topic_log"))
+            messaging_pattern = BROKER_TO_PATTERN.get(broker_type, channel_patterns.get(channel_id, "topic_log"))
 
             # Broker config from channel bindings
             broker_config = self._extract_broker_config(ch_bindings, broker_type)
@@ -459,6 +459,31 @@ class AsyncAPIImportService:
                 detail=str(e)[:200],
             ))
 
+        # ── 6. Surgical cache invalidation (keep warm cache intact) ──
+        try:
+            # Catalog view must be refreshed (enrichments changed)
+            await self.cache.delete(
+                self.cache.cache_key(self.registry_id, "catalog")
+            )
+            # Stored spec
+            if spec_stored:
+                await self.cache.delete(
+                    self.cache.cache_key(self.registry_id, "asyncapi", spec_subject)
+                )
+            # Subject list only if new schemas were registered in SR
+            if schemas_registered > 0:
+                await self.cache.delete(
+                    self.cache.cache_key(self.registry_id, "subjects")
+                )
+            logger.info(
+                f"Cache invalidated: catalog"
+                f"{' + asyncapi' if spec_stored else ''}"
+                f"{' + subjects' if schemas_registered > 0 else ''}"
+            )
+        except Exception as e:
+            logger.warning(f"Cache invalidation failed (non-blocking): {e}")
+            warnings.append("Cache invalidation failed — data may take up to 5 min to refresh")
+            
         logger.info(
             f"AsyncAPI import applied: {channels_created} channels, {bindings_created} bindings, "
             f"{enrichments_updated} enrichments, {schemas_registered} schemas"

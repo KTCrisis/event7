@@ -1,0 +1,140 @@
+asyncapi: 3.0.0
+info:
+  title: Customer Domain — Kafka RNS
+  version: 2.0.0
+  description: >
+    RecordNameStrategy: a single Kafka topic transports multiple domain schemas.
+    The subject name is the fully-qualified record name, decoupled from the topic.
+    Tests multi-message channels and $ref resolution to existing Apicurio subjects.
+  contact:
+    name: Customer Domain Team
+  x-owner: customer-domain-team
+  x-tags:
+    - customer
+    - domain-events
+    - rns
+
+servers:
+  production:
+    host: pkc-def456.eu-central-1.aws.confluent.cloud:9092
+    protocol: kafka-secure
+    description: Confluent Cloud — customer domain cluster
+
+channels:
+  customer-domain-events:
+    address: corp.prod.customer.domain.events
+    description: >
+      Single topic carrying all customer-domain events.
+      Uses RecordNameStrategy — subject = FQCN of the Avro record.
+    x-data-layer: core
+    x-owner: customer-domain-team
+    x-tags:
+      - multi-schema
+      - rns
+      - domain-events
+    bindings:
+      kafka:
+        partitions: 12
+        replicas: 3
+        topicConfiguration:
+          retention.ms: 7776000000
+          cleanup.policy: compact,delete
+    messages:
+      # 3 domain schemas on the same topic
+      customerValue:
+        $ref: "#/components/messages/customerValue"
+      addressValue:
+        $ref: "#/components/messages/addressValue"
+      userValue:
+        $ref: "#/components/messages/userValue"
+
+operations:
+  publishCustomerEvents:
+    action: send
+    channel:
+      $ref: "#/channels/customer-domain-events"
+    summary: Customer service publishes domain events (Customer, Address, User)
+  consumeCustomerEvents:
+    action: receive
+    channel:
+      $ref: "#/channels/customer-domain-events"
+    summary: Downstream services consume customer domain events
+
+components:
+  messages:
+    customerValue:
+      name: com.event7.Customer
+      description: Customer aggregate — exists in Apicurio SR, references Address
+      x-subject: com.event7.Customer
+      x-data-layer: core
+      x-owner: customer-domain-team
+      x-tags:
+        - aggregate
+      contentType: application/vnd.apache.avro+json
+      payload:
+        $ref: "#/components/schemas/Customer"
+    addressValue:
+      name: com.event7.Address
+      description: Address value object — exists in Apicurio SR
+      x-subject: com.event7.Address
+      x-data-layer: core
+      contentType: application/vnd.apache.avro+json
+      payload:
+        $ref: "#/components/schemas/Address"
+    userValue:
+      name: com.event7.User
+      description: User record — exists in Apicurio SR (v2 with role field)
+      x-subject: com.event7.User
+      x-data-layer: core
+      x-owner: identity-team
+      contentType: application/vnd.apache.avro+json
+      payload:
+        $ref: "#/components/schemas/User"
+
+  schemas:
+    Customer:
+      type: object
+      title: Customer
+      description: Matches com.event7.Customer in Apicurio
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        address:
+          $ref: "#/components/schemas/Address"
+        created_at:
+          type: integer
+          format: int64
+    Address:
+      type: object
+      title: Address
+      description: Matches com.event7.Address in Apicurio
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+    User:
+      type: object
+      title: User
+      description: Matches com.event7.User in Apicurio
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [USER, ADMIN, MODERATOR]
+        created_at:
+          type: integer
+          format: int64

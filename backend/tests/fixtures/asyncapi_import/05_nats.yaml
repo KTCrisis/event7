@@ -1,0 +1,192 @@
+asyncapi: 3.0.0
+info:
+  title: Microservices Bus — NATS JetStream
+  version: 1.1.0
+  description: >
+    NATS JetStream for inter-service communication.
+    Hierarchical subject namespace with wildcard subscriptions.
+    Demonstrates NATS pubsub pattern with subject-based addressing.
+  contact:
+    name: Platform Engineering
+  x-owner: platform-engineering
+  x-tags:
+    - nats
+    - jetstream
+    - microservices
+
+servers:
+  production:
+    host: nats://nats.internal.company.com:4222
+    protocol: nats
+    description: NATS cluster (3-node JetStream enabled)
+
+channels:
+  # ── User lifecycle events ──
+  user-events:
+    address: services.user.events.>
+    title: User Lifecycle Events
+    description: All user lifecycle events (created, updated, deleted) via wildcard
+    x-data-layer: core
+    x-owner: identity-team
+    x-tags:
+      - lifecycle
+      - user
+      - wildcard
+    messages:
+      userCreated:
+        $ref: "#/components/messages/userCreated"
+      userUpdated:
+        $ref: "#/components/messages/userUpdated"
+
+  # ── Payment processing ──
+  payment-requests:
+    address: services.payment.request
+    title: Payment Requests
+    description: Payment processing requests from order service
+    x-data-layer: core
+    x-owner: payments-team
+    x-tags:
+      - payment
+      - request-reply
+    messages:
+      paymentRequest:
+        $ref: "#/components/messages/paymentRequest"
+
+  # ── Inventory checks ──
+  inventory-checks:
+    address: services.inventory.check
+    title: Inventory Availability Checks
+    description: Real-time inventory availability queries
+    x-data-layer: application
+    x-owner: warehouse-team
+    x-tags:
+      - inventory
+      - sync
+    messages:
+      inventoryCheck:
+        $ref: "#/components/messages/inventoryCheck"
+
+operations:
+  publishUserCreated:
+    action: send
+    channel:
+      $ref: "#/channels/user-events"
+    summary: Identity service publishes user lifecycle events
+  requestPayment:
+    action: send
+    channel:
+      $ref: "#/channels/payment-requests"
+    summary: Order service sends payment requests
+  checkInventory:
+    action: send
+    channel:
+      $ref: "#/channels/inventory-checks"
+    summary: Cart service checks inventory availability
+
+components:
+  messages:
+    userCreated:
+      name: services.user.UserCreated
+      description: User created event
+      x-data-layer: core
+      x-owner: identity-team
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/UserCreated"
+    userUpdated:
+      name: services.user.UserUpdated
+      description: User profile updated event
+      x-data-layer: core
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/UserUpdated"
+    paymentRequest:
+      name: com.event7.Payment
+      description: Payment request — matches Apicurio subject
+      x-subject: com.event7.Payment
+      x-data-layer: core
+      x-owner: payments-team
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/Payment"
+    inventoryCheck:
+      name: com.event7.Inventory
+      description: Inventory check — matches Apicurio JSON Schema subject
+      x-subject: com.event7.Inventory
+      x-data-layer: application
+      x-owner: warehouse-team
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/InventoryCheck"
+
+  schemas:
+    UserCreated:
+      type: object
+      title: UserCreated
+      required:
+        - user_id
+        - email
+        - created_at
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    UserUpdated:
+      type: object
+      title: UserUpdated
+      required:
+        - user_id
+        - fields_changed
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        fields_changed:
+          type: array
+          items:
+            type: string
+        updated_at:
+          type: string
+          format: date-time
+    Payment:
+      type: object
+      title: Payment
+      description: Matches com.event7.Payment in Apicurio
+      required:
+        - payment_id
+        - order_id
+        - amount
+      properties:
+        payment_id:
+          type: string
+        order_id:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        method:
+          type: string
+          enum: [card, bank_transfer, paypal, crypto]
+    InventoryCheck:
+      type: object
+      title: InventoryCheck
+      description: Matches com.event7.Inventory in Apicurio
+      properties:
+        sku:
+          type: string
+        warehouse_id:
+          type: string
+        quantity_requested:
+          type: integer
+        check_type:
+          type: string
+          enum: [availability, reservation, release]

@@ -1,0 +1,189 @@
+asyncapi: 3.0.0
+info:
+  title: IoT Telemetry Platform — Apache Pulsar
+  version: 1.0.0
+  description: >
+    Apache Pulsar setup for IoT telemetry ingestion.
+    Multi-tenant namespaces, persistent topics, partitioned for scale.
+    Demonstrates Pulsar protocol binding and topic_log pattern.
+  contact:
+    name: IoT Platform Team
+  x-owner: iot-platform-team
+  x-tags:
+    - iot
+    - telemetry
+    - pulsar
+
+servers:
+  production:
+    host: pulsar+ssl://pulsar.iot.company.com:6651
+    protocol: pulsar
+    description: Apache Pulsar production cluster (3 brokers, BookKeeper)
+
+channels:
+  # ── Device telemetry (high-volume) ──
+  device-telemetry:
+    address: persistent://iot/telemetry/device-metrics
+    title: Device Telemetry
+    description: High-volume device telemetry stream — partitioned for scale
+    x-data-layer: raw
+    x-owner: iot-platform-team
+    x-tags:
+      - high-volume
+      - metrics
+      - partitioned
+    messages:
+      deviceMetrics:
+        $ref: "#/components/messages/deviceMetrics"
+
+  # ── Device alerts (lower volume, critical) ──
+  device-alerts:
+    address: persistent://iot/alerts/device-alerts
+    title: Device Alerts
+    description: Critical device alerts requiring immediate attention
+    x-data-layer: core
+    x-owner: iot-monitoring-team
+    x-tags:
+      - alerts
+      - critical
+    messages:
+      deviceAlert:
+        $ref: "#/components/messages/deviceAlert"
+
+  # ── Device registration ──
+  device-registry:
+    address: persistent://iot/registry/device-registered
+    title: Device Registry Events
+    description: Device lifecycle events — registration, deactivation
+    x-data-layer: core
+    x-owner: device-management-team
+    x-tags:
+      - lifecycle
+      - registry
+    messages:
+      deviceRegistered:
+        $ref: "#/components/messages/deviceRegistered"
+
+operations:
+  ingestTelemetry:
+    action: send
+    channel:
+      $ref: "#/channels/device-telemetry"
+    summary: IoT gateway publishes device metrics
+  processAlerts:
+    action: receive
+    channel:
+      $ref: "#/channels/device-alerts"
+    summary: Alert engine consumes and processes device alerts
+  registerDevice:
+    action: send
+    channel:
+      $ref: "#/channels/device-registry"
+    summary: Device management publishes registration events
+
+components:
+  messages:
+    deviceMetrics:
+      name: iot.telemetry.DeviceMetrics
+      description: Raw device telemetry payload
+      x-data-layer: raw
+      x-owner: iot-platform-team
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/DeviceMetrics"
+    deviceAlert:
+      name: iot.alerts.DeviceAlert
+      description: Critical device alert
+      x-data-layer: core
+      x-owner: iot-monitoring-team
+      x-tags:
+        - critical
+        - alert
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/DeviceAlert"
+    deviceRegistered:
+      name: iot.registry.DeviceRegistered
+      description: Device registration event
+      x-data-layer: core
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/DeviceRegistered"
+
+  schemas:
+    DeviceMetrics:
+      type: object
+      title: DeviceMetrics
+      required:
+        - device_id
+        - timestamp
+        - metrics
+      properties:
+        device_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        metrics:
+          type: object
+          properties:
+            temperature:
+              type: number
+            humidity:
+              type: number
+            battery_level:
+              type: number
+            signal_strength:
+              type: integer
+        location:
+          type: object
+          properties:
+            lat:
+              type: number
+            lon:
+              type: number
+    DeviceAlert:
+      type: object
+      title: DeviceAlert
+      required:
+        - device_id
+        - alert_type
+        - severity
+      properties:
+        device_id:
+          type: string
+        alert_type:
+          type: string
+          enum: [temperature_high, battery_low, offline, tamper, geofence_breach]
+        severity:
+          type: string
+          enum: [warning, critical, emergency]
+        message:
+          type: string
+        triggered_at:
+          type: string
+          format: date-time
+        metric_value:
+          type: number
+        threshold:
+          type: number
+    DeviceRegistered:
+      type: object
+      title: DeviceRegistered
+      required:
+        - device_id
+        - device_type
+        - registered_at
+      properties:
+        device_id:
+          type: string
+        device_type:
+          type: string
+          enum: [sensor, gateway, actuator, camera]
+        firmware_version:
+          type: string
+        registered_at:
+          type: string
+          format: date-time
+        owner_org:
+          type: string
