@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Layers, Plus, Copy, Pencil, Trash2, Lock, ChevronDown, ChevronRight,
   Loader2, AlertCircle, Shield, Zap, ClipboardList, Search as SearchIcon,
@@ -51,7 +51,7 @@ interface TemplateManagerProps {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// Layer colors
+// Layer colors — with dynamic fallback for custom layers
 // ════════════════════════════════════════════════════════════════════
 
 const LAYER_COLORS: Record<string, string> = {
@@ -60,6 +60,216 @@ const LAYER_COLORS: Record<string, string> = {
   refined: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   application: "bg-violet-500/10 text-violet-400 border-violet-500/20",
 };
+
+const CUSTOM_LAYER_COLOR = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+
+function getLayerColor(layer: string | null | undefined): string {
+  if (!layer) return "bg-zinc-800 text-zinc-400 border-zinc-700";
+  return LAYER_COLORS[layer.toLowerCase()] || CUSTOM_LAYER_COLOR;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Default layer suggestions (Medallion)
+// ════════════════════════════════════════════════════════════════════
+
+const DEFAULT_LAYERS = [
+  { value: "raw", label: "RAW", hint: "Collection layer — raw data" },
+  { value: "core", label: "CORE", hint: "Canonical business model" },
+  { value: "refined", label: "REFINED", hint: "Aggregated / enriched data" },
+  { value: "application", label: "APPLICATION", hint: "Consumption views" },
+];
+
+// ════════════════════════════════════════════════════════════════════
+// LayerInput — combobox with suggestions + free-text input
+// ════════════════════════════════════════════════════════════════════
+
+function LayerInput({
+  value,
+  onChange,
+  disabled = false,
+  existingLayers = [],
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  existingLayers?: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Build suggestions: defaults + custom layers from existing templates
+  const customLayers = existingLayers
+    .filter((l) => l && !DEFAULT_LAYERS.some((d) => d.value === l.toLowerCase()))
+    .map((l) => l.toLowerCase())
+    .filter((v, i, arr) => arr.indexOf(v) === i); // dedupe
+
+  const allSuggestions = [
+    ...DEFAULT_LAYERS,
+    ...customLayers.map((l) => ({
+      value: l,
+      label: l.toUpperCase(),
+      hint: "Custom",
+    })),
+  ];
+
+  // Filter suggestions by search
+  const filtered = allSuggestions.filter(
+    (s) =>
+      s.label.toLowerCase().includes((search || value).toLowerCase()) ||
+      s.hint.toLowerCase().includes((search || value).toLowerCase())
+  );
+
+  // Is the current input a new custom value?
+  const inputVal = search !== "" ? search : value;
+  const isNewCustom =
+    inputVal.trim() !== "" &&
+    !allSuggestions.some((s) => s.value === inputVal.trim().toLowerCase());
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const select = (val: string) => {
+    onChange(val);
+    setSearch("");
+    setOpen(false);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+    if (!open) setOpen(true);
+  };
+
+  const handleFocus = () => {
+    if (!disabled) setOpen(true);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setOpen(false);
+      setSearch("");
+    }
+    if (e.key === "Enter" && inputVal.trim()) {
+      e.preventDefault();
+      select(inputVal.trim().toLowerCase());
+    }
+  };
+
+  const displayValue = value ? value.toUpperCase() : "";
+
+  return (
+    <div ref={containerRef} className="relative">
+      <Input
+        ref={inputRef}
+        value={open ? search : displayValue}
+        onChange={handleInputChange}
+        onFocus={handleFocus}
+        onKeyDown={handleKeyDown}
+        placeholder="Type or select a layer…"
+        disabled={disabled}
+        className="text-sm pr-8"
+      />
+      {/* Clear button */}
+      {value && !disabled && (
+        <button
+          type="button"
+          onClick={() => { onChange(""); setSearch(""); }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        >
+          <X size={12} />
+        </button>
+      )}
+
+      {/* Dropdown */}
+      {open && !disabled && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 rounded-md border border-border bg-popover shadow-lg overflow-hidden">
+          {/* No layer option */}
+          <button
+            type="button"
+            onClick={() => select("")}
+            className={cn(
+              "w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent/50 transition-colors text-left",
+              !value && "bg-accent/30"
+            )}
+          >
+            <span className="text-muted-foreground italic">No layer</span>
+          </button>
+
+          {/* Divider */}
+          <div className="border-t border-border/50" />
+
+          {/* Suggestions */}
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.map((s) => {
+              const layerColor = getLayerColor(s.value);
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => select(s.value)}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent/50 transition-colors text-left",
+                    value === s.value && "bg-accent/30"
+                  )}
+                >
+                  <Badge
+                    variant="outline"
+                    className={cn("text-[10px] px-1.5 py-0 shrink-0", layerColor)}
+                  >
+                    {s.label}
+                  </Badge>
+                  <span className="text-muted-foreground truncate">{s.hint}</span>
+                  {value === s.value && (
+                    <Check size={12} className="ml-auto text-cyan-400 shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Create new custom layer */}
+            {isNewCustom && (
+              <>
+                <div className="border-t border-border/50" />
+                <button
+                  type="button"
+                  onClick={() => select(inputVal.trim().toLowerCase())}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent/50 transition-colors text-left"
+                >
+                  <Plus size={12} className="text-emerald-400 shrink-0" />
+                  <span className="text-emerald-400 font-medium">
+                    Create "{inputVal.trim().toUpperCase()}"
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] px-1.5 py-0 ml-auto bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                  >
+                    Custom
+                  </Badge>
+                </button>
+              </>
+            )}
+
+            {filtered.length === 0 && !isNewCustom && (
+              <div className="px-3 py-3 text-xs text-muted-foreground text-center">
+                No matching layers
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ════════════════════════════════════════════════════════════════════
 // Component
@@ -93,6 +303,11 @@ export function TemplateManager({ registryId, onApplied }: TemplateManagerProps)
   useEffect(() => {
     load();
   }, [load]);
+
+  // Collect all existing layers for suggestions
+  const existingLayers = templates
+    .map((t) => t.layer)
+    .filter((l): l is string => !!l);
 
   const handleDelete = async (t: GovernanceTemplate) => {
     if (t.is_builtin) return;
@@ -167,6 +382,7 @@ export function TemplateManager({ registryId, onApplied }: TemplateManagerProps)
   if (creating) {
     return (
       <TemplateEditor
+        existingLayers={existingLayers}
         onSave={handleSaved}
         onCancel={() => setCreating(false)}
       />
@@ -177,6 +393,7 @@ export function TemplateManager({ registryId, onApplied }: TemplateManagerProps)
     return (
       <TemplateEditor
         template={editing}
+        existingLayers={existingLayers}
         onSave={handleSaved}
         onCancel={() => setEditing(null)}
       />
@@ -187,6 +404,7 @@ export function TemplateManager({ registryId, onApplied }: TemplateManagerProps)
     return (
       <TemplateCloneForm
         source={cloning}
+        existingLayers={existingLayers}
         onSave={handleSaved}
         onCancel={() => setCloning(null)}
       />
@@ -212,7 +430,7 @@ export function TemplateManager({ registryId, onApplied }: TemplateManagerProps)
       <div className="space-y-3">
         {sorted.map((t) => {
           const isExpanded = expanded === t.id;
-          const layerColor = LAYER_COLORS[t.layer || ""] || "bg-zinc-800 text-zinc-400 border-zinc-700";
+          const layerColor = getLayerColor(t.layer);
 
           return (
             <Card key={t.id} className="overflow-hidden">
@@ -368,10 +586,12 @@ export function TemplateManager({ registryId, onApplied }: TemplateManagerProps)
 
 function TemplateEditor({
   template,
+  existingLayers = [],
   onSave,
   onCancel,
 }: {
   template?: GovernanceTemplate;
+  existingLayers?: string[];
   onSave: () => void;
   onCancel: () => void;
 }) {
@@ -492,20 +712,14 @@ function TemplateEditor({
         </div>
         <div>
           <label className="text-[11px] text-muted-foreground font-medium mb-1 block">
-            Layer (optional)
+            Layer / Category (optional)
           </label>
-          <select
+          <LayerInput
             value={layer}
-            onChange={(e) => setLayer(e.target.value)}
+            onChange={setLayer}
             disabled={isBuiltin}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-          >
-            <option value="">No layer</option>
-            <option value="raw">RAW</option>
-            <option value="core">CORE</option>
-            <option value="refined">REFINED</option>
-            <option value="application">APPLICATION</option>
-          </select>
+            existingLayers={existingLayers}
+          />
         </div>
       </div>
 
@@ -720,10 +934,12 @@ function AddRuleForm({
 
 function TemplateCloneForm({
   source,
+  existingLayers = [],
   onSave,
   onCancel,
 }: {
   source: GovernanceTemplate;
+  existingLayers?: string[];
   onSave: () => void;
   onCancel: () => void;
 }) {
@@ -794,19 +1010,13 @@ function TemplateCloneForm({
         </div>
         <div>
           <label className="text-[11px] text-muted-foreground font-medium mb-1 block">
-            Layer
+            Layer / Category
           </label>
-          <select
+          <LayerInput
             value={layer}
-            onChange={(e) => setLayer(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-          >
-            <option value="">No layer</option>
-            <option value="raw">RAW</option>
-            <option value="core">CORE</option>
-            <option value="refined">REFINED</option>
-            <option value="application">APPLICATION</option>
-          </select>
+            onChange={setLayer}
+            existingLayers={existingLayers}
+          />
         </div>
       </div>
 
