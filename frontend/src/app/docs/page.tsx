@@ -1,6 +1,6 @@
 // src/app/docs/page.tsx
 // Documentation — Introduction page
-// v4: Animated pipeline with bidirectional dot flow.
+// v5: Scrollbar fix, branded event7 logo everywhere, responsive pipeline.
 // Placement: frontend/src/app/docs/page.tsx
 
 import Link from "next/link";
@@ -23,6 +23,17 @@ import {
   Tags,
   Eye,
 } from "lucide-react";
+
+// ════════════════════════════════════════════════════════════════════
+// Branded event7 inline component
+// ════════════════════════════════════════════════════════════════════
+function E7({ className = "" }: { className?: string }) {
+  return (
+    <span className={className}>
+      event<span className="text-teal-400">7</span>
+    </span>
+  );
+}
 
 export default function DocsIntroPage() {
   return (
@@ -57,6 +68,13 @@ export default function DocsIntroPage() {
 
       {/* ── Hero ── */}
       <div className="mb-12">
+        {/* Logo */}
+        <div className="mb-5">
+          <span className="text-3xl md:text-4xl font-bold text-white tracking-tight">
+            event<span className="text-teal-400">7</span>
+          </span>
+        </div>
+
         <div className="flex items-center gap-2 mb-4">
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-teal-500/10 text-teal-400 border border-teal-500/20">
             Apache 2.0
@@ -78,10 +96,11 @@ export default function DocsIntroPage() {
         </p>
 
         <p className="text-base text-slate-500 leading-relaxed max-w-2xl mb-8">
-          Schema registries store schemas. They don&apos;t govern them. event7
-          adds a provider-agnostic governance layer above your registries.
-          Schemas stay in your registry. Everything else — enrichments,
-          channels, rules, validation, AsyncAPI specs — lives in event7.
+          Schema registries store schemas. They don&apos;t govern them.{" "}
+          <E7 className="text-white font-medium" /> adds a provider-agnostic
+          governance layer above your registries. Schemas stay in your registry.
+          Everything else — enrichments, channels, rules, validation, AsyncAPI
+          specs — lives in <E7 className="text-white font-medium" />.
         </p>
 
         <div className="flex flex-wrap gap-3">
@@ -104,10 +123,11 @@ export default function DocsIntroPage() {
       {/* ── Pipeline visual ── */}
       <section className="mb-14">
         <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
-          How event7 fits
+          How <E7 /> fits
         </h2>
-        <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-6 overflow-x-auto">
-          <div className="flex items-center gap-0 min-w-[700px]">
+        <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-6 overflow-hidden">
+          {/* Desktop: full animated pipeline */}
+          <div className="hidden md:flex items-center gap-0">
             <PipelineNode
               icon={Layers}
               label="Schema Registry"
@@ -127,6 +147,7 @@ export default function DocsIntroPage() {
               sub="Explore · Validate · Govern"
               color="teal"
               highlight
+              branded
             />
             <PipelineAnimatedArrow
               direction="bidi"
@@ -153,9 +174,43 @@ export default function DocsIntroPage() {
               color="violet"
             />
           </div>
+
+          {/* Mobile: stacked vertical pipeline */}
+          <div className="flex md:hidden flex-col gap-2">
+            <PipelineNodeMobile
+              icon={Layers}
+              label="Schema Registry"
+              sub="Confluent · Apicurio · Karapace · Redpanda"
+              color="slate"
+            />
+            <PipelineArrowMobile label="reads ↔ syncs" />
+            <PipelineNodeMobile
+              icon={Shield}
+              label="event7"
+              sub="Explore · Validate · Govern"
+              color="teal"
+              highlight
+              branded
+            />
+            <PipelineArrowMobile label="generates ↔ imports" />
+            <PipelineNodeMobile
+              icon={FileCode}
+              label="AsyncAPI"
+              sub="Specs · Channels · Bindings"
+              color="cyan"
+            />
+            <PipelineArrowMobile label="exports →" />
+            <PipelineNodeMobile
+              icon={BookOpen}
+              label="EventCatalog"
+              sub="Docs · Domains · Teams"
+              color="violet"
+            />
+          </div>
         </div>
         <p className="text-xs text-slate-600 mt-3 text-center">
-          event7 is not a registry. It&apos;s the governance layer your registries are missing.
+          <E7 className="text-slate-500 font-medium" /> is not a registry.
+          It&apos;s the governance layer your registries are missing.
         </p>
       </section>
 
@@ -253,8 +308,9 @@ export default function DocsIntroPage() {
               SaaS (Preview)
             </div>
             <p className="text-sm text-slate-400 leading-relaxed mb-3">
-              Try event7 without installing anything. Hosted on Cloudflare
-              Pages + Railway + Supabase Cloud. Accounts created upon request.
+              Try <E7 className="text-slate-300 font-medium" /> without
+              installing anything. Hosted on Cloudflare Pages + Railway +
+              Supabase Cloud. Accounts created upon request.
             </p>
             <a
               href="mailto:flux7art@gmail.com?subject=event7%20demo%20access"
@@ -319,7 +375,7 @@ export default function DocsIntroPage() {
 // Sub-components
 // ════════════════════════════════════════════════════════════════════
 
-// ── Pipeline ──
+// ── Pipeline (Desktop) ──
 
 const nodeColors: Record<string, { bg: string; border: string; icon: string; text: string }> = {
   slate: { bg: "bg-slate-900/50", border: "border-slate-700", icon: "text-slate-400", text: "text-slate-400" },
@@ -334,17 +390,19 @@ function PipelineNode({
   sub,
   color,
   highlight,
+  branded,
 }: {
   icon: React.ElementType;
   label: string;
   sub: string;
   color: string;
   highlight?: boolean;
+  branded?: boolean;
 }) {
   const c = nodeColors[color];
   return (
     <div
-      className={`flex-1 rounded-xl border ${c.border} ${c.bg} p-4 text-center shrink-0 ${
+      className={`flex-1 rounded-xl border ${c.border} ${c.bg} p-4 text-center shrink-0 min-w-0 ${
         highlight ? "ring-1 ring-teal-500/20" : ""
       }`}
     >
@@ -352,7 +410,11 @@ function PipelineNode({
         <Icon className="h-5 w-5" />
       </div>
       <div className={`text-sm font-semibold ${highlight ? "text-white" : c.text}`}>
-        {label}
+        {branded ? (
+          <>event<span className="text-teal-400">7</span></>
+        ) : (
+          label
+        )}
       </div>
       <div className="text-[10px] text-slate-600 mt-0.5 leading-relaxed">{sub}</div>
     </div>
@@ -373,7 +435,7 @@ function PipelineAnimatedArrow({
   colorLeft?: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-0 shrink-0 w-24 mx-1">
+    <div className="flex flex-col items-center gap-0 shrink-0 w-20 lg:w-24 mx-1">
       {/* Top label (→) */}
       <span className="text-[9px] text-slate-500 mb-1 leading-none">{labelRight}</span>
 
@@ -443,6 +505,53 @@ function PipelineAnimatedArrow({
       ) : (
         <span className="text-[9px] text-transparent mt-1 leading-none select-none">—</span>
       )}
+    </div>
+  );
+}
+
+// ── Pipeline (Mobile) ──
+
+function PipelineNodeMobile({
+  icon: Icon,
+  label,
+  sub,
+  color,
+  highlight,
+  branded,
+}: {
+  icon: React.ElementType;
+  label: string;
+  sub: string;
+  color: string;
+  highlight?: boolean;
+  branded?: boolean;
+}) {
+  const c = nodeColors[color];
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-lg border ${c.border} ${c.bg} px-4 py-3 ${
+        highlight ? "ring-1 ring-teal-500/20" : ""
+      }`}
+    >
+      <Icon className={`h-4 w-4 shrink-0 ${c.icon}`} />
+      <div className="min-w-0">
+        <div className={`text-sm font-semibold ${highlight ? "text-white" : c.text}`}>
+          {branded ? (
+            <>event<span className="text-teal-400">7</span></>
+          ) : (
+            label
+          )}
+        </div>
+        <div className="text-[10px] text-slate-600 leading-relaxed truncate">{sub}</div>
+      </div>
+    </div>
+  );
+}
+
+function PipelineArrowMobile({ label }: { label: string }) {
+  return (
+    <div className="flex items-center justify-center py-0.5">
+      <span className="text-[10px] text-slate-600">{label}</span>
     </div>
   );
 }

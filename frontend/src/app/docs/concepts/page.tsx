@@ -250,7 +250,7 @@ export default function ConceptsPage() {
           />
           <FAQ
             q="Is event7's Catalog the same as EventCatalog?"
-            a="No. event7's Catalog is a governance workspace inside the app — you enrich subjects, track scores, manage documentation status. EventCatalog (by David Boyne) is a separate documentation portal. event7 exports to EventCatalog via the generator-event7 plugin."
+            a="No. event7's Catalog is a governance workspace inside the app — you enrich subjects, track scores, manage documentation status. EventCatalog is a separate documentation portal. event7 exports to EventCatalog via the generator-event7 plugin."
           />
           <FAQ
             q="Why are channels in Documentation, not in Governance?"

@@ -259,7 +259,7 @@ export default function CatalogPage() {
             day-to-day governance work.
           </p>
           <p className="text-sm text-slate-400 leading-relaxed mb-3">
-            <strong className="text-white">EventCatalog</strong> (by David Boyne)
+            <strong className="text-white">EventCatalog</strong>
             is a separate product — a static documentation site for events,
             services, and domains. event7 exports to EventCatalog via the{" "}
             <code className="text-teal-400 text-xs">generator-event7</code>{" "}
