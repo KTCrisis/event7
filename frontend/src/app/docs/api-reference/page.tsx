@@ -1,6 +1,9 @@
 // src/app/docs/api-reference/page.tsx
+// Documentation page — API Reference
+// v2: Added AsyncAPI Overview route + EventCatalog Export group.
+// Placement: frontend/src/app/docs/api-reference/page.tsx
 
-import { Server, Database, BookOpen, FileJson, Bot, Shield, ScrollText, Network, Upload, ShieldCheck } from "lucide-react";
+import { Server, Database, BookOpen, FileJson, Bot, Shield, ScrollText, Network, Upload, ShieldCheck, ExternalLink } from "lucide-react";
 
 interface Endpoint {
   method: "GET" | "POST" | "PUT" | "DELETE";
@@ -116,9 +119,10 @@ const groups: EndpointGroup[] = [
     name: "AsyncAPI",
     icon: FileJson,
     prefix: "/api/v1/registries/{id}",
-    description: "Generate, retrieve, edit, and export AsyncAPI 3.0 specs from schemas + enrichments.",
+    description: "Generate, retrieve, edit, export, and monitor AsyncAPI 3.0 specs. Includes dual-mode overview with drift detection.",
     endpoints: [
-      { method: "POST", path: "/subjects/{subject}/asyncapi/generate", description: "Generate spec from schema + enrichments (Kafka bindings, key schema, examples)" },
+      { method: "GET", path: "/asyncapi/overview", description: "Dual-mode overview — KPIs (total, documented, ready, raw, coverage) + per-subject status with drift detection (origin, status, sync_status)" },
+      { method: "POST", path: "/subjects/{subject}/asyncapi/generate", description: "Generate spec from schema + enrichments (Kafka bindings, key schema, examples). Stores source hash + version for drift." },
       { method: "GET", path: "/subjects/{subject}/asyncapi", description: "Retrieve existing spec (cache → DB)" },
       { method: "PUT", path: "/subjects/{subject}/asyncapi", description: "Manually update a spec (sets is_auto_generated=false)" },
       { method: "DELETE", path: "/subjects/{subject}/asyncapi", description: "Delete a stored spec" },
@@ -133,6 +137,15 @@ const groups: EndpointGroup[] = [
     endpoints: [
       { method: "POST", path: "/asyncapi/import/preview", description: "Parse spec and preview what would be created (channels, bindings, enrichments, unknown schemas)" },
       { method: "POST", path: "/asyncapi/import/apply", description: "Parse and persist all entities. Set register_schemas=true to push compatible schemas to SR." },
+    ],
+  },
+  {
+    name: "EventCatalog Export",
+    icon: ExternalLink,
+    prefix: "/api/v1/registries/{id}",
+    description: "Aggregated export endpoint for the generator-event7 EventCatalog plugin. Returns schemas + enrichments + governance scores + rules summary + AsyncAPI specs + channels + teams in a single payload.",
+    endpoints: [
+      { method: "GET", path: "/export/eventcatalog", description: "Full export: registry info, schemas with content + enrichment + score + rules + asyncapi, channels with bindings, deduplicated teams" },
     ],
   },
   {

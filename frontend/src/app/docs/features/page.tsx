@@ -1,4 +1,7 @@
 // src/app/docs/features/page.tsx
+// Documentation page — Features overview
+// v2: AsyncAPI Dual Mode, Catalog v3, EventCatalog Generator, updated coming soon.
+// Placement: frontend/src/app/docs/features/page.tsx
 
 import Link from "next/link";
 import {
@@ -22,6 +25,9 @@ import {
   FileCode,
   Route,
   GitBranch,
+  Eye,
+  ExternalLink,
+  Pencil,
 } from "lucide-react";
 
 const features = [
@@ -49,10 +55,11 @@ const features = [
   },
   {
     icon: BookOpen,
-    name: "Event Catalog",
+    name: "Schema Catalog",
     description:
-      "A business-friendly view of your event ecosystem. Search and filter by owner, classification, data layer, and broker type. View broker bindings, update timestamps, and open AsyncAPI specs directly from the catalog. Inline editing via a drawer panel. CSV export for governance reports.",
+      "A business-friendly view of your event ecosystem. Search and filter by owner, classification, data layer, and broker type. Each row shows AsyncAPI documentation status (documented / ready / raw), governance score badges, and broker bindings. Click a row to open the CatalogSheet — a dual-tab viewer with Schema content and AsyncAPI spec (Docs / Edit / JSON). Inline enrichment editing and CSV export for governance reports.",
     badge: "Community",
+    link: "/docs/catalog",
   },
   {
     icon: Network,
@@ -61,6 +68,14 @@ const features = [
       "Map schemas to messaging channels across Kafka, RabbitMQ, Pulsar, NATS, Redis Streams, Google Pub/Sub, AWS SNS/SQS, and Azure Service Bus. N:N bindings with strategy (channel_bound, domain_bound, app_bound), data layers (RAW → CORE → REFINED → APPLICATION), and broker-specific config (partitions, routing keys, exchange types).",
     badge: "Community",
     link: "/docs/channels",
+  },
+  {
+    icon: Eye,
+    name: "AsyncAPI Dual Mode",
+    description:
+      "Every subject has an AsyncAPI status with three independent axes: origin (imported / generated), status (documented / ready / raw), and sync_status (in_sync / outdated / unknown). The Overview page shows KPIs, coverage metrics, and a per-subject table with drift detection. Two-tier drift: fast version check then precise SHA-256 hash comparison. Generate specs, import specs, and track coverage — all in one place.",
+    badge: "Community",
+    link: "/docs/asyncapi",
   },
   {
     icon: Upload,
@@ -80,7 +95,7 @@ const features = [
     icon: FileCode,
     name: "AsyncAPI Generation",
     description:
-      "Generate AsyncAPI 3.0 specs from your schemas with Kafka bindings (partitions, replication, Magic Byte encoding), key schema separation, and Avro-to-JSON-Schema conversion. View rendered specs in a drawer or download YAML.",
+      "Generate AsyncAPI 3.0 specs from your schemas with Kafka bindings (partitions, replication, Magic Byte encoding), key schema separation, and Avro-to-JSON-Schema conversion. Stores source schema hash and version for drift detection. View rendered specs in a sheet or download YAML.",
     badge: "Community",
   },
   {
@@ -133,6 +148,13 @@ const features = [
       "Terminal-style interface powered by LLM. Six context commands (/health, /schemas, /drift, /catalog, /refs, /asyncapi) and three write actions (enrich, generate, delete) with confirmation UI. Bring your own model — Ollama local, Ollama Cloud, or any OpenAI-compatible API.",
     badge: "Community",
   },
+  {
+    icon: ExternalLink,
+    name: "EventCatalog Generator",
+    description:
+      "Export governance data to EventCatalog via generator-event7 — the first governance-aware generator for EventCatalog. A single HTTP call exports schemas, enrichments, governance scores, rules summary, channels, teams, and AsyncAPI specs. Domain mapping by subject prefix or tag. Markdown enriched with 3-axis scores, rule compliance, and data layer badges.",
+    badge: "Community",
+  },
 ];
 
 const comingSoon = [
@@ -178,6 +200,13 @@ const comingSoon = [
       "Import a multi-broker AsyncAPI spec and event7 automatically routes schemas to the right registry — Kafka schemas to Confluent, everything else to your Hosted Apicurio. No manual switching.",
     badge: "Enterprise",
   },
+  {
+    icon: Pencil,
+    name: "EventCatalog Enricher Mode",
+    description:
+      "V2 of the generator-event7 plugin. Instead of creating events, it enriches existing EventCatalog entries created by the AsyncAPI plugin — adding governance scores, rules badges, and compliance data on top.",
+    badge: "Community",
+  },
 ];
 
 function BadgeColor({ tier }: { tier: string }) {
@@ -210,9 +239,7 @@ function FeatureCard({ feature }: { feature: (typeof features)[0] }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2.5 mb-1.5">
-          <h3 className="text-sm font-semibold text-white">
-            {feature.name}
-          </h3>
+          <h3 className="text-sm font-semibold text-white">{feature.name}</h3>
           <BadgeColor tier={feature.badge} />
           {"link" in feature && (
             <span className="text-[10px] text-teal-400/60 font-medium">

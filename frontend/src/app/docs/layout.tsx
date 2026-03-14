@@ -1,10 +1,16 @@
+// src/app/docs/layout.tsx
+// Docs layout — sidebar, header, content, footer.
+// v2: Added DocsFooter.
+// Placement: frontend/src/app/docs/layout.tsx
+
 import { DocsSidebar } from "@/components/docs/docs-sidebar";
 import { DocsHeader } from "@/components/docs/docs-header";
+import { DocsFooter } from "@/components/docs/docs-footer";
 
 export const metadata = {
   title: "Documentation — event7",
   description:
-    "event7 documentation — Universal schema registry governance for Confluent, Apicurio and beyond.",
+    "event7 documentation — Universal Schema Registry governance for Confluent, Apicurio and beyond.",
 };
 
 export default function DocsLayout({
@@ -24,6 +30,7 @@ export default function DocsLayout({
           <div className="mx-auto max-w-3xl px-6 py-10 md:py-14">
             {children}
           </div>
+          <DocsFooter />
         </main>
       </div>
     </div>

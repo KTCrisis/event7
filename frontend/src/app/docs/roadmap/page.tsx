@@ -1,4 +1,8 @@
 // src/app/docs/roadmap/page.tsx
+// Documentation page — Roadmap
+// v2: Added AsyncAPI Dual Mode, Catalog v3, EventCatalog Generator/Export to Done.
+//     Added EventCatalog Enricher, bootstrap.sql sync to Next.
+// Placement: frontend/src/app/docs/roadmap/page.tsx
 
 import { Check, ArrowRight, Clock, Telescope } from "lucide-react";
 
@@ -14,8 +18,8 @@ const done: RoadmapItem[] = [
   { name: "Visual Diff Viewer (LCS-based, Avro + JSON Schema)", tier: "Community" },
   { name: "Schema Validator — SR compatibility + governance rules + diff preview (PASS/WARN/FAIL)", tier: "Community" },
   { name: "Event Catalog with search, filter, CSV export", tier: "Community" },
-  { name: "Catalog enriched — broker badges, data layers, AsyncAPI drawer", tier: "Community" },
-  { name: "Enrichments — tags, owner, description, classification", tier: "Community" },
+  { name: "Catalog v3 — AsyncAPI column, CatalogSheet (Schema + AsyncAPI tabs), broker badges", tier: "Community" },
+  { name: "Enrichments — tags, owner, description, classification, data layers", tier: "Community" },
   { name: "Governance Rules & Policies — CRUD, templates, scoring", tier: "Community" },
   { name: "Governance Templates — RAW, CORE, REFINED, APPLICATION layers", tier: "Community" },
   { name: "Governance Score — 3-axis scoring with confidence indicator", tier: "Community" },
@@ -26,6 +30,9 @@ const done: RoadmapItem[] = [
   { name: "Cloud broker channels (Pub/Sub, SNS/SQS, Service Bus)", tier: "Community" },
   { name: "AsyncAPI 3.0 generation and export", tier: "Community" },
   { name: "AsyncAPI Import — preview + apply, multi-broker, smart registration", tier: "Community" },
+  { name: "AsyncAPI Dual Mode — overview, KPIs, per-subject status (origin/status/sync)", tier: "Community" },
+  { name: "AsyncAPI drift detection — two-tier (version + SHA-256 hash)", tier: "Community" },
+  { name: "AsyncAPI viewer refactored — Docs / Edit / JSON tabs", tier: "Community" },
   { name: "Smart Schema Registration — provider-type routing (Apicurio all, Confluent Kafka-only)", tier: "Community" },
   { name: "References Graph with dependency visualization", tier: "Community" },
   { name: "Dashboard with governance KPIs", tier: "Community" },
@@ -33,6 +40,8 @@ const done: RoadmapItem[] = [
   { name: "Confluent Auth Mode (Cloud API Key vs Self-Managed LDAP)", tier: "Community" },
   { name: "Dual-mode deployment (SaaS + self-hosted Docker)", tier: "Community" },
   { name: "Dual-mode database (Supabase + PostgreSQL)", tier: "Community" },
+  { name: "EventCatalog Generator V1 — governance-aware export plugin (generator-event7)", tier: "Community" },
+  { name: "EventCatalog Export endpoint — aggregated API for the generator", tier: "Community" },
   { name: "Public documentation (/docs)", tier: "Community" },
   { name: "Hosted Registry UX stub (coming soon flow)", tier: "Pro" },
 ];
@@ -43,6 +52,8 @@ const next: RoadmapItem[] = [
   { name: "AuthProvider abstraction — Supabase vs OIDC", tier: "Enterprise" },
   { name: "Protobuf support — 3rd schema format", tier: "Community" },
   { name: "Cross-registry aggregated view (All registries)", tier: "Community" },
+  { name: "EventCatalog Enricher Mode V2 — enrich existing EC entries instead of creating", tier: "Community" },
+  { name: "EventCatalog npm publish (@event7/generator-eventcatalog)", tier: "Community" },
   { name: "Provider Rule Sync — import from Confluent ruleSet", tier: "Pro" },
   { name: "Provider Rule Sync — push rules to Confluent", tier: "Pro" },
   { name: "Provider Rule Sync — import Apicurio artifact rules", tier: "Pro" },
@@ -51,6 +62,7 @@ const next: RoadmapItem[] = [
   { name: "Confluent Catalog API reader (Stream Governance)", tier: "Community" },
   { name: "Apicurio metadata sync (labels + rules)", tier: "Community" },
   { name: "Encryption tracking (CSFLE metadata)", tier: "Pro" },
+  { name: "AsyncAPI batch generate (all subjects at once)", tier: "Community" },
 ];
 
 const planned: RoadmapItem[] = [
@@ -62,6 +74,7 @@ const planned: RoadmapItem[] = [
   { name: "Automated policy evaluation (schema content + enrichment checks)", tier: "Community" },
   { name: "Custom governance templates (user-created)", tier: "Community" },
   { name: "Kafka TNS auto-detect + RNS manual mapping", tier: "Community" },
+  { name: "MCP server event7 for EventCatalog Chat", tier: "Community" },
 ];
 
 const future: RoadmapItem[] = [
@@ -73,6 +86,7 @@ const future: RoadmapItem[] = [
   { name: "Audit log export", tier: "Enterprise" },
   { name: "Google Pub/Sub Schemas provider", tier: "Community" },
   { name: "Pulsar Schema Registry provider", tier: "Community" },
+  { name: "Bidirectional sync (EventCatalog → event7 enrichments)", tier: "Community" },
 ];
 
 function TierBadge({ tier }: { tier: string }) {
@@ -166,7 +180,7 @@ export default function RoadmapPage() {
       <RoadmapSection
         icon={ArrowRight}
         title="Next"
-        subtitle="Actively planned — multi-tenant security, hosted registry, provider sync, and OIDC."
+        subtitle="Actively planned — multi-tenant security, hosted registry, provider sync, EventCatalog V2, and OIDC."
         color="text-cyan-400"
         items={next}
       />

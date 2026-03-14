@@ -1,4 +1,8 @@
 // src/app/docs/licensing/page.tsx
+// Documentation page — Plans & Licensing
+// v2: Added AsyncAPI Dual Mode, EventCatalog Generator to Free/Community.
+//     Added comparison rows for new features.
+// Placement: frontend/src/app/docs/licensing/page.tsx
 
 import { Cloud, Scale, Check, Star, Building2, X, Mail } from "lucide-react";
 
@@ -16,9 +20,11 @@ const tiers = [
       "Full governance core (Explorer, Diff, Validator, Catalog, Enrichments, AsyncAPI, Graph, Dashboard)",
       "Governance Rules & Policies — templates, scoring, enforcement tracking",
       "Channel Model — map schemas to Kafka, RabbitMQ, Redis Streams, Pulsar, NATS, and cloud brokers",
+      "AsyncAPI Dual Mode — overview, KPIs, drift detection, per-subject status tracking",
       "AsyncAPI Import — create channels, bindings, and enrichments from a spec in one click",
       "Smart schema registration — provider-aware routing (Apicurio=all, Confluent=Kafka only)",
       "Schema Validator — SR compatibility + governance rules + diff preview before publishing",
+      "EventCatalog Generator — export governance data to EventCatalog (scores, rules, channels, teams)",
       "No limits during beta — unlimited registries and schemas",
       "AI Agent — bring your own model (Ollama, OpenAI, etc.)",
       "Hosted on event7 SaaS",
@@ -35,8 +41,10 @@ const tiers = [
       "Full governance core (Explorer, Diff, Validator, Catalog, Enrichments, AsyncAPI, Graph, Dashboard)",
       "Governance Rules & Policies — templates, scoring, enforcement tracking",
       "Channel Model — multi-broker channels with N:N bindings, data layers, broker config",
+      "AsyncAPI Dual Mode — overview with KPIs, two-tier drift detection (version + hash), spec viewer (Docs/Edit/JSON)",
       "AsyncAPI Import & Generation — bidirectional spec ↔ event7 with smart registration",
       "Schema Validator — validate before publishing with SR compatibility + governance rules + diff (PASS/WARN/FAIL)",
+      "EventCatalog Generator (generator-event7) — governance-aware export with scores, rules, channels, teams",
       "Unlimited registries and schemas",
       "AI Agent — bring your own model (Ollama, OpenAI, etc.)",
       "Multi-provider support (Confluent Cloud, Platform, Apicurio v3, Karapace, Redpanda)",
@@ -121,9 +129,11 @@ const comparisonRows = [
   { label: "Schema Validator", free: true, community: true, pro: true, enterprise: true },
   { label: "Channel Model", free: true, community: true, pro: true, enterprise: true },
   { label: "AsyncAPI Import/Generate", free: true, community: true, pro: true, enterprise: true },
+  { label: "AsyncAPI Dual Mode (overview + drift)", free: true, community: true, pro: true, enterprise: true },
   { label: "Smart Schema Registration", free: true, community: true, pro: true, enterprise: true },
+  { label: "EventCatalog Generator", free: true, community: true, pro: true, enterprise: true },
   { label: "Provider Rule Sync", free: false, community: false, pro: true, enterprise: true },
-  { label: "Drift Detection", free: false, community: false, pro: true, enterprise: true },
+  { label: "Provider Drift Detection", free: false, community: false, pro: true, enterprise: true },
   { label: "AsyncAPI Export Mode 3", free: false, community: false, pro: true, enterprise: true },
   { label: "Multi-registry routing", free: false, community: false, pro: true, enterprise: true },
   { label: "AI Agent (BYOM)", free: true, community: true, pro: true, enterprise: true },
@@ -153,7 +163,7 @@ export default function LicensingPage() {
       <p className="text-base text-slate-400 leading-relaxed mb-10 max-w-2xl">
         event7 follows an <strong className="text-slate-300">open-core</strong>{" "}
         model. The governance engine — including rules, policies, channels, validation,
-        AsyncAPI import, and scoring — is free and open-source under Apache 2.0.
+        AsyncAPI import, dual mode, and scoring — is free and open-source under Apache 2.0.
         Provider sync, advanced exports, and managed infrastructure are planned for
         paid tiers.
       </p>

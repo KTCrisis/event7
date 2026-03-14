@@ -1,9 +1,14 @@
+// src/components/docs/docs-header.tsx
+// Header for the /docs layout — mobile nav + GitHub CTA.
+// v2: Simplified — social links moved to DocsFooter.
+// Placement: frontend/src/components/docs/docs-header.tsx
+
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, Github, Linkedin, Mail } from "lucide-react";
+import { Menu, X, Github, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const mobileLinks = [
@@ -11,6 +16,8 @@ const mobileLinks = [
   { name: "Features", href: "/docs/features" },
   { name: "Getting Started", href: "/docs/getting-started" },
   { name: "Self-Hosted Install", href: "/docs/installation" },
+  { name: "Catalog", href: "/docs/catalog" },
+  { name: "AsyncAPI", href: "/docs/asyncapi" },
   { name: "Schema Validator", href: "/docs/validator" },
   { name: "Channel Model", href: "/docs/channels" },
   { name: "Governance Rules", href: "/docs/governance-rules" },
@@ -34,10 +41,7 @@ export function DocsHeader() {
           >
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
-          <Link
-            href="/docs"
-            className="md:hidden flex items-center gap-2"
-          >
+          <Link href="/docs" className="md:hidden flex items-center gap-2">
             <div
               className="w-6 h-6 rounded flex items-center justify-center text-white font-black text-[9px]"
               style={{ background: "linear-gradient(135deg, #0D9488, #e69adfde)" }}
@@ -50,7 +54,7 @@ export function DocsHeader() {
           </Link>
         </div>
 
-        {/* Right: links */}
+        {/* Right: GitHub + Demo */}
         <div className="flex items-center gap-1">
           <a
             href="https://github.com/KTCrisis/event7"
@@ -61,24 +65,6 @@ export function DocsHeader() {
           >
             <Github className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">GitHub</span>
-          </a>
-          <a
-            href="https://www.linkedin.com/in/marc-verchiani-83235b10/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
-            title="LinkedIn"
-          >
-            <Linkedin className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">LinkedIn</span>
-          </a>
-          <a
-            href="mailto:flux7art@gmail.com"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
-            title="Contact"
-          >
-            <Mail className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Contact</span>
           </a>
           <div className="hidden sm:block w-px h-4 bg-slate-800 mx-1" />
           <a
@@ -114,34 +100,6 @@ export function DocsHeader() {
               );
             })}
           </ul>
-          {/* Mobile contact links */}
-          <div className="border-t border-slate-800/60 px-3 py-3 flex items-center gap-3">
-            <a
-              href="https://github.com/KTCrisis/event7"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-white transition-colors"
-            >
-              <Github className="h-3.5 w-3.5" />
-              GitHub
-            </a>
-            <a
-              href="https://www.linkedin.com/in/marc-verchiani-83235b10/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-white transition-colors"
-            >
-              <Linkedin className="h-3.5 w-3.5" />
-              LinkedIn
-            </a>
-            <a
-              href="mailto:flux7art@gmail.com"
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-white transition-colors"
-            >
-              <Mail className="h-3.5 w-3.5" />
-              Contact
-            </a>
-          </div>
         </nav>
       )}
     </header>

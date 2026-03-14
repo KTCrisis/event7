@@ -1,3 +1,8 @@
+// src/components/docs/docs-sidebar.tsx
+// Sidebar navigation for the /docs layout.
+// v2: Added Catalog + AsyncAPI to Concepts section.
+// Placement: frontend/src/components/docs/docs-sidebar.tsx
+
 "use client";
 
 import Link from "next/link";
@@ -14,6 +19,8 @@ import {
   Shield,
   ShieldCheck,
   Network,
+  BookOpen,
+  FileJson,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +42,8 @@ const sections = [
   {
     label: "Concepts",
     items: [
+      { name: "Catalog", href: "/docs/catalog", icon: BookOpen },
+      { name: "AsyncAPI", href: "/docs/asyncapi", icon: FileJson },
       { name: "Schema Validator", href: "/docs/validator", icon: ShieldCheck },
       { name: "Channel Model", href: "/docs/channels", icon: Network },
       { name: "Governance Rules", href: "/docs/governance-rules", icon: Shield },
