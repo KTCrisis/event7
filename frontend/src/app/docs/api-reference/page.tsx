@@ -109,10 +109,14 @@ const groups: EndpointGroup[] = [
     name: "Governance Templates",
     icon: Shield,
     prefix: "/api/v1/governance",
-    description: "Built-in rule templates (RAW, CORE, REFINED, APPLICATION layers). Read-only — templates are seed data.",
+    description: "Built-in + custom rule templates (RAW, CORE, REFINED, APPLICATION layers). Builtin templates have limited editability (description + rules only). Custom templates support full CRUD and cloning.",
     endpoints: [
-      { method: "GET", path: "/templates", description: "List all governance templates" },
+      { method: "GET", path: "/templates", description: "List all governance templates (builtin + custom)" },
       { method: "GET", path: "/templates/{id}", description: "Get a single template with rule definitions" },
+      { method: "POST", path: "/templates", description: "Create a custom template (template_name, display_name, description, layer, rules)" },
+      { method: "PUT", path: "/templates/{id}", description: "Update a template (builtin: description + rules only; custom: all fields)" },
+      { method: "DELETE", path: "/templates/{id}", description: "Delete a custom template (builtin → 403 Forbidden)" },
+      { method: "POST", path: "/templates/{id}/clone", description: "Clone any template with a new name (creates a custom copy)" },
     ],
   },
   {
