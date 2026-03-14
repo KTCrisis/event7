@@ -86,6 +86,7 @@ DEFAULT_HOST: dict[str, str] = {
     "amazon_eventbridge": "events.us-east-1.amazonaws.com:443",
     "custom": "localhost:9092",
 }
+
 # =========================================================================
 # Hash helpers
 # =========================================================================
