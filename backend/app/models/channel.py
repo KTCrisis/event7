@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 
 class BrokerType(str, Enum):
     """Type de broker / système de messaging."""
+    # Tier 1 — Core
     KAFKA = "kafka"
     REDPANDA = "redpanda"
     RABBITMQ = "rabbitmq"
@@ -33,19 +34,33 @@ class BrokerType(str, Enum):
     AWS_SNS_SQS = "aws_sns_sqs"
     AZURE_SERVICEBUS = "azure_servicebus"
     REDIS_STREAMS = "redis_streams"
+    # Tier 2 — Enterprise & IoT
+    SOLACE = "solace"
+    IBMMQ = "ibmmq"
+    ACTIVEMQ_ARTEMIS = "activemq_artemis"
+    MQTT = "mqtt"
+    MQTT_SECURE = "mqtt_secure"
+    WEBSOCKET = "websocket"
+    WEBSOCKET_SECURE = "websocket_secure"
+    ANYPOINT_MQ = "anypoint_mq"
+    MERCURE = "mercure"
+    STOMP = "stomp"
+    # Tier 3 — Serverless
+    AMAZON_KINESIS = "amazon_kinesis"
+    AMAZON_EVENTBRIDGE = "amazon_eventbridge"
     CUSTOM = "custom"
 
 
 class ResourceKind(str, Enum):
-    """Nature physique de la ressource broker derrière un Channel.
-    Un même broker_type peut avoir plusieurs resource_kinds.
-    Ex: RabbitMQ → exchange ou queue, Azure SB → queue ou topic."""
+    """Nature physique de la ressource broker derrière un Channel."""
     TOPIC = "topic"
     EXCHANGE = "exchange"
     SUBJECT = "subject"
     QUEUE = "queue"
     STREAM = "stream"
-
+    CHANNEL = "channel"
+    DESTINATION = "destination"
+    EVENT_BUS = "event_bus"
 
 class MessagingPattern(str, Enum):
     """Pattern de messaging du channel."""
