@@ -64,10 +64,12 @@ class ResourceKind(str, Enum):
 
 class MessagingPattern(str, Enum):
     """Pattern de messaging du channel."""
-    TOPIC_LOG = "topic_log"     # Kafka, Pulsar, Redis Streams
-    PUBSUB = "pubsub"           # Pub/Sub, SNS, NATS
-    QUEUE = "queue"             # RabbitMQ, SQS, Azure SB
-
+    TOPIC_LOG = "topic_log"
+    PUBSUB = "pubsub"
+    QUEUE = "queue"
+    REQUEST_REPLY = "request_reply"
+    BROADCAST = "broadcast"
+    EVENT_BUS = "event_bus"
 
 class BindingStrategy(str, Enum):
     """Stratégie conceptuelle de liaison subject ↔ channel.

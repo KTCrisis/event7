@@ -33,7 +33,7 @@ export type BrokerType =
 
 export type ResourceKind = "topic" | "exchange" | "subject" | "queue" | "stream" | "channel" | "destination" | "event_bus";
 
-export type MessagingPattern = "topic_log" | "pubsub" | "queue";
+export type MessagingPattern = "topic_log" | "pubsub" | "queue" | "request_reply" | "broadcast" | "event_bus";
 
 export type BindingStrategy = "channel_bound" | "domain_bound" | "app_bound";
 
@@ -192,6 +192,9 @@ export const PATTERN_LABELS: Record<string, string> = {
   topic_log: "Topic Log",
   pubsub: "Pub/Sub",
   queue: "Queue",
+  request_reply: "Request/Reply",
+  broadcast: "Broadcast",
+  event_bus: "Event Bus",
 };
 
 export const RESOURCE_LABELS: Record<ResourceKind, string> = {
@@ -228,17 +231,18 @@ export const DEFAULT_RESOURCE: Record<BrokerType, ResourceKind> = {
   amazon_kinesis: "stream", amazon_eventbridge: "event_bus", custom: "topic",
 };
 
-export const DEFAULT_PATTERN: Record<BrokerType, MessagingPattern> = {
-  // Tier 1
-  kafka: "topic_log", redpanda: "topic_log", rabbitmq: "pubsub",
-  pulsar: "topic_log", nats: "pubsub",
-  google_pubsub: "pubsub", aws_sns_sqs: "queue",
-  azure_servicebus: "queue", redis_streams: "topic_log",
-  // Tier 2
-  solace: "pubsub", ibmmq: "queue", activemq_artemis: "queue",
-  mqtt: "pubsub", mqtt_secure: "pubsub",
-  websocket: "pubsub", websocket_secure: "pubsub",
-  anypoint_mq: "queue", mercure: "pubsub", stomp: "queue",
-  // Tier 3
-  amazon_kinesis: "topic_log", amazon_eventbridge: "pubsub", custom: "topic_log",
+export const DEFAULT_PATTERN: Record<string, MessagingPattern> = {
+    // Tier 1
+    kafka: "topic_log", redpanda: "topic_log", rabbitmq: "pubsub",
+    pulsar: "topic_log", nats: "pubsub",
+    google_pubsub: "pubsub", aws_sns_sqs: "queue",
+    azure_servicebus: "queue", redis_streams: "topic_log",
+    // Tier 2
+    solace: "pubsub", ibmmq: "queue", activemq_artemis: "queue",
+    mqtt: "pubsub", mqtt_secure: "pubsub",
+    websocket: "broadcast", websocket_secure: "broadcast",
+    anypoint_mq: "queue", mercure: "broadcast", stomp: "queue",
+    // Tier 3
+    amazon_kinesis: "topic_log", amazon_eventbridge: "event_bus",
+    custom: "topic_log",
 };

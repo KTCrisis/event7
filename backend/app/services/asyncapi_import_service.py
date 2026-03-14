@@ -104,32 +104,19 @@ BROKER_TO_RESOURCE: dict[str, str] = {
 
 BROKER_TO_PATTERN: dict[str, str] = {
     # Tier 1
-    "kafka": "topic_log",
-    "redpanda": "topic_log",
-    "rabbitmq": "pubsub",
-    "pulsar": "topic_log",
-    "nats": "pubsub",
-    "google_pubsub": "pubsub",
-    "aws_sns_sqs": "queue",
-    "azure_servicebus": "queue",
-    "redis_streams": "topic_log",
+    "kafka": "topic_log", "redpanda": "topic_log", "rabbitmq": "pubsub",
+    "pulsar": "topic_log", "nats": "pubsub",
+    "google_pubsub": "pubsub", "aws_sns_sqs": "queue",
+    "azure_servicebus": "queue", "redis_streams": "topic_log",
     # Tier 2
-    "solace": "pubsub",
-    "ibmmq": "queue",
-    "activemq_artemis": "queue",
-    "mqtt": "pubsub",
-    "mqtt_secure": "pubsub",
-    "websocket": "pubsub",
-    "websocket_secure": "pubsub",
-    "anypoint_mq": "queue",
-    "mercure": "pubsub",
-    "stomp": "queue",
+    "solace": "pubsub", "ibmmq": "queue", "activemq_artemis": "queue",
+    "mqtt": "pubsub", "mqtt_secure": "pubsub",
+    "websocket": "broadcast", "websocket_secure": "broadcast",
+    "anypoint_mq": "queue", "mercure": "broadcast", "stomp": "queue",
     # Tier 3
-    "amazon_kinesis": "topic_log",
-    "amazon_eventbridge": "pubsub",
+    "amazon_kinesis": "topic_log", "amazon_eventbridge": "event_bus",
     "custom": "topic_log",
 }
-
 
 class AsyncAPIImportService:
     """

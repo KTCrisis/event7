@@ -233,7 +233,8 @@ CREATE TABLE channels (
         'channel', 'destination', 'event_bus'
     )),
     messaging_pattern VARCHAR(50) NOT NULL CHECK (messaging_pattern IN (
-        'topic_log', 'pubsub', 'queue'
+        'topic_log', 'pubsub', 'queue',
+        'request_reply', 'broadcast', 'event_bus'
     )),
     broker_config JSONB NOT NULL DEFAULT '{}'::jsonb,
     data_layer VARCHAR(50) CHECK (
