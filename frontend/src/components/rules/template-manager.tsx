@@ -40,6 +40,7 @@ import type {
   EvaluationSource,
   EnforcementStatus,
 } from "@/types/governance-rules";
+import { toast } from "sonner";
 
 // ════════════════════════════════════════════════════════════════════
 // Props
@@ -316,13 +317,13 @@ export function TemplateManager({ registryId, onApplied }: TemplateManagerProps)
       await deleteTemplate(t.id);
       load();
     } catch (err: any) {
-      alert(err?.detail || "Failed to delete template");
+      toast.error(err?.detail || "Failed to delete template");
     }
   };
 
   const handleApply = async (t: GovernanceTemplate) => {
     if (!registryId) {
-      alert("Select a registry first");
+      toast.warning("Select a registry first");
       return;
     }
     setApplying(t.id);
@@ -332,12 +333,10 @@ export function TemplateManager({ registryId, onApplied }: TemplateManagerProps)
         subject: null,
         overwrite: false,
       });
-      alert(
-        `Template "${t.display_name}" applied:\n${result.rules_created} created, ${result.rules_skipped} skipped, ${result.rules_updated} updated`
-      );
+      toast.success(`Template "${t.display_name}" applied: ${result.rules_created} created, ${result.rules_skipped} skipped, ${result.rules_updated} updated`);
       onApplied?.();
     } catch (err: any) {
-      alert(err?.detail || "Failed to apply template");
+      toast.error(err?.detail || "Failed to apply template");
     } finally {
       setApplying(null);
     }
