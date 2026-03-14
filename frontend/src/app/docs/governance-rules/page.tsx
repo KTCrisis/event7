@@ -213,11 +213,18 @@ export default function GovernanceRulesPage() {
             desc="Lightweight for consumption views. Backward compatibility, keep schemas simple (max 30 fields)."
           />
         </div>
+        <p className="text-sm text-slate-400 leading-relaxed mt-6">
+          You can also <strong className="text-slate-300">create your own templates</strong>{" "}
+          for any governance model — Data Mesh domains, compliance frameworks (GDPR, PCI-DSS),
+          criticality levels, or any custom category. Clone a builtin template as a starting
+          point, or build from scratch.
+        </p>
         <p className="text-sm text-slate-500 mt-4">
           Templates don&apos;t overwrite existing rules unless you explicitly choose
           to. You can apply multiple templates to the same registry.
         </p>
       </Section>
+
 
       {/* Scoring */}
       <Section title="Governance Score">
@@ -330,12 +337,13 @@ export default function GovernanceRulesPage() {
               {[
                 { feature: "Rules & Policies CRUD", status: "available" },
                 { feature: "Templates (RAW/CORE/REFINED/APP)", status: "available" },
+                { feature: "Custom templates", status: "planned" },
                 { feature: "Governance Score (3-axis + confidence)", status: "available" },
                 { feature: "Dashboard & Catalog integration", status: "available" },
                 { feature: "Provider sync — import from Confluent", status: "planned" },
                 { feature: "Provider sync — push to Confluent", status: "planned" },
                 { feature: "Drift detection", status: "planned" },
-                { feature: "Custom templates", status: "planned" },
+
                 { feature: "Automated policy evaluation", status: "planned" },
               ].map((r) => (
                 <tr key={r.feature}>
