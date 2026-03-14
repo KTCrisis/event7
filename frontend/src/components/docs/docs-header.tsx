@@ -1,6 +1,6 @@
 // src/components/docs/docs-header.tsx
 // Header for the /docs layout — mobile nav + GitHub CTA.
-// v2: Simplified — social links moved to DocsFooter.
+// v3: Added Concepts page in mobile nav.
 // Placement: frontend/src/components/docs/docs-header.tsx
 
 "use client";
@@ -8,11 +8,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, Github, Mail } from "lucide-react";
+import { Menu, X, Github } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const mobileLinks = [
   { name: "Introduction", href: "/docs" },
+  { name: "Core Concepts", href: "/docs/concepts" },
   { name: "Features", href: "/docs/features" },
   { name: "Getting Started", href: "/docs/getting-started" },
   { name: "Self-Hosted Install", href: "/docs/installation" },

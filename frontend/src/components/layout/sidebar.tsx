@@ -1,5 +1,9 @@
 // Placement: frontend/src/components/layout/sidebar.tsx
-// Update: branded logo (event + 7 in teal) + collapsible sidebar + AI Agent
+// v3: Restructured navigation — Subject-centric model
+//   Schemas = technical (browse, diff, references)
+//   Governance = business (catalog, rules, validate)
+//   Documentation = specs + channels (AsyncAPI, channels)
+//   Tools = AI Agent + Settings
 "use client";
 
 import { useState } from "react";
@@ -18,7 +22,7 @@ import {
   PanelLeft,
   Shield,
   Network,
-  ShieldCheck 
+  ShieldCheck,
 } from "lucide-react";
 
 const navigation = [
@@ -27,21 +31,26 @@ const navigation = [
     items: [{ name: "Dashboard", href: "/", icon: LayoutDashboard }],
   },
   {
-    group: "Explore",
+    group: "Schemas",
     items: [
       { name: "Explorer", href: "/schemas", icon: Search },
       { name: "Diff Viewer", href: "/diff", icon: GitCompare },
       { name: "References", href: "/references", icon: Share2 },
-      { name: "Validate", href: "/validate", icon: ShieldCheck}, 
     ],
   },
   {
-    group: "Govern",
+    group: "Governance",
     items: [
       { name: "Catalog", href: "/catalog", icon: Library },
-      { name: "Channels", href: "/channels", icon: Network },
       { name: "Rules", href: "/rules", icon: Shield },
+      { name: "Validate", href: "/validate", icon: ShieldCheck },
+    ],
+  },
+  {
+    group: "Documentation",
+    items: [
       { name: "AsyncAPI", href: "/asyncapi", icon: FileCode },
+      { name: "Channels", href: "/channels", icon: Network },
     ],
   },
   {
@@ -67,10 +76,12 @@ export function Sidebar() {
       <div className="flex items-center justify-between p-4 mb-2">
         {!collapsed && (
           <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm"
-              style={{ background: "linear-gradient(135deg, #0D9488, #e69adfde)" }}>
-            e7
-          </div>
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm"
+              style={{ background: "linear-gradient(135deg, #0D9488, #e69adfde)" }}
+            >
+              e7
+            </div>
             <span className="font-bold text-lg tracking-tight">
               event<span className="text-teal-400">7</span>
             </span>
