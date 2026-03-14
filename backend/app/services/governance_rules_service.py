@@ -388,9 +388,15 @@ class GovernanceRulesService:
         }
         data = {k: v for k, v in data.items() if v is not None}
 
-        row = self.db.create_governance_template(data)
+        try:
+            row = self.db.create_governance_template(data)
+        except Exception as e:
+            if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                raise ValueError(f"Template name '{payload.template_name}' already exists")
+            raise
+
         if not row:
-            raise ValueError("Failed to create template — name may already exist")
+            raise ValueError("Failed to create template")
 
         logger.info(f"Custom template created: {payload.template_name}")
         return self._row_to_template(row)
@@ -469,16 +475,15 @@ class GovernanceRulesService:
             "rules": rules_data,
         }
         data = {k: v for k, v in data.items() if v is not None}
+        try:
+            row = self.db.create_governance_template(data)
+        except Exception as e:
+            if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                raise ValueError(f"Template name '{payload.template_name}' already exists")
+            raise
 
-        row = self.db.create_governance_template(data)
         if not row:
             raise ValueError("Failed to clone template — name may already exist")
-
-        logger.info(
-            f"Template cloned: {source.get('template_name')} → {payload.template_name}"
-        )
-        return self._row_to_template(row)
-
     # ================================================================
     # TEMPLATES — Helpers
     # ================================================================
