@@ -7,6 +7,8 @@ Placement: backend/app/services/governance_rules_service.py
 Flow: Route → Service → DB (DatabaseProvider) + Cache (Redis)
 Pas de provider SR en V1 — les rules sont stockées dans event7 DB uniquement.
 Le sync provider (import/push) sera ajouté en V2.
+
+v2: Custom templates support (create, update, delete, clone, is_builtin).
 """
 
 from uuid import UUID
@@ -25,8 +27,11 @@ from app.models.governance_rules import (
     GovernanceRuleResponse,
     GovernanceRuleUpdate,
     GovernanceScore,
+    GovernanceTemplateClone,
+    GovernanceTemplateCreate,
     GovernanceTemplateResponse,
     GovernanceTemplateRule,
+    GovernanceTemplateUpdate,
     RuleKind,
     RuleScope,
     RuleScoreBreakdown,
@@ -259,48 +264,18 @@ class GovernanceRulesService:
         return deleted
 
     # ================================================================
-    # TEMPLATES
+    # TEMPLATES — Read + Apply
     # ================================================================
 
     def list_templates(self) -> list[GovernanceTemplateResponse]:
-        """List all governance rule templates."""
+        """List all governance rule templates (builtin + custom)."""
         rows = self.db.list_governance_templates()
-        results = []
-        for r in rows:
-            # Parse JSONB rules into typed models
-            raw_rules = r.get("rules", [])
-            typed_rules = [GovernanceTemplateRule(**rule) for rule in raw_rules]
-            results.append(
-                GovernanceTemplateResponse(
-                    id=r["id"],
-                    template_name=r["template_name"],
-                    display_name=r["display_name"],
-                    description=r.get("description"),
-                    layer=r.get("layer"),
-                    rules=typed_rules,
-                    created_at=r["created_at"],
-                    updated_at=r["updated_at"],
-                )
-            )
-        return results
+        return [self._row_to_template(r) for r in rows]
 
     def get_template(self, template_id: str) -> GovernanceTemplateResponse | None:
         """Get a single template."""
         r = self.db.get_governance_template(template_id)
-        if not r:
-            return None
-        raw_rules = r.get("rules", [])
-        typed_rules = [GovernanceTemplateRule(**rule) for rule in raw_rules]
-        return GovernanceTemplateResponse(
-            id=r["id"],
-            template_name=r["template_name"],
-            display_name=r["display_name"],
-            description=r.get("description"),
-            layer=r.get("layer"),
-            rules=typed_rules,
-            created_at=r["created_at"],
-            updated_at=r["updated_at"],
-        )
+        return self._row_to_template(r) if r else None
 
     async def apply_template(
         self,
@@ -393,6 +368,138 @@ class GovernanceRulesService:
         )
 
     # ================================================================
+    # TEMPLATES — Custom CRUD
+    # ================================================================
+
+    def create_template(
+        self,
+        payload: GovernanceTemplateCreate,
+    ) -> GovernanceTemplateResponse:
+        """Create a custom governance template."""
+        rules_data = [rule.model_dump() for rule in payload.rules]
+
+        data = {
+            "template_name": payload.template_name,
+            "display_name": payload.display_name,
+            "description": payload.description,
+            "layer": payload.layer,
+            "is_builtin": False,
+            "rules": rules_data,
+        }
+        data = {k: v for k, v in data.items() if v is not None}
+
+        row = self.db.create_governance_template(data)
+        if not row:
+            raise ValueError("Failed to create template — name may already exist")
+
+        logger.info(f"Custom template created: {payload.template_name}")
+        return self._row_to_template(row)
+
+    def update_template(
+        self,
+        template_id: str,
+        payload: GovernanceTemplateUpdate,
+    ) -> GovernanceTemplateResponse | None:
+        """Update a governance template.
+        Builtin templates: only description and rules can be modified.
+        Custom templates: all fields can be modified.
+        """
+        existing = self.db.get_governance_template(template_id)
+        if not existing:
+            return None
+
+        is_builtin = existing.get("is_builtin", False)
+
+        data: dict = {}
+        if payload.display_name is not None:
+            if is_builtin:
+                raise ValueError("Cannot rename a builtin template")
+            data["display_name"] = payload.display_name
+        if payload.description is not None:
+            data["description"] = payload.description
+        if payload.layer is not None:
+            if is_builtin:
+                raise ValueError("Cannot change layer of a builtin template")
+            data["layer"] = payload.layer
+        if payload.rules is not None:
+            data["rules"] = [rule.model_dump() for rule in payload.rules]
+
+        if not data:
+            return self._row_to_template(existing)
+
+        row = self.db.update_governance_template(template_id, data)
+        if not row:
+            return None
+
+        logger.info(f"Template updated: {template_id}")
+        return self._row_to_template(row)
+
+    def delete_template(self, template_id: str) -> bool:
+        """Delete a custom template. Builtin templates cannot be deleted."""
+        existing = self.db.get_governance_template(template_id)
+        if not existing:
+            return False
+
+        if existing.get("is_builtin", False):
+            raise ValueError("Cannot delete a builtin template")
+
+        deleted = self.db.delete_governance_template(template_id)
+        if deleted:
+            logger.info(f"Custom template deleted: {template_id}")
+        return deleted
+
+    def clone_template(
+        self,
+        template_id: str,
+        payload: GovernanceTemplateClone,
+    ) -> GovernanceTemplateResponse:
+        """Clone a template (builtin or custom) with a new name."""
+        source = self.db.get_governance_template(template_id)
+        if not source:
+            raise ValueError(f"Source template {template_id} not found")
+
+        rules_data = source.get("rules", [])
+
+        data = {
+            "template_name": payload.template_name,
+            "display_name": payload.display_name,
+            "description": payload.description or source.get("description"),
+            "layer": payload.layer or source.get("layer"),
+            "is_builtin": False,
+            "rules": rules_data,
+        }
+        data = {k: v for k, v in data.items() if v is not None}
+
+        row = self.db.create_governance_template(data)
+        if not row:
+            raise ValueError("Failed to clone template — name may already exist")
+
+        logger.info(
+            f"Template cloned: {source.get('template_name')} → {payload.template_name}"
+        )
+        return self._row_to_template(row)
+
+    # ================================================================
+    # TEMPLATES — Helpers
+    # ================================================================
+
+    def _row_to_template(self, r: dict) -> GovernanceTemplateResponse:
+        """Convert a DB row to GovernanceTemplateResponse."""
+        raw_rules = r.get("rules", [])
+        typed_rules = [GovernanceTemplateRule(**rule) for rule in raw_rules]
+        return GovernanceTemplateResponse(
+            id=r["id"],
+            template_name=r["template_name"],
+            display_name=r["display_name"],
+            description=r.get("description"),
+            layer=r.get("layer"),
+            is_builtin=r.get("is_builtin", False),
+            rules=typed_rules,
+            created_at=r["created_at"],
+            updated_at=r["updated_at"],
+        )
+
+    # ================================================================
     # SCORING
     # ================================================================
 
@@ -409,8 +516,6 @@ class GovernanceRulesService:
         rule_breakdown = self._score_rules(subject)
 
         # --- Axis 3: Schema Quality (30 pts) ---
-        # V1: basic scoring from enrichments, rules provide the rest
-        # Full implementation needs provider data (compatibility, doc, refs)
         quality_breakdown = self._score_schema_quality(subject)
 
         # --- Total ---
@@ -445,7 +550,6 @@ class GovernanceRulesService:
     def _score_enrichments(self, subject: str | None) -> EnrichmentScoreBreakdown:
         """Score enrichment metadata (20 pts max)."""
         if subject is None:
-            # Registry-level: average across all enrichments
             enrichments = self.db.get_enrichments_for_registry(self.registry_id)
             if not enrichments:
                 return EnrichmentScoreBreakdown()
@@ -466,7 +570,6 @@ class GovernanceRulesService:
                 max_points=20,
             )
 
-        # Subject-level
         enrichment = self.db.get_enrichment(self.registry_id, subject)
         if not enrichment:
             return EnrichmentScoreBreakdown()
@@ -511,8 +614,6 @@ class GovernanceRulesService:
         if not rows:
             return RuleScoreBreakdown()
 
-        # Points table: (scope_group, severity) → points
-        # runtime/control_plane with provider_config/schema_content → higher weight
         POINTS = {
             ("verifiable", "critical"): 15,
             ("verifiable", "error"): 10,
@@ -536,7 +637,6 @@ class GovernanceRulesService:
         for r in rows:
             enforcement = r.get("enforcement_status", "declared")
 
-            # Only expected+ rules contribute to scoring
             if enforcement == "declared":
                 continue
 
@@ -545,33 +645,26 @@ class GovernanceRulesService:
             severity = r.get("severity", "warning")
             eval_source = r.get("evaluation_source", "declared_only")
 
-            # Count
             if kind == "POLICY":
                 total_policies += 1
             else:
                 total_rules += 1
 
-            # By scope
             if scope not in by_scope:
                 by_scope[scope] = RuleScopeCount()
             by_scope[scope].total += 1
 
-            # By evaluation source
             by_eval_source[eval_source] = by_eval_source.get(eval_source, 0) + 1
 
-            # Determine weight group
             is_verifiable = eval_source in ("provider_config", "schema_content")
             weight_group = "verifiable" if is_verifiable else "declarative"
 
-            # Max points for this rule
             rule_max = POINTS.get((weight_group, severity), 1)
             max_points += rule_max
 
-            # Severity tracking
             if severity in severity_total:
                 severity_total[severity] += 1
 
-            # Is rule "met"?
             is_met = self._is_rule_met(r)
 
             if is_met:
@@ -580,11 +673,9 @@ class GovernanceRulesService:
                 if severity in severity_met:
                     severity_met[severity] += 1
             else:
-                # Penalty (except info)
                 if severity != "info":
                     total_points -= rule_max
 
-        # Normalize to 50 points
         if max_points > 0:
             normalized = round((total_points / max_points) * 50)
             normalized = max(0, min(50, normalized))
@@ -614,15 +705,11 @@ class GovernanceRulesService:
         eval_source = rule.get("evaluation_source", "declared_only")
 
         if scope in ("runtime", "control_plane"):
-            # Syncable rules: met if synced or verified
             return enforcement in ("synced", "verified")
 
         if scope in ("declarative", "audit"):
-            # Non-syncable: met if expected (taken on trust for declared_only)
-            # For enrichment_metadata/schema_content, we could check — V2
             if eval_source == "declared_only":
                 return enforcement == "expected"
-            # For verifiable sources, V1 treats expected as met (evaluation engine = V2)
             return enforcement == "expected"
 
         return False
@@ -631,9 +718,7 @@ class GovernanceRulesService:
         """
         Score schema quality (30 pts max).
         V1: basic heuristics from what we can check in DB.
-        Full scoring needs provider data (compatibility check, schema doc parsing).
         """
-        # V1: check if we have governance rules that indicate quality
         rules = self.db.list_governance_rules(
             registry_id=self.registry_id,
             subject=subject,
@@ -664,14 +749,13 @@ class GovernanceRulesService:
             pts += 5
         if has_ref_rule:
             pts += 5
-        # version_count and breaking changes need provider data — placeholder
         pts += 5  # baseline for having any governance rules at all
         pts = min(30, pts)
 
         return SchemaQualityBreakdown(
             has_doc=has_doc_rule,
             has_references=has_ref_rule,
-            version_count=0,  # Needs provider — V2
+            version_count=0,
             compatibility_set=has_compat_rule,
             points=pts,
             max_points=30,
@@ -729,7 +813,6 @@ class GovernanceRulesService:
         kind_val = kind.value if hasattr(kind, "value") else kind
         enforcement_val = enforcement.value if hasattr(enforcement, "value") else enforcement
 
-        # CHECK chk_enforcement_scope: synced/verified/drifted only for runtime/control_plane
         if enforcement_val in ("synced", "verified", "drifted"):
             if scope_val not in ("runtime", "control_plane"):
                 raise ValueError(
@@ -737,20 +820,18 @@ class GovernanceRulesService:
                     f"'runtime' or 'control_plane', got '{scope_val}'"
                 )
 
-        # CHECK chk_policy_no_sync: POLICY cannot be synced/verified/drifted
         if kind_val == "POLICY" and enforcement_val in ("synced", "verified", "drifted"):
             raise ValueError(
                 f"POLICY rules cannot have enforcement_status '{enforcement_val}'"
             )
 
-        # CHECK chk_kind_scope_coherence
         valid = False
         if kind_val in ("CONDITION", "TRANSFORM") and scope_val == "runtime":
             valid = True
         elif kind_val == "VALIDATION" and scope_val == "control_plane":
             valid = True
         elif kind_val == "POLICY":
-            valid = True  # POLICY can be any scope
+            valid = True
         elif kind_val == "CONDITION" and scope_val == "audit":
             valid = True
 

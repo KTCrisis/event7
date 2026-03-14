@@ -262,6 +262,26 @@ class GovernanceTemplateResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+class GovernanceTemplateCreate(BaseModel):
+    template_name: str
+    display_name: str
+    description: str | None = None
+    layer: str | None = None
+    rules: list[GovernanceTemplateRule] = Field(default_factory=list)
+ 
+ 
+class GovernanceTemplateUpdate(BaseModel):
+    display_name: str | None = None
+    description: str | None = None
+    layer: str | None = None
+    rules: list[GovernanceTemplateRule] | None = None
+ 
+ 
+class GovernanceTemplateClone(BaseModel):
+    template_name: str
+    display_name: str
+    description: str | None = None
+    layer: str | None = None
 
 class ApplyTemplateRequest(BaseModel):
     """Payload pour appliquer un template à un registry/subject."""

@@ -1,6 +1,6 @@
 // Placement: frontend/src/app/(dashboard)/page.tsx
 // Phase 7 — Dashboard with AsyncAPI coverage, channel coverage, governance, charts
-// v3: Added AsyncAPI coverage (documented/ready/raw + drift), channel coverage (bound/unbound, broker breakdown)
+// v4: Fixed channel-map typing (uses ChannelMapResponse from types/channel)
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -17,28 +17,23 @@ import { listSubjects } from "@/lib/api/schemas";
 import { getCatalog } from "@/lib/api/governance";
 import { buildGraph, extractNamespace } from "@/lib/api/references";
 import { getAsyncAPIOverview } from "@/lib/api/asyncapi";
+import { getChannelMap } from "@/lib/api/channels";
 import { RegistryChooser } from "@/components/settings/registry-chooser";
 import { DashboardGovernance } from "@/components/rules/dashboard-governance";
 import { LAYER_COLORS } from "@/components/catalog/data-layer-badge";
 import type { SubjectInfo } from "@/types/schema";
 import type { CatalogEntry } from "@/types/governance";
 import type { AsyncAPIOverviewResponse } from "@/types/asyncapi";
+import type { ChannelMapResponse } from "@/types/channel";
 
 // === Types ===
-
-interface ChannelMapEntry {
-  id: string;
-  name: string;
-  broker_type: string;
-  binding_count: number;
-}
 
 interface DashboardData {
   subjects: SubjectInfo[];
   catalog: CatalogEntry[];
   refEdges: number;
   asyncapiOverview: AsyncAPIOverviewResponse | null;
-  channels: ChannelMapEntry[];
+  channelMap: ChannelMapResponse | null;
 }
 
 // === Colors ===
@@ -66,21 +61,19 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [subjects, catalog, graph, asyncapiOverview, channelMapRes] = await Promise.all([
+      const [subjects, catalog, graph, asyncapiOverview, channelMap] = await Promise.all([
         listSubjects(selected.id),
         getCatalog(selected.id).catch(() => [] as CatalogEntry[]),
         buildGraph(selected.id).catch(() => ({ nodes: [], edges: [] })),
         getAsyncAPIOverview(selected.id).catch(() => null),
-        fetch(`/api/v1/registries/${selected.id}/channels/channel-map`)
-          .then((r) => r.ok ? r.json() : { channels: [] })
-          .catch(() => ({ channels: [] })),
+        getChannelMap(selected.id).catch(() => null),
       ]);
       setData({
         subjects,
         catalog,
         refEdges: graph.edges.length,
         asyncapiOverview,
-        channels: channelMapRes.channels || [],
+        channelMap,
       });
     } catch (err: any) {
       setError(err?.message || "Failed to load dashboard data");
@@ -89,30 +82,18 @@ export default function DashboardPage() {
     }
   }, [selected]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
-  const stats = useMemo(() => {
-    if (!data) return null;
-    return computeStats(data);
-  }, [data]);
+  const stats = useMemo(() => data ? computeStats(data) : null, [data]);
 
-  // --- No registry ---
   if (!selected) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center max-w-xl">
           <LayoutDashboard size={40} className="mx-auto text-zinc-700 mb-4" />
           <h2 className="text-lg font-semibold text-white mb-2">Welcome to event7</h2>
-          <p className="text-sm text-zinc-500 mb-6">
-            Connect your existing Schema Registry or create a free hosted one
-            to start exploring your schemas and events.
-          </p>
-          <RegistryChooser
-            onSelect={(mode) => router.push(`/settings?action=${mode}`)}
-            variant="full"
-          />
+          <p className="text-sm text-zinc-500 mb-6">Connect your existing Schema Registry or create a free hosted one to start exploring your schemas and events.</p>
+          <RegistryChooser onSelect={(mode) => router.push(`/settings?action=${mode}`)} variant="full" />
         </div>
       </div>
     );
@@ -148,26 +129,18 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-white flex items-center gap-2">
-            <LayoutDashboard size={18} className="text-cyan-400" />
-            Dashboard
+            <LayoutDashboard size={18} className="text-cyan-400" /> Dashboard
           </h1>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            {selected.name} · {selected.environment}
-          </p>
+          <p className="text-xs text-zinc-500 mt-0.5">{selected.name} · {selected.environment}</p>
         </div>
-        <button
-          onClick={loadData}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-zinc-800 text-zinc-300 rounded-md border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-colors"
-        >
+        <button onClick={loadData} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-zinc-800 text-zinc-300 rounded-md border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-colors">
           <RefreshCw size={12} /> Refresh
         </button>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiCard icon={Database} label="Subjects" value={stats.total} />
         <KpiCard icon={FileCode} label="Avro" value={stats.avroCount} accent="#22d3ee" />
@@ -177,47 +150,30 @@ export default function DashboardPage() {
         <KpiCard icon={AlertCircle} label="Undocumented" value={stats.undocumented} accent={stats.undocumented > 0 ? "#f87171" : undefined} />
       </div>
 
-      {/* AsyncAPI Coverage + Channel Coverage */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* AsyncAPI Coverage */}
         <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-              <FileJson size={12} className="text-cyan-400" />
-              AsyncAPI Coverage
+              <FileJson size={12} className="text-cyan-400" /> AsyncAPI Coverage
             </h3>
-            <Link href="/asyncapi" className="text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors">
-              View overview →
-            </Link>
+            <Link href="/asyncapi" className="text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors">View overview →</Link>
           </div>
           {stats.asyncapi ? (
             <>
-              {/* Coverage bar */}
               <div className="h-2 rounded-full bg-zinc-800 overflow-hidden flex mb-3">
-                {stats.asyncapi.documentedPct > 0 && (
-                  <div className="h-full bg-emerald-500" style={{ width: `${stats.asyncapi.documentedPct}%` }} />
-                )}
-                {stats.asyncapi.readyPct > 0 && (
-                  <div className="h-full bg-amber-500" style={{ width: `${stats.asyncapi.readyPct}%` }} />
-                )}
-                {stats.asyncapi.rawPct > 0 && (
-                  <div className="h-full bg-zinc-600" style={{ width: `${stats.asyncapi.rawPct}%` }} />
-                )}
+                {stats.asyncapi.documentedPct > 0 && <div className="h-full bg-emerald-500" style={{ width: `${stats.asyncapi.documentedPct}%` }} />}
+                {stats.asyncapi.readyPct > 0 && <div className="h-full bg-amber-500" style={{ width: `${stats.asyncapi.readyPct}%` }} />}
+                {stats.asyncapi.rawPct > 0 && <div className="h-full bg-zinc-600" style={{ width: `${stats.asyncapi.rawPct}%` }} />}
               </div>
-              {/* Stats row */}
               <div className="grid grid-cols-4 gap-2">
                 <MiniStat label="Documented" value={stats.asyncapi.documented} color="text-emerald-400" icon={CheckCircle} />
                 <MiniStat label="Ready" value={stats.asyncapi.ready} color="text-amber-400" icon={Minus} />
                 <MiniStat label="Raw" value={stats.asyncapi.raw} color="text-zinc-500" icon={Minus} />
                 <MiniStat label="Outdated" value={stats.asyncapi.outdated} color={stats.asyncapi.outdated > 0 ? "text-amber-400" : "text-zinc-600"} icon={AlertTriangle} />
               </div>
-              {/* Coverage % */}
               <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between">
                 <span className="text-[11px] text-zinc-500">Coverage</span>
-                <span className={`text-sm font-bold tabular-nums ${
-                  stats.asyncapi.coveragePct >= 75 ? "text-emerald-400" :
-                  stats.asyncapi.coveragePct >= 50 ? "text-amber-400" : "text-zinc-400"
-                }`}>
+                <span className={`text-sm font-bold tabular-nums ${stats.asyncapi.coveragePct >= 75 ? "text-emerald-400" : stats.asyncapi.coveragePct >= 50 ? "text-amber-400" : "text-zinc-400"}`}>
                   {stats.asyncapi.coveragePct.toFixed(0)}%
                 </span>
               </div>
@@ -229,38 +185,28 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Channel Coverage */}
         <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Network size={12} className="text-cyan-400" />
-              Channel Coverage
+              <Network size={12} className="text-cyan-400" /> Channel Coverage
             </h3>
-            <Link href="/channels" className="text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors">
-              View channels →
-            </Link>
+            <Link href="/channels" className="text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors">View channels →</Link>
           </div>
           {stats.channels.totalChannels > 0 ? (
             <>
-              {/* Bound vs unbound bar */}
               <div className="h-2 rounded-full bg-zinc-800 overflow-hidden flex mb-3">
-                {stats.channels.boundPct > 0 && (
-                  <div className="h-full bg-teal-500" style={{ width: `${stats.channels.boundPct}%` }} />
-                )}
+                {stats.channels.boundPct > 0 && <div className="h-full bg-teal-500" style={{ width: `${stats.channels.boundPct}%` }} />}
               </div>
-              {/* Stats row */}
               <div className="grid grid-cols-3 gap-2">
                 <MiniStat label="Channels" value={stats.channels.totalChannels} color="text-teal-400" icon={Network} />
                 <MiniStat label="Bound" value={stats.channels.boundSubjects} color="text-emerald-400" icon={CheckCircle} />
                 <MiniStat label="Unbound" value={stats.channels.unboundSubjects} color={stats.channels.unboundSubjects > 0 ? "text-amber-400" : "text-zinc-600"} icon={Minus} />
               </div>
-              {/* Broker breakdown */}
               {stats.channels.brokerBreakdown.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-zinc-800 flex flex-wrap gap-2">
                   {stats.channels.brokerBreakdown.map((b) => (
                     <span key={b.broker} className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-400">
-                      {b.broker}
-                      <span className="text-zinc-300 font-semibold">{b.count}</span>
+                      {b.broker} <span className="text-zinc-300 font-semibold">{b.count}</span>
                     </span>
                   ))}
                 </div>
@@ -274,9 +220,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Charts row: Format + Layer + Namespace */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Format Distribution — Donut */}
         <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
           <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Format Distribution</h3>
           <div className="flex items-center gap-6">
@@ -284,9 +228,7 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={stats.formatData} dataKey="value" cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={3} strokeWidth={0}>
-                    {stats.formatData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
+                    {stats.formatData.map((entry, i) => (<Cell key={i} fill={entry.color} />))}
                   </Pie>
                   <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "6px", fontSize: "12px", color: "#e2e8f0" }} />
                 </PieChart>
@@ -304,7 +246,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Data Layer Distribution — Donut */}
         <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
           <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Subjects by Layer</h3>
           {stats.layerData.length > 0 && stats.layerData.some((d) => d.name !== "UNKNOWN") ? (
@@ -313,9 +254,7 @@ export default function DashboardPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={stats.layerData} dataKey="value" cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={3} strokeWidth={0}>
-                      {stats.layerData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
+                      {stats.layerData.map((entry, i) => (<Cell key={i} fill={entry.color} />))}
                     </Pie>
                     <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "6px", fontSize: "12px", color: "#e2e8f0" }} />
                   </PieChart>
@@ -338,7 +277,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Namespace Breakdown — Bar */}
         <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
           <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Subjects by Namespace</h3>
           {stats.namespaceData.length > 0 ? (
@@ -356,39 +294,17 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Governance (unified: coverage + rules + score + charts) */}
-      <DashboardGovernance
-        registryId={selected.id}
-        catalogStats={{
-          total: stats.total,
-          withDescription: stats.withDescription,
-          withOwner: stats.withOwner,
-          withTags: stats.withTags,
-        }}
-      />
+      <DashboardGovernance registryId={selected.id} catalogStats={{ total: stats.total, withDescription: stats.withDescription, withOwner: stats.withOwner, withTags: stats.withTags }} />
 
-      {/* Top Versioned Schemas */}
       <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-4">
         <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Most Versioned Subjects</h3>
         <div className="space-y-2">
           {stats.topVersioned.map((s) => {
             const label = extractLabel(s.subject);
             return (
-              <Link
-                key={s.subject}
-                href={`/schemas?subject=${encodeURIComponent(s.subject)}`}
-                className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-zinc-800/50 transition-colors group"
-              >
+              <Link key={s.subject} href={`/schemas?subject=${encodeURIComponent(s.subject)}`} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-zinc-800/50 transition-colors group">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                    style={{
-                      background: `${FORMAT_COLORS[s.format] || FORMAT_COLORS.UNKNOWN}20`,
-                      color: FORMAT_COLORS[s.format] || FORMAT_COLORS.UNKNOWN,
-                    }}
-                  >
-                    {s.format}
-                  </span>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${FORMAT_COLORS[s.format] || FORMAT_COLORS.UNKNOWN}20`, color: FORMAT_COLORS[s.format] || FORMAT_COLORS.UNKNOWN }}>{s.format}</span>
                   <span className="text-sm text-zinc-300 truncate">{label}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -406,29 +322,18 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Undocumented schemas call-to-action */}
       {stats.undocumentedSubjects.length > 0 && (
         <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <AlertCircle size={18} className="text-amber-400 mt-0.5 shrink-0" />
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-amber-300 mb-1">
-                {stats.undocumented} subject{stats.undocumented > 1 ? "s" : ""} without enrichment
-              </h3>
+              <h3 className="text-sm font-semibold text-amber-300 mb-1">{stats.undocumented} subject{stats.undocumented > 1 ? "s" : ""} without enrichment</h3>
               <div className="flex flex-wrap gap-2 mt-2">
                 {stats.undocumentedSubjects.map((c) => (
-                  <Link
-                    key={c.subject}
-                    href="/catalog"
-                    className="text-[11px] px-2 py-1 bg-zinc-800/60 text-zinc-400 rounded hover:text-amber-300 hover:bg-zinc-800 transition-colors"
-                  >
-                    {extractLabel(c.subject)}
-                  </Link>
+                  <Link key={c.subject} href="/catalog" className="text-[11px] px-2 py-1 bg-zinc-800/60 text-zinc-400 rounded hover:text-amber-300 hover:bg-zinc-800 transition-colors">{extractLabel(c.subject)}</Link>
                 ))}
                 {stats.undocumented > 5 && (
-                  <Link href="/catalog" className="text-[11px] px-2 py-1 text-amber-400 hover:text-amber-300 transition-colors">
-                    +{stats.undocumented - 5} more →
-                  </Link>
+                  <Link href="/catalog" className="text-[11px] px-2 py-1 text-amber-400 hover:text-amber-300 transition-colors">+{stats.undocumented - 5} more →</Link>
                 )}
               </div>
             </div>
@@ -442,7 +347,7 @@ export default function DashboardPage() {
 // === Stat computation ===
 
 function computeStats(data: DashboardData) {
-  const { subjects, catalog, refEdges, asyncapiOverview, channels } = data;
+  const { subjects, catalog, refEdges, asyncapiOverview, channelMap } = data;
 
   const avroCount = subjects.filter((s) => s.format === "AVRO").length;
   const jsonCount = subjects.filter((s) => s.format === "JSON").length;
@@ -509,19 +414,19 @@ function computeStats(data: DashboardData) {
     };
   })() : null;
 
-  // Channel stats
-  const boundSubjectsSet = new Set<string>();
+  // Channel stats — safe extraction from ChannelMapResponse
+  const rawChannels: any[] = (channelMap as any)?.channels ?? [];
   const brokerCounts: Record<string, number> = {};
-  for (const ch of channels) {
+  let totalBindingCount = 0;
+  for (const ch of rawChannels) {
     const bt = ch.broker_type || "unknown";
     brokerCounts[bt] = (brokerCounts[bt] || 0) + 1;
+    totalBindingCount += ch.binding_count ?? ch.bindings?.length ?? 0;
   }
-  // Count subjects that have at least one binding
-  const totalBoundBindings = channels.reduce((sum, ch) => sum + (ch.binding_count || 0), 0);
-  const boundSubjects = Math.min(totalBoundBindings, subjects.length); // approximate
+  const boundSubjects = Math.min(totalBindingCount, subjects.length);
   const unboundSubjects = Math.max(0, subjects.length - boundSubjects);
   const channelStats = {
-    totalChannels: channels.length,
+    totalChannels: rawChannels.length,
     boundSubjects,
     unboundSubjects,
     boundPct: subjects.length > 0 ? (boundSubjects / subjects.length) * 100 : 0,
@@ -532,20 +437,9 @@ function computeStats(data: DashboardData) {
 
   return {
     total: subjects.length,
-    avroCount,
-    jsonCount,
-    protoCount,
-    totalVersions,
-    refEdges,
-    undocumented,
-    withDescription,
-    withOwner,
-    withTags,
-    formatData,
-    layerData,
-    namespaceData,
-    topVersioned,
-    undocumentedSubjects,
+    avroCount, jsonCount, protoCount, totalVersions, refEdges,
+    undocumented, withDescription, withOwner, withTags,
+    formatData, layerData, namespaceData, topVersioned, undocumentedSubjects,
     asyncapi,
     channels: channelStats,
   };
@@ -553,41 +447,19 @@ function computeStats(data: DashboardData) {
 
 // === Sub-components ===
 
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  accent,
-}: {
-  icon: typeof Database;
-  label: string;
-  value: number;
-  accent?: string;
-}) {
+function KpiCard({ icon: Icon, label, value, accent }: { icon: typeof Database; label: string; value: number; accent?: string }) {
   return (
     <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg p-3">
       <div className="flex items-center gap-2 mb-1.5">
         <Icon size={14} style={{ color: accent || "#94a3b8" }} />
         <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{label}</span>
       </div>
-      <p className="text-2xl font-bold tabular-nums" style={{ color: accent || "#f1f5f9" }}>
-        {value}
-      </p>
+      <p className="text-2xl font-bold tabular-nums" style={{ color: accent || "#f1f5f9" }}>{value}</p>
     </div>
   );
 }
 
-function MiniStat({
-  icon: Icon,
-  label,
-  value,
-  color,
-}: {
-  icon: typeof CheckCircle;
-  label: string;
-  value: number;
-  color: string;
-}) {
+function MiniStat({ icon: Icon, label, value, color }: { icon: typeof CheckCircle; label: string; value: number; color: string }) {
   return (
     <div className="text-center">
       <div className={`flex items-center justify-center gap-1 ${color} mb-0.5`}>

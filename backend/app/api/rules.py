@@ -1,10 +1,10 @@
 """
 event7 - Governance Rules API Routes
-CRUD rules & policies, templates, scoring.
+CRUD rules & policies, templates (builtin + custom), scoring.
 
 Placement: backend/app/api/rules.py
 
-Lighter dependency than schema routes — no provider needed (DB-only in V1).
+v2: Custom template CRUD (create, update, delete, clone) + is_builtin protection.
 """
 
 from uuid import UUID
@@ -21,7 +21,10 @@ from app.models.governance_rules import (
     GovernanceRuleResponse,
     GovernanceRuleUpdate,
     GovernanceScore,
+    GovernanceTemplateClone,
+    GovernanceTemplateCreate,
     GovernanceTemplateResponse,
+    GovernanceTemplateUpdate,
 )
 from app.services.governance_rules_service import GovernanceRulesService
 from app.utils.auth import get_current_user
@@ -33,7 +36,7 @@ router = APIRouter(tags=["governance-rules"])
 
 
 # ================================================================
-# Dependency — GovernanceRulesService
+# Dependencies
 # ================================================================
 
 
@@ -41,16 +44,13 @@ def _get_governance_service(
     registry_id: UUID = Path(..., description="Registry UUID"),
     user: UserContext = Depends(get_current_user),
 ) -> GovernanceRulesService:
-    """Build a GovernanceRulesService for the given registry.
-    No provider needed — DB-only in V1.
-    """
+    """Build a GovernanceRulesService for the given registry."""
     if not db_client:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database not available",
         )
 
-    # Verify registry exists and belongs to user
     registry = db_client.get_registry_by_id(
         registry_id=str(registry_id),
         user_id=str(user.user_id),
@@ -66,6 +66,20 @@ def _get_governance_service(
         cache=redis_cache,
         db=db_client,
         registry_id=str(registry_id),
+    )
+
+
+def _get_template_service() -> GovernanceRulesService:
+    """Build a GovernanceRulesService for template operations (global, no registry)."""
+    if not db_client:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database not available",
+        )
+    return GovernanceRulesService(
+        cache=redis_cache,
+        db=db_client,
+        registry_id="",
     )
 
 
@@ -187,7 +201,7 @@ async def delete_rule(
 
 
 # ================================================================
-# Templates
+# Templates — Read
 # ================================================================
 
 
@@ -197,20 +211,9 @@ async def delete_rule(
 )
 async def list_templates(
     user: UserContext = Depends(get_current_user),
-    # No registry_id needed — templates are global
 ):
-    """List all governance rule templates."""
-    if not db_client:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database not available",
-        )
-
-    service = GovernanceRulesService(
-        cache=redis_cache,
-        db=db_client,
-        registry_id="",  # Not used for template listing
-    )
+    """List all governance rule templates (builtin + custom)."""
+    service = _get_template_service()
     return service.list_templates()
 
 
@@ -223,17 +226,7 @@ async def get_template(
     user: UserContext = Depends(get_current_user),
 ):
     """Get a single governance rule template."""
-    if not db_client:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database not available",
-        )
-
-    service = GovernanceRulesService(
-        cache=redis_cache,
-        db=db_client,
-        registry_id="",
-    )
+    service = _get_template_service()
     template = service.get_template(str(template_id))
     if not template:
         raise HTTPException(
@@ -241,6 +234,107 @@ async def get_template(
             detail=f"Template {template_id} not found",
         )
     return template
+
+
+# ================================================================
+# Templates — Custom CRUD
+# ================================================================
+
+
+@router.post(
+    "/api/v1/governance/templates",
+    response_model=GovernanceTemplateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_template(
+    payload: GovernanceTemplateCreate,
+    user: UserContext = Depends(get_current_user),
+):
+    """Create a custom governance template."""
+    service = _get_template_service()
+    try:
+        return service.create_template(payload)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
+
+
+@router.put(
+    "/api/v1/governance/templates/{template_id}",
+    response_model=GovernanceTemplateResponse,
+)
+async def update_template(
+    template_id: UUID,
+    payload: GovernanceTemplateUpdate,
+    user: UserContext = Depends(get_current_user),
+):
+    """Update a governance template. Builtin templates have limited editability."""
+    service = _get_template_service()
+    try:
+        result = service.update_template(str(template_id), payload)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Template {template_id} not found",
+        )
+    return result
+
+
+@router.delete(
+    "/api/v1/governance/templates/{template_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_template(
+    template_id: UUID,
+    user: UserContext = Depends(get_current_user),
+):
+    """Delete a custom template. Builtin templates cannot be deleted (403)."""
+    service = _get_template_service()
+    try:
+        deleted = service.delete_template(str(template_id))
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
+        )
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Template {template_id} not found",
+        )
+
+
+@router.post(
+    "/api/v1/governance/templates/{template_id}/clone",
+    response_model=GovernanceTemplateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def clone_template(
+    template_id: UUID,
+    payload: GovernanceTemplateClone,
+    user: UserContext = Depends(get_current_user),
+):
+    """Clone a template (builtin or custom) with a new name."""
+    service = _get_template_service()
+    try:
+        return service.clone_template(str(template_id), payload)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
+
+
+# ================================================================
+# Templates — Apply
+# ================================================================
 
 
 @router.post(

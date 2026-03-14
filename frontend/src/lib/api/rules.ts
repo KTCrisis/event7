@@ -1,5 +1,7 @@
 // src/lib/api/rules.ts
 // Governance Rules & Templates API functions
+// v2: Added custom template CRUD (create, update, delete, clone)
+// Placement: frontend/src/lib/api/rules.ts
 
 import { api } from "./client";
 import type {
@@ -8,6 +10,9 @@ import type {
   GovernanceRuleUpdate,
   GovernanceRuleListResponse,
   GovernanceTemplate,
+  GovernanceTemplateCreate,
+  GovernanceTemplateUpdate,
+  GovernanceTemplateClone,
   ApplyTemplateRequest,
   ApplyTemplateResponse,
   GovernanceScore,
@@ -86,10 +91,10 @@ export async function deleteRule(
 }
 
 // ============================================================
-// Templates
+// Templates — Read
 // ============================================================
 
-/** List all governance rule templates */
+/** List all governance rule templates (builtin + custom) */
 export async function listTemplates(): Promise<GovernanceTemplate[]> {
   return api.get<GovernanceTemplate[]>("/api/v1/governance/templates");
 }
@@ -102,6 +107,53 @@ export async function getTemplate(
     `/api/v1/governance/templates/${templateId}`
   );
 }
+
+// ============================================================
+// Templates — Custom CRUD
+// ============================================================
+
+/** Create a custom governance template */
+export async function createTemplate(
+  data: GovernanceTemplateCreate
+): Promise<GovernanceTemplate> {
+  return api.post<GovernanceTemplate>(
+    "/api/v1/governance/templates",
+    data
+  );
+}
+
+/** Update a governance template */
+export async function updateTemplate(
+  templateId: string,
+  data: GovernanceTemplateUpdate
+): Promise<GovernanceTemplate> {
+  return api.put<GovernanceTemplate>(
+    `/api/v1/governance/templates/${templateId}`,
+    data
+  );
+}
+
+/** Delete a custom governance template */
+export async function deleteTemplate(
+  templateId: string
+): Promise<void> {
+  return api.delete(`/api/v1/governance/templates/${templateId}`);
+}
+
+/** Clone a template (builtin or custom) with a new name */
+export async function cloneTemplate(
+  templateId: string,
+  data: GovernanceTemplateClone
+): Promise<GovernanceTemplate> {
+  return api.post<GovernanceTemplate>(
+    `/api/v1/governance/templates/${templateId}/clone`,
+    data
+  );
+}
+
+// ============================================================
+// Templates — Apply
+// ============================================================
 
 /** Apply a template to a registry/subject */
 export async function applyTemplate(

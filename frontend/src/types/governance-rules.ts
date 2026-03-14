@@ -185,6 +185,7 @@ export interface GovernanceTemplate {
   display_name: string;
   description: string | null;
   layer: string | null;
+  is_builtin: boolean;  
   rules: GovernanceTemplateRule[];
   created_at: string;
   updated_at: string;
@@ -204,6 +205,27 @@ export interface ApplyTemplateResponse {
   rule_ids: string[];
 }
 
+export interface GovernanceTemplateCreate {
+  template_name: string;
+  display_name: string;
+  description?: string | null;
+  layer?: string | null;
+  rules: GovernanceTemplateRule[];
+}
+ 
+export interface GovernanceTemplateUpdate {
+  display_name?: string | null;
+  description?: string | null;
+  layer?: string | null;
+  rules?: GovernanceTemplateRule[] | null;
+}
+ 
+export interface GovernanceTemplateClone {
+  template_name: string;
+  display_name: string;
+  description?: string | null;
+  layer?: string | null;
+}
 // ============================================================
 // Scoring
 // ============================================================

@@ -467,6 +467,47 @@ class SupabaseDatabase(DatabaseProvider):
         data = response.data
         return data[0] if data else None
 
+    def create_governance_template(self, data: dict) -> dict | None:
+        """Insert a new governance rule template."""
+        try:
+            response = (
+                self.client.table("governance_rule_templates")
+                .insert(data)
+                .execute()
+            )
+            return response.data[0] if response.data else None
+        except Exception as e:
+            logger.error(f"Failed to create governance template: {e}")
+            return None
+ 
+    def update_governance_template(self, template_id: str, data: dict) -> dict | None:
+        """Update a governance rule template."""
+        try:
+            response = (
+                self.client.table("governance_rule_templates")
+                .update(data)
+                .eq("id", template_id)
+                .execute()
+            )
+            return response.data[0] if response.data else None
+        except Exception as e:
+            logger.error(f"Failed to update governance template {template_id}: {e}")
+            return None
+ 
+    def delete_governance_template(self, template_id: str) -> bool:
+        """Delete a governance rule template."""
+        try:
+            response = (
+                self.client.table("governance_rule_templates")
+                .delete()
+                .eq("id", template_id)
+                .execute()
+            )
+            return bool(response.data)
+        except Exception as e:
+            logger.error(f"Failed to delete governance template {template_id}: {e}")
+            return False
+
     # ================================================================
     # CHANNELS
     # ================================================================

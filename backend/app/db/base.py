@@ -196,7 +196,21 @@ class DatabaseProvider(ABC):
         """Get a single governance rule template by ID."""
         ...
 
-
+    @abstractmethod
+    def create_governance_template(self, data: dict) -> dict | None:
+        """Insert a new governance rule template. Returns created row or None."""
+        ...
+ 
+    @abstractmethod
+    def update_governance_template(self, template_id: str, data: dict) -> dict | None:
+        """Update a governance rule template. data contains only fields to update."""
+        ...
+ 
+    @abstractmethod
+    def delete_governance_template(self, template_id: str) -> bool:
+        """Delete a governance rule template. Returns True if deleted."""
+        ...
+        
    # ================================================================
     # CHANNELS
     # ================================================================

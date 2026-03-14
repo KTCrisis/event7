@@ -497,6 +497,59 @@ class PostgreSQLDatabase(DatabaseProvider):
             (template_id,),
         )
 
+    def create_governance_template(self, data: dict) -> dict | None:
+        """Insert a new governance rule template."""
+        columns = list(data.keys())
+        placeholders = []
+        values = []
+        for col in columns:
+            val = data[col]
+            if isinstance(val, (dict, list)):
+                placeholders.append("%s::jsonb")
+                values.append(json.dumps(val))
+            else:
+                placeholders.append("%s")
+                values.append(val)
+
+        return self._fetchone(
+            f"""INSERT INTO governance_rule_templates ({', '.join(columns)})
+                VALUES ({', '.join(placeholders)})
+                RETURNING *""",
+            tuple(values),
+        )
+
+    def update_governance_template(self, template_id: str, data: dict) -> dict | None:
+        """Update a governance rule template."""
+        if not data:
+            return self.get_governance_template(template_id)
+
+        set_clauses = []
+        values = []
+        for col, val in data.items():
+            if isinstance(val, (dict, list)):
+                set_clauses.append(f"{col} = %s::jsonb")
+                values.append(json.dumps(val))
+            else:
+                set_clauses.append(f"{col} = %s")
+                values.append(val)
+
+        values.append(template_id)
+
+        return self._fetchone(
+            f"""UPDATE governance_rule_templates
+                SET {', '.join(set_clauses)}, updated_at = NOW()
+                WHERE id = %s::uuid
+                RETURNING *""",
+            tuple(values),
+        )
+
+    def delete_governance_template(self, template_id: str) -> bool:
+        """Delete a governance rule template."""
+        return self._execute(
+            "DELETE FROM governance_rule_templates WHERE id = %s::uuid",
+            (template_id,),
+        ) > 0
+        
     # ================================================================
     # CHANNELS
     # ================================================================
