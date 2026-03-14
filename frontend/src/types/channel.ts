@@ -5,6 +5,7 @@
 // === Enums ===
 
 export type BrokerType =
+  // Tier 1 — Core
   | "kafka"
   | "redpanda"
   | "rabbitmq"
@@ -14,9 +15,23 @@ export type BrokerType =
   | "aws_sns_sqs"
   | "azure_servicebus"
   | "redis_streams"
+  // Tier 2 — Enterprise & IoT
+  | "solace"
+  | "ibmmq"
+  | "activemq_artemis"
+  | "mqtt"
+  | "mqtt_secure"
+  | "websocket"
+  | "websocket_secure"
+  | "anypoint_mq"
+  | "mercure"
+  | "stomp"
+  // Tier 3 — Serverless
+  | "amazon_kinesis"
+  | "amazon_eventbridge"
   | "custom";
 
-export type ResourceKind = "topic" | "exchange" | "subject" | "queue" | "stream";
+export type ResourceKind = "topic" | "exchange" | "subject" | "queue" | "stream" | "channel" | "destination" | "event_bus";
 
 export type MessagingPattern = "topic_log" | "pubsub" | "queue";
 
@@ -142,44 +157,47 @@ export interface ChannelMapResponse {
 
 // === Display helpers ===
 
-export const BROKER_ICONS: Record<BrokerType, string> = {
-  kafka: "🔶",
-  redpanda: "🐼",
-  rabbitmq: "🐰",
-  pulsar: "⚡",
-  nats: "🔷",
-  google_pubsub: "☁️",
-  aws_sns_sqs: "📦",
-  azure_servicebus: "🔵",
+export const BROKER_ICONS: Record<string, string> = {
+  // Tier 1
+  kafka: "🔶", redpanda: "🐼", rabbitmq: "🐰", pulsar: "⚡", nats: "🔷",
+  google_pubsub: "☁️", aws_sns_sqs: "📦", azure_servicebus: "🔵",
   redis_streams: "🔴",
-  custom: "⚙️",
+  // Tier 2
+  solace: "🌊", ibmmq: "🏢", activemq_artemis: "🏹",
+  mqtt: "📡", mqtt_secure: "🔐",
+  websocket: "🌐", websocket_secure: "🔒",
+  anypoint_mq: "🔀", mercure: "📢", stomp: "🦶",
+  // Tier 3
+  amazon_kinesis: "🌊", amazon_eventbridge: "🚌", custom: "⚙️",
 };
 
-export const BROKER_LABELS: Record<BrokerType, string> = {
-  kafka: "Kafka",
-  redpanda: "Redpanda",
-  rabbitmq: "RabbitMQ",
-  pulsar: "Pulsar",
-  nats: "NATS",
-  google_pubsub: "Google Pub/Sub",
-  aws_sns_sqs: "AWS SNS/SQS",
-  azure_servicebus: "Azure Service Bus",
-  redis_streams: "Redis Streams",
+export const BROKER_LABELS: Record<string, string> = {
+  // Tier 1
+  kafka: "Kafka", redpanda: "Redpanda", rabbitmq: "RabbitMQ",
+  pulsar: "Pulsar", nats: "NATS",
+  google_pubsub: "Google Pub/Sub", aws_sns_sqs: "AWS SNS/SQS",
+  azure_servicebus: "Azure Service Bus", redis_streams: "Redis Streams",
+  // Tier 2
+  solace: "Solace PubSub+", ibmmq: "IBM MQ", activemq_artemis: "ActiveMQ Artemis",
+  mqtt: "MQTT", mqtt_secure: "MQTT (TLS)",
+  websocket: "WebSocket", websocket_secure: "WebSocket (TLS)",
+  anypoint_mq: "Anypoint MQ", mercure: "Mercure (SSE)", stomp: "STOMP",
+  // Tier 3
+  amazon_kinesis: "Amazon Kinesis", amazon_eventbridge: "Amazon EventBridge",
   custom: "Custom",
 };
 
-export const PATTERN_LABELS: Record<MessagingPattern, string> = {
+
+export const PATTERN_LABELS: Record<string, string> = {
   topic_log: "Topic Log",
   pubsub: "Pub/Sub",
   queue: "Queue",
 };
 
 export const RESOURCE_LABELS: Record<ResourceKind, string> = {
-  topic: "Topic",
-  exchange: "Exchange",
-  subject: "Subject",
-  queue: "Queue",
-  stream: "Stream",
+  topic: "Topic", exchange: "Exchange", subject: "Subject",
+  queue: "Queue", stream: "Stream", channel: "Channel",
+  destination: "Destination", event_bus: "Event Bus",
 };
 
 export const STRATEGY_LABELS: Record<BindingStrategy, string> = {
@@ -193,4 +211,34 @@ export const STATUS_CONFIG: Record<BindingStatus, { label: string; color: string
   missing_subject: { label: "Missing", color: "text-red-400", dot: "bg-red-400" },
   stale: { label: "Stale", color: "text-amber-400", dot: "bg-amber-400" },
   unverified: { label: "Unverified", color: "text-slate-400", dot: "bg-slate-400" },
+};
+
+export const DEFAULT_RESOURCE: Record<BrokerType, ResourceKind> = {
+  // Tier 1
+  kafka: "topic", redpanda: "topic", rabbitmq: "exchange",
+  pulsar: "topic", nats: "subject",
+  google_pubsub: "topic", aws_sns_sqs: "queue",
+  azure_servicebus: "queue", redis_streams: "stream",
+  // Tier 2
+  solace: "topic", ibmmq: "queue", activemq_artemis: "queue",
+  mqtt: "topic", mqtt_secure: "topic",
+  websocket: "channel", websocket_secure: "channel",
+  anypoint_mq: "queue", mercure: "topic", stomp: "destination",
+  // Tier 3
+  amazon_kinesis: "stream", amazon_eventbridge: "event_bus", custom: "topic",
+};
+
+export const DEFAULT_PATTERN: Record<BrokerType, MessagingPattern> = {
+  // Tier 1
+  kafka: "topic_log", redpanda: "topic_log", rabbitmq: "pubsub",
+  pulsar: "topic_log", nats: "pubsub",
+  google_pubsub: "pubsub", aws_sns_sqs: "queue",
+  azure_servicebus: "queue", redis_streams: "topic_log",
+  // Tier 2
+  solace: "pubsub", ibmmq: "queue", activemq_artemis: "queue",
+  mqtt: "pubsub", mqtt_secure: "pubsub",
+  websocket: "pubsub", websocket_secure: "pubsub",
+  anypoint_mq: "queue", mercure: "pubsub", stomp: "queue",
+  // Tier 3
+  amazon_kinesis: "topic_log", amazon_eventbridge: "pubsub", custom: "topic_log",
 };

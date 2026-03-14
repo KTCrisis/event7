@@ -40,22 +40,42 @@ from app.providers.base import SchemaRegistryProvider
 # ── Protocol → broker_type mapping ──
 
 PROTOCOL_TO_BROKER: dict[str, str] = {
+    # Tier 1 — Core
     "kafka": "kafka",
     "kafka-secure": "kafka",
     "amqp": "rabbitmq",
     "amqps": "rabbitmq",
-    "mqtt": "custom",
-    "mqtts": "custom",
-    "nats": "nats",
     "pulsar": "pulsar",
+    "pulsar+ssl": "pulsar",
+    "nats": "nats",
     "redis": "redis_streams",
+    "googlepubsub": "google_pubsub",
     "sns": "aws_sns_sqs",
     "sqs": "aws_sns_sqs",
-    "googlepubsub": "google_pubsub",
     "servicebus": "azure_servicebus",
+    # Tier 2 — Enterprise & IoT
+    "solace": "solace",
+    "secure-solace": "solace",
+    "ibmmq": "ibmmq",
+    "ibmmq-secure": "ibmmq",
+    "jms": "activemq_artemis",
+    "jms-secure": "activemq_artemis",
+    "mqtt": "mqtt",
+    "mqtts": "mqtt_secure",
+    "secure-mqtt": "mqtt_secure",
+    "ws": "websocket",
+    "wss": "websocket_secure",
+    "anypointmq": "anypoint_mq",
+    "mercure": "mercure",
+    "stomp": "stomp",
+    "stomps": "stomp",
+    # Tier 3 — Serverless / Niche
+    "http": "custom",
+    "https": "custom",
 }
 
 BROKER_TO_RESOURCE: dict[str, str] = {
+    # Tier 1
     "kafka": "topic",
     "redpanda": "topic",
     "rabbitmq": "exchange",
@@ -65,10 +85,25 @@ BROKER_TO_RESOURCE: dict[str, str] = {
     "aws_sns_sqs": "queue",
     "azure_servicebus": "queue",
     "redis_streams": "stream",
+    # Tier 2
+    "solace": "topic",
+    "ibmmq": "queue",
+    "activemq_artemis": "queue",
+    "mqtt": "topic",
+    "mqtt_secure": "topic",
+    "websocket": "channel",
+    "websocket_secure": "channel",
+    "anypoint_mq": "queue",
+    "mercure": "topic",
+    "stomp": "destination",
+    # Tier 3
+    "amazon_kinesis": "stream",
+    "amazon_eventbridge": "event_bus",
     "custom": "topic",
 }
 
 BROKER_TO_PATTERN: dict[str, str] = {
+    # Tier 1
     "kafka": "topic_log",
     "redpanda": "topic_log",
     "rabbitmq": "pubsub",
@@ -78,6 +113,20 @@ BROKER_TO_PATTERN: dict[str, str] = {
     "aws_sns_sqs": "queue",
     "azure_servicebus": "queue",
     "redis_streams": "topic_log",
+    # Tier 2
+    "solace": "pubsub",
+    "ibmmq": "queue",
+    "activemq_artemis": "queue",
+    "mqtt": "pubsub",
+    "mqtt_secure": "pubsub",
+    "websocket": "pubsub",
+    "websocket_secure": "pubsub",
+    "anypoint_mq": "queue",
+    "mercure": "pubsub",
+    "stomp": "queue",
+    # Tier 3
+    "amazon_kinesis": "topic_log",
+    "amazon_eventbridge": "pubsub",
     "custom": "topic_log",
 }
 
@@ -554,6 +603,7 @@ class AsyncAPIImportService:
         """Detect broker_type from channel-level bindings keys."""
         for key in bindings:
             normalized = key.lower().replace("-", "")
+            # Tier 1
             if "kafka" in normalized:
                 return "kafka"
             if "amqp" in normalized or "rabbitmq" in normalized:
@@ -570,11 +620,30 @@ class AsyncAPIImportService:
                 return "aws_sns_sqs"
             if "servicebus" in normalized:
                 return "azure_servicebus"
+            # Tier 2
+            if "solace" in normalized:
+                return "solace"
+            if "ibmmq" in normalized:
+                return "ibmmq"
+            if "jms" in normalized:
+                return "activemq_artemis"
+            if "mqtt" in normalized:
+                return "mqtt"
+            if normalized == "ws":
+                return "websocket"
+            if "anypointmq" in normalized:
+                return "anypoint_mq"
+            if "mercure" in normalized:
+                return "mercure"
+            if "stomp" in normalized:
+                return "stomp"
         return None
 
     def _extract_broker_config(self, bindings: dict, broker_type: str) -> dict:
         """Extract relevant broker config from channel bindings."""
         config: dict = {}
+
+        # ── Tier 1 ──
 
         kafka_binding = bindings.get("kafka", {})
         if kafka_binding:
@@ -595,6 +664,110 @@ class AsyncAPIImportService:
                 ex = amqp_binding["exchange"]
                 config["exchange_type"] = ex.get("type", "topic")
                 config["durable"] = ex.get("durable", True)
+                config["auto_delete"] = ex.get("autoDelete", False)
+            if "queue" in amqp_binding:
+                q = amqp_binding["queue"]
+                config["queue_name"] = q.get("name")
+                config["queue_durable"] = q.get("durable", True)
+                config["queue_exclusive"] = q.get("exclusive", False)
+            if "vhost" in amqp_binding:
+                config["vhost"] = amqp_binding["vhost"]
+
+        pulsar_binding = bindings.get("pulsar", {})
+        if pulsar_binding:
+            if "tenant" in pulsar_binding:
+                config["tenant"] = pulsar_binding["tenant"]
+            if "namespace" in pulsar_binding:
+                config["namespace"] = pulsar_binding["namespace"]
+            if "persistence" in pulsar_binding:
+                config["persistence"] = pulsar_binding["persistence"]
+            if "deduplication" in pulsar_binding:
+                config["deduplication"] = pulsar_binding["deduplication"]
+
+        nats_binding = bindings.get("nats", {})
+        if nats_binding:
+            if "queue" in nats_binding:
+                config["queue_group"] = nats_binding["queue"]
+            if "streamName" in nats_binding:
+                config["stream_name"] = nats_binding["streamName"]
+
+        redis_binding = bindings.get("redis", {})
+        if redis_binding:
+            if "maxLen" in redis_binding:
+                config["max_len"] = redis_binding["maxLen"]
+            if "groupName" in redis_binding:
+                config["consumer_group"] = redis_binding["groupName"]
+
+        googlepubsub_binding = bindings.get("googlepubsub", {})
+        if googlepubsub_binding:
+            if "orderingKey" in googlepubsub_binding:
+                config["ordering_key"] = googlepubsub_binding["orderingKey"]
+            if "messageRetentionDuration" in googlepubsub_binding:
+                config["retention_duration"] = googlepubsub_binding["messageRetentionDuration"]
+            if "schemaSettings" in googlepubsub_binding:
+                config["schema_settings"] = googlepubsub_binding["schemaSettings"]
+
+        sns_binding = bindings.get("sns", {})
+        if sns_binding:
+            if "fifo" in sns_binding:
+                config["fifo"] = sns_binding["fifo"]
+            if "contentBasedDeduplication" in sns_binding:
+                config["content_based_dedup"] = sns_binding["contentBasedDeduplication"]
+
+        # ── Tier 2 — Enterprise & IoT ──
+
+        solace_binding = bindings.get("solace", {})
+        if solace_binding:
+            if "queue" in solace_binding:
+                q = solace_binding["queue"]
+                config["queue_name"] = q.get("name")
+                config["access_type"] = q.get("accessType", "exclusive")
+            if "topicSubscriptions" in solace_binding:
+                config["topic_subscriptions"] = solace_binding["topicSubscriptions"]
+            if "destinationType" in solace_binding:
+                config["destination_type"] = solace_binding["destinationType"]
+
+        ibmmq_binding = bindings.get("ibmmq", {})
+        if ibmmq_binding:
+            if "queue" in ibmmq_binding:
+                config["queue_name"] = ibmmq_binding["queue"].get("objectName")
+            if "destinationType" in ibmmq_binding:
+                config["destination_type"] = ibmmq_binding["destinationType"]
+            if "maxMsgLength" in ibmmq_binding:
+                config["max_msg_length"] = ibmmq_binding["maxMsgLength"]
+            if "description" in ibmmq_binding:
+                config["description"] = ibmmq_binding["description"]
+
+        jms_binding = bindings.get("jms", {})
+        if jms_binding:
+            if "destinationType" in jms_binding:
+                config["destination_type"] = jms_binding["destinationType"]
+
+        mqtt_binding = bindings.get("mqtt", {})
+        if mqtt_binding:
+            if "qos" in mqtt_binding:
+                config["qos"] = mqtt_binding["qos"]
+            if "retain" in mqtt_binding:
+                config["retain"] = mqtt_binding["retain"]
+
+        ws_binding = bindings.get("ws", {})
+        if ws_binding:
+            if "method" in ws_binding:
+                config["method"] = ws_binding["method"]
+            if "query" in ws_binding:
+                config["query"] = ws_binding["query"]
+            if "headers" in ws_binding:
+                config["headers"] = ws_binding["headers"]
+
+        anypointmq_binding = bindings.get("anypointmq", {})
+        if anypointmq_binding:
+            if "destinationType" in anypointmq_binding:
+                config["destination_type"] = anypointmq_binding["destinationType"]
+
+        stomp_binding = bindings.get("stomp", {})
+        if stomp_binding:
+            if "destination" in stomp_binding:
+                config["destination"] = stomp_binding["destination"]
 
         return config
 

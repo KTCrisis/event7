@@ -25,6 +25,67 @@ from app.models.asyncapi import AsyncAPISpec, AsyncAPIGenerateRequest
 from app.models.schema import SchemaDetail, SchemaFormat
 from app.providers.base import SchemaRegistryProvider
 
+BROKER_TO_PROTOCOL: dict[str, str] = {
+    # Tier 1 — Core
+    "kafka": "kafka-secure", "redpanda": "kafka-secure",
+    "rabbitmq": "amqp", "pulsar": "pulsar+ssl", "nats": "nats",
+    "redis_streams": "redis", "google_pubsub": "googlepubsub",
+    "aws_sns_sqs": "sns", "azure_servicebus": "amqp",
+    # Tier 2 — Enterprise & IoT
+    "solace": "solace", "ibmmq": "ibmmq", "activemq_artemis": "jms",
+    "mqtt": "mqtt", "mqtt_secure": "mqtts",
+    "websocket": "ws", "websocket_secure": "wss",
+    "anypoint_mq": "anypointmq", "mercure": "mercure", "stomp": "stomp",
+    # Tier 3 — Fallback
+    "amazon_kinesis": "http", "amazon_eventbridge": "http", "custom": "kafka",
+}
+
+BROKER_TO_BINDING_KEY: dict[str, str | None] = {
+    "kafka": "kafka", "redpanda": "kafka",
+    "rabbitmq": "amqp", "pulsar": "pulsar", "nats": "nats",
+    "redis_streams": "redis", "google_pubsub": "googlepubsub",
+    "aws_sns_sqs": "sns", "azure_servicebus": "amqp",
+    "solace": "solace", "ibmmq": "ibmmq", "activemq_artemis": "jms",
+    "mqtt": "mqtt", "mqtt_secure": "mqtt",
+    "websocket": "ws", "websocket_secure": "ws",
+    "anypoint_mq": "anypointmq", "mercure": "mercure", "stomp": "stomp",
+    "amazon_kinesis": None, "amazon_eventbridge": None, "custom": None,
+}
+
+BROKER_SERVER_DESCRIPTION: dict[str, str] = {
+    "kafka": "Apache Kafka broker", "redpanda": "Redpanda broker (Kafka-compatible)",
+    "rabbitmq": "RabbitMQ broker (AMQP 0.9.1)", "pulsar": "Apache Pulsar broker",
+    "nats": "NATS messaging server", "redis_streams": "Redis Streams",
+    "google_pubsub": "Google Cloud Pub/Sub", "aws_sns_sqs": "AWS SNS/SQS",
+    "azure_servicebus": "Azure Service Bus (AMQP 1.0)",
+    "solace": "Solace PubSub+ Event Broker", "ibmmq": "IBM MQ (MQ Series)",
+    "activemq_artemis": "ActiveMQ Artemis (JMS / AMQP 1.0)",
+    "mqtt": "MQTT broker", "mqtt_secure": "MQTT broker (TLS)",
+    "websocket": "WebSocket server", "websocket_secure": "WebSocket server (TLS)",
+    "anypoint_mq": "Anypoint MQ (MuleSoft)", "mercure": "Mercure Hub (SSE)",
+    "stomp": "STOMP broker",
+    "amazon_kinesis": "Amazon Kinesis Data Streams",
+    "amazon_eventbridge": "Amazon EventBridge", "custom": "Custom broker",
+}
+
+DEFAULT_HOST: dict[str, str] = {
+    "kafka": "localhost:9092", "redpanda": "localhost:9092",
+    "rabbitmq": "localhost:5672", "pulsar": "localhost:6651",
+    "nats": "localhost:4222", "redis_streams": "localhost:6379",
+    "google_pubsub": "pubsub.googleapis.com:443",
+    "aws_sns_sqs": "sns.us-east-1.amazonaws.com:443",
+    "azure_servicebus": "mybus.servicebus.windows.net:5671",
+    "solace": "localhost:55555", "ibmmq": "localhost:1414",
+    "activemq_artemis": "localhost:61616",
+    "mqtt": "localhost:1883", "mqtt_secure": "localhost:8883",
+    "websocket": "localhost:80", "websocket_secure": "localhost:443",
+    "anypoint_mq": "mq-us-east-1.anypoint.mulesoft.com:443",
+    "mercure": "localhost:3000/.well-known/mercure",
+    "stomp": "localhost:61613",
+    "amazon_kinesis": "kinesis.us-east-1.amazonaws.com:443",
+    "amazon_eventbridge": "events.us-east-1.amazonaws.com:443",
+    "custom": "localhost:9092",
+}
     # =========================================================================
     # Hash helpers
     # =========================================================================
@@ -75,9 +136,7 @@ class AsyncAPIService:
         params: AsyncAPIGenerateRequest | None = None,
         user_id: str = "",
     ) -> AsyncAPISpec:
-        """
-        Génère une spec AsyncAPI 3.0 complète depuis un schema + enrichments.
-        """
+        """Génère une spec AsyncAPI 3.0 complète depuis schema + enrichments + channels + governance."""
         params = params or AsyncAPIGenerateRequest()
 
         # 1. Fetch value schema from provider
@@ -85,7 +144,7 @@ class AsyncAPIService:
         source_hash = _compute_schema_hash(schema.schema_content)
         source_version = schema.version if hasattr(schema, "version") else None
 
-        # 2. Fetch key schema (if enabled and subject follows -value convention)
+        # 2. Fetch key schema (if enabled)
         key_schema = None
         if params.include_key_schema:
             key_schema = await self._try_fetch_key_schema(subject)
@@ -96,17 +155,25 @@ class AsyncAPIService:
         # 4. Fetch references
         references = await self.provider.get_references(subject)
 
-        # 5. Build spec
+        # 5. Fetch channels bound to this subject — NEW
+        channels = self.db.get_channels_for_subject(self.registry_id, subject)
+
+        # 6. Fetch governance score — NEW
+        gov_score = self._fetch_governance_score(subject)
+
+        # 7. Build spec — ENHANCED
         spec_content = self._build_spec(
             schema=schema,
             key_schema=key_schema,
             subject=subject,
             enrichment=enrichment,
             references=references,
+            channels=channels,
+            gov_score=gov_score,
             params=params,
         )
 
-        # 6. Store in DB
+        # 8. Store in DB
         self.db.upsert_asyncapi_spec(
             registry_id=self.registry_id,
             subject=subject,
@@ -117,7 +184,7 @@ class AsyncAPIService:
             source_schema_version=source_version,
         )
 
-        # 7. Invalidate + populate cache
+        # 9. Invalidate + populate cache
         await self.cache.delete(self._cache_key(subject))
 
         result = AsyncAPISpec(
@@ -376,6 +443,36 @@ class AsyncAPIService:
             subjects=results,
         )
 
+    # =========================================================================
+    # Governance Score Fetch
+    # =========================================================================
+
+    def _fetch_governance_score(self, subject: str) -> dict | None:
+        """Fetch governance score for a subject. Returns None if no rules configured."""
+        try:
+            from app.services.governance_rules_service import GovernanceRulesService
+            service = GovernanceRulesService(
+                cache=self.cache,
+                db=self.db,
+                registry_id=self.registry_id,
+            )
+            score = service.get_score(subject=subject)
+            if not score or score.total_rules == 0:
+                return None
+            return {
+                "score": score.score,
+                "grade": score.grade,
+                "rules": {
+                    "total": score.total_rules,
+                    "passing": score.passing,
+                    "warning": score.warning,
+                    "failing": score.failing,
+                },
+                "assessed_at": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as e:
+            logger.debug(f"No governance score for {subject}: {e}")
+            return None
 
     # =========================================================================
     # Key Schema Detection
@@ -408,6 +505,257 @@ class AsyncAPIService:
             logger.debug(f"No key schema found for {key_subject} (expected for most topics)")
             return None
 
+python    # =========================================================================
+    # Server & Channel Bindings Builders (v2 — protocol-aware)
+    # =========================================================================
+
+    def _build_servers(
+        self,
+        channels: list[dict],
+        params: AsyncAPIGenerateRequest,
+        registry_name: str,
+    ) -> dict:
+        """Build servers section. One server per unique broker_type. Fallback: kafka."""
+        if not channels:
+            return {
+                "production": {
+                    "host": params.server_url or self.registry_url or "kafka:9092",
+                    "protocol": "kafka-secure",
+                    "description": f"Apache Kafka broker — via event7 registry {registry_name}",
+                }
+            }
+
+        servers: dict = {}
+        seen: set[str] = set()
+
+        for ch in channels:
+            bt = ch.get("broker_type", "kafka")
+            if bt in seen:
+                continue
+            seen.add(bt)
+
+            host = (
+                params.server_url
+                or ch.get("broker_config", {}).get("bootstrap_servers")
+                or DEFAULT_HOST.get(bt, "localhost:9092")
+            )
+
+            server: dict = {
+                "host": host,
+                "protocol": BROKER_TO_PROTOCOL.get(bt, "kafka"),
+                "description": (
+                    f"{BROKER_SERVER_DESCRIPTION.get(bt, bt)} "
+                    f"— via event7 registry {registry_name}"
+                ),
+            }
+
+            sb = self._build_server_bindings(bt)
+            if sb:
+                server["bindings"] = sb
+
+            servers[bt.replace("_", "-")] = server
+
+        return servers
+
+    def _build_server_bindings(self, broker_type: str) -> dict | None:
+        """Server-level bindings per broker type."""
+        if broker_type in ("kafka", "redpanda"):
+            b: dict = {}
+            if self.registry_url:
+                b["schemaRegistryUrl"] = self.registry_url
+            return {"kafka": b} if b else None
+        if broker_type == "solace":
+            return {"solace": {"msgVpn": "default"}}
+        if broker_type in ("mqtt", "mqtt_secure"):
+            return {"mqtt": {"cleanSession": True, "keepAlive": 60}}
+        if broker_type == "pulsar":
+            return {"pulsar": {"tenant": "public"}}
+        return None
+
+    def _build_channel_bindings_from_channel(self, channel: dict) -> dict:
+        """
+        Build AsyncAPI channel bindings from event7 channel data.
+        Inverse of asyncapi_import_service._extract_broker_config().
+        """
+        bt = channel.get("broker_type", "kafka")
+        bc = channel.get("broker_config", {})
+        bk = BROKER_TO_BINDING_KEY.get(bt)
+
+        if not bk:
+            return {}
+
+        bindings: dict = {}
+
+        # ── Tier 1 ──
+
+        if bt in ("kafka", "redpanda"):
+            kb: dict = {"topic": channel.get("address", "")}
+            if bc.get("partitions"):
+                kb["partitions"] = bc["partitions"]
+            if bc.get("replication_factor"):
+                kb["replicas"] = bc["replication_factor"]
+            tc: dict = {}
+            if bc.get("retention_ms"):
+                tc["retention.ms"] = bc["retention_ms"]
+            if bc.get("cleanup_policy"):
+                tc["cleanup.policy"] = bc["cleanup_policy"]
+            if tc:
+                kb["topicConfiguration"] = tc
+            bindings["kafka"] = kb
+
+        elif bt == "rabbitmq":
+            ab: dict = {}
+            if bc.get("exchange_type"):
+                ab["exchange"] = {
+                    "name": channel.get("address", ""),
+                    "type": bc.get("exchange_type", "topic"),
+                    "durable": bc.get("durable", True),
+                    "autoDelete": bc.get("auto_delete", False),
+                }
+            if bc.get("queue_name"):
+                ab["queue"] = {
+                    "name": bc["queue_name"],
+                    "durable": bc.get("queue_durable", True),
+                    "exclusive": bc.get("queue_exclusive", False),
+                }
+            if bc.get("vhost"):
+                ab["vhost"] = bc["vhost"]
+            if ab:
+                bindings["amqp"] = ab
+
+        elif bt == "pulsar":
+            pb: dict = {}
+            if bc.get("tenant"):
+                pb["tenant"] = bc["tenant"]
+            if bc.get("namespace"):
+                pb["namespace"] = bc["namespace"]
+            if bc.get("persistence") is not None:
+                pb["persistence"] = bc["persistence"]
+            if bc.get("deduplication") is not None:
+                pb["deduplication"] = bc["deduplication"]
+            if pb:
+                bindings["pulsar"] = pb
+
+        elif bt == "nats":
+            nb: dict = {}
+            if bc.get("queue_group"):
+                nb["queue"] = bc["queue_group"]
+            if bc.get("stream_name"):
+                nb["streamName"] = bc["stream_name"]
+            if nb:
+                bindings["nats"] = nb
+
+        elif bt == "redis_streams":
+            rb: dict = {}
+            if bc.get("max_len"):
+                rb["maxLen"] = bc["max_len"]
+            if bc.get("consumer_group"):
+                rb["groupName"] = bc["consumer_group"]
+            if rb:
+                bindings["redis"] = rb
+
+        elif bt == "google_pubsub":
+            gb: dict = {}
+            if bc.get("ordering_key"):
+                gb["orderingKey"] = bc["ordering_key"]
+            if bc.get("retention_duration"):
+                gb["messageRetentionDuration"] = bc["retention_duration"]
+            if bc.get("schema_settings"):
+                gb["schemaSettings"] = bc["schema_settings"]
+            if gb:
+                bindings["googlepubsub"] = gb
+
+        elif bt == "aws_sns_sqs":
+            sb: dict = {}
+            if bc.get("fifo") is not None:
+                sb["fifo"] = bc["fifo"]
+            if bc.get("content_based_dedup") is not None:
+                sb["contentBasedDeduplication"] = bc["content_based_dedup"]
+            if sb:
+                bindings["sns"] = sb
+
+        elif bt == "azure_servicebus":
+            asb: dict = {}
+            if bc.get("subscription_name"):
+                asb["subscriptionName"] = bc["subscription_name"]
+            if bc.get("dead_letter") is not None:
+                asb["deadLetterDestination"] = bc["dead_letter"]
+            if asb:
+                bindings["amqp"] = asb
+
+        # ── Tier 2 — Enterprise & IoT ──
+
+        elif bt == "solace":
+            sol: dict = {}
+            if bc.get("queue_name"):
+                sol["queue"] = {
+                    "name": bc["queue_name"],
+                    "accessType": bc.get("access_type", "exclusive"),
+                }
+            if bc.get("topic_subscriptions"):
+                sol["topicSubscriptions"] = bc["topic_subscriptions"]
+            if bc.get("destination_type"):
+                sol["destinationType"] = bc["destination_type"]
+            if sol:
+                bindings["solace"] = sol
+
+        elif bt == "ibmmq":
+            ib: dict = {}
+            if bc.get("queue_name"):
+                ib["queue"] = {"objectName": bc["queue_name"]}
+            if bc.get("destination_type"):
+                ib["destinationType"] = bc["destination_type"]
+            if bc.get("max_msg_length"):
+                ib["maxMsgLength"] = bc["max_msg_length"]
+            if ib:
+                bindings["ibmmq"] = ib
+
+        elif bt == "activemq_artemis":
+            jb: dict = {}
+            if bc.get("destination_type"):
+                jb["destinationType"] = bc.get("destination_type", "queue")
+            if jb:
+                bindings["jms"] = jb
+
+        elif bt in ("mqtt", "mqtt_secure"):
+            mb: dict = {}
+            if bc.get("qos") is not None:
+                mb["qos"] = bc["qos"]
+            if bc.get("retain") is not None:
+                mb["retain"] = bc["retain"]
+            if mb:
+                bindings["mqtt"] = mb
+
+        elif bt in ("websocket", "websocket_secure"):
+            wb: dict = {}
+            if bc.get("method"):
+                wb["method"] = bc["method"]
+            if bc.get("query"):
+                wb["query"] = bc["query"]
+            if bc.get("headers"):
+                wb["headers"] = bc["headers"]
+            if wb:
+                bindings["ws"] = wb
+
+        elif bt == "anypoint_mq":
+            aq: dict = {}
+            if bc.get("destination_type"):
+                aq["destinationType"] = bc.get("destination_type", "queue")
+            if aq:
+                bindings["anypointmq"] = aq
+
+        elif bt == "mercure":
+            bindings["mercure"] = {}
+
+        elif bt == "stomp":
+            st: dict = {}
+            if bc.get("destination"):
+                st["destination"] = bc["destination"]
+            if st:
+                bindings["stomp"] = st
+
+        return bindings
+
     # =========================================================================
     # Spec Builder
     # =========================================================================
@@ -419,9 +767,11 @@ class AsyncAPIService:
         subject: str,
         enrichment: dict | None,
         references: list,
+        channels: list[dict],
+        gov_score: dict | None,
         params: AsyncAPIGenerateRequest,
     ) -> dict:
-        """Construit la spec AsyncAPI 3.0 avec Kafka bindings."""
+        """Construit la spec AsyncAPI 3.0 — protocol-aware, channel+governance enriched."""
 
         # --- Extract info from enrichment ---
         description = (
@@ -437,17 +787,18 @@ class AsyncAPIService:
         )
 
         # --- Derive names ---
-        channel_name = self._subject_to_channel(subject)
         message_name = self._subject_to_message_name(subject)
         schema_name = self._subject_to_schema_name(subject)
-        topic_name = params.topic_name or self._subject_to_topic(subject)
+
+        # --- Registry name for server descriptions ---
+        registry_name = self.registry_url.split("//")[-1].split(".")[0] if self.registry_url else "event7"
 
         # --- Convert value schema ---
         message_payload = self._convert_schema(schema)
         message_payload["x-confluent-schema-id"] = schema.schema_id
 
         # --- Build message object ---
-        message_obj = {
+        message_obj: dict = {
             "name": message_name,
             "title": title,
             "summary": description,
@@ -457,14 +808,21 @@ class AsyncAPIService:
             },
         }
 
-        # --- Kafka message bindings (Confluent Magic Byte) ---
-        if params.include_confluent_bindings:
+        # --- Determine dominant broker for message bindings ---
+        dominant_broker = "kafka"
+        if channels:
+            broker_counts: dict[str, int] = {}
+            for ch in channels:
+                bt = ch.get("broker_type", "kafka")
+                broker_counts[bt] = broker_counts.get(bt, 0) + 1
+            dominant_broker = max(broker_counts, key=broker_counts.get)
+
+        # --- Message bindings (Kafka Confluent Magic Byte — only for kafka/redpanda) ---
+        if params.include_confluent_bindings and dominant_broker in ("kafka", "redpanda"):
             kafka_msg_binding: dict = {
                 "schemaIdLocation": "payload",
                 "schemaIdPayloadEncoding": "confluent",
             }
-
-            # Key schema handling
             if key_schema:
                 key_schema_name = f"{message_name}Key"
                 kafka_msg_binding["key"] = {
@@ -472,92 +830,114 @@ class AsyncAPIService:
                 }
             else:
                 kafka_msg_binding["key"] = {"type": "string"}
-
             message_obj["bindings"] = {"kafka": kafka_msg_binding}
 
-        # --- Channel bindings (topic metadata) ---
-        channel_bindings: dict = {
-            "kafka": {
-                "topic": topic_name,
-            }
+        # --- Build info block ---
+        info: dict = {
+            "title": title,
+            "version": f"{schema.version}.0.0",
+            "description": description,
+            "contact": {"name": owner},
+            **({"tags": [{"name": str(tag)} for tag in tags if tag]} if tags else {}),
+            "x-classification": classification,
+            "x-schema-registry": {
+                "subject": subject,
+                "format": schema.format.value,
+                "schema_id": schema.schema_id,
+                "version": schema.version,
+            },
         }
-        if params.partitions is not None:
-            channel_bindings["kafka"]["partitions"] = params.partitions
-        if params.replication_factor is not None:
-            channel_bindings["kafka"]["replicas"] = params.replication_factor
 
-        # --- Assemble spec ---
-        spec: dict = {
-            "asyncapi": "3.0.0",
-            "info": {
-                "title": title,
-                "version": f"{schema.version}.0.0",
-                "description": description,
-                "contact": {
-                    "name": owner,
-                },
-                **({"tags": [{"name": str(tag)} for tag in tags if tag]} if tags else {}),
-                "x-classification": classification,
-                "x-schema-registry": {
-                    "subject": subject,
-                    "format": schema.format.value,
-                    "schema_id": schema.schema_id,
-                    "version": schema.version,
-                },
-            },
-            "servers": {
-                "production": {
-                    "host": params.server_url or self.registry_url or "kafka:9092",
-                    "protocol": "kafka",
-                    "description": "Kafka broker",
-                }
-            },
-            "channels": {
-                channel_name: {
-                    "address": topic_name,
-                    "description": description,
+        # Governance metadata (only if rules exist)
+        if gov_score:
+            info["x-governance"] = gov_score
+
+        # --- Build servers (protocol-aware from channels) ---
+        servers = self._build_servers(channels, params, registry_name)
+
+        # --- Build channels section ---
+        channels_spec: dict = {}
+        operations_spec: dict = {}
+
+        if channels:
+            # Channel-aware: one channel block per bound channel
+            for ch in channels:
+                ch_name = ch.get("name", "").lower().replace(" ", "-") or ch.get("address", "channel")
+                ch_address = ch.get("address", "")
+                ch_bindings = self._build_channel_bindings_from_channel(ch)
+
+                channels_spec[ch_name] = {
+                    "address": ch_address,
+                    "description": ch.get("description") or description,
                     "messages": {
                         message_name: {
                             "$ref": f"#/components/messages/{message_name}"
                         }
                     },
-                    "bindings": channel_bindings,
                 }
-            },
-            "operations": {
-                f"publish_{channel_name}": {
+                if ch_bindings:
+                    channels_spec[ch_name]["bindings"] = ch_bindings
+
+                # Operations
+                operations_spec[f"publish_{ch_name}"] = {
                     "action": "send",
-                    "channel": {"$ref": f"#/channels/{channel_name}"},
+                    "channel": {"$ref": f"#/channels/{ch_name}"},
                     "summary": f"Publish {title} events",
-                    "messages": [
-                        {
-                            "$ref": f"#/channels/{channel_name}/messages/{message_name}"
-                        }
-                    ],
-                },
-                f"subscribe_{channel_name}": {
+                    "messages": [{"$ref": f"#/channels/{ch_name}/messages/{message_name}"}],
+                }
+                operations_spec[f"subscribe_{ch_name}"] = {
                     "action": "receive",
-                    "channel": {"$ref": f"#/channels/{channel_name}"},
+                    "channel": {"$ref": f"#/channels/{ch_name}"},
                     "summary": f"Consume {title} events",
-                    "messages": [
-                        {
-                            "$ref": f"#/channels/{channel_name}/messages/{message_name}"
-                        }
-                    ],
-                },
-            },
-            "components": {
+                    "messages": [{"$ref": f"#/channels/{ch_name}/messages/{message_name}"}],
+                }
+        else:
+            # Fallback: v1 behavior (params-based Kafka)
+            channel_name = self._subject_to_channel(subject)
+            topic_name = params.topic_name or self._subject_to_topic(subject)
+
+            fallback_bindings: dict = {"kafka": {"topic": topic_name}}
+            if params.partitions is not None:
+                fallback_bindings["kafka"]["partitions"] = params.partitions
+            if params.replication_factor is not None:
+                fallback_bindings["kafka"]["replicas"] = params.replication_factor
+
+            channels_spec[channel_name] = {
+                "address": topic_name,
+                "description": description,
                 "messages": {
-                    message_name: message_obj,
+                    message_name: {"$ref": f"#/components/messages/{message_name}"}
                 },
-                "schemas": {
-                    schema_name: message_payload,
-                },
+                "bindings": fallback_bindings,
+            }
+            operations_spec[f"publish_{channel_name}"] = {
+                "action": "send",
+                "channel": {"$ref": f"#/channels/{channel_name}"},
+                "summary": f"Publish {title} events",
+                "messages": [{"$ref": f"#/channels/{channel_name}/messages/{message_name}"}],
+            }
+            operations_spec[f"subscribe_{channel_name}"] = {
+                "action": "receive",
+                "channel": {"$ref": f"#/channels/{channel_name}"},
+                "summary": f"Consume {title} events",
+                "messages": [{"$ref": f"#/channels/{channel_name}/messages/{message_name}"}],
+            }
+
+        # --- Assemble spec ---
+        spec: dict = {
+            "asyncapi": "3.0.0",
+            "info": info,
+            "servers": servers,
+            "channels": channels_spec,
+            "operations": operations_spec,
+            "components": {
+                "messages": {message_name: message_obj},
+                "schemas": {schema_name: message_payload},
             },
         }
 
         # --- Add key schema to components ---
-        if key_schema and params.include_confluent_bindings:
+        if key_schema and params.include_confluent_bindings and dominant_broker in ("kafka", "redpanda"):
             key_schema_name = f"{message_name}Key"
             key_payload = self._convert_schema(key_schema)
             key_payload["x-confluent-schema-id"] = key_schema.schema_id
@@ -568,11 +948,7 @@ class AsyncAPIService:
             spec["components"]["schemas"]["_references"] = {
                 "description": "Referenced schemas",
                 "x-references": [
-                    {
-                        "name": ref.name,
-                        "subject": ref.subject,
-                        "version": ref.version,
-                    }
+                    {"name": ref.name, "subject": ref.subject, "version": ref.version}
                     for ref in references
                 ],
             }
@@ -586,7 +962,7 @@ class AsyncAPIService:
                 ]
 
         return spec
-
+        
     # =========================================================================
     # Schema Conversion (Avro → JSON Schema, JSON Schema passthrough)
     # =========================================================================

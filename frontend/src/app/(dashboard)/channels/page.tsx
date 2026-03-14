@@ -1,5 +1,6 @@
 // src/app/(dashboard)/channels/page.tsx
 // Phase D — Channels page: list, filters, create, detail drawer
+// v2: Tier 1-3 broker types (22 total), imports from types/channel.ts
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -25,37 +26,13 @@ import { DataLayerBadge } from "@/components/catalog/data-layer-badge";
 import { toast } from "sonner";
 import type {
   ChannelSummary, ChannelCreate, BrokerType, ResourceKind,
-  MessagingPattern, BROKER_ICONS, BROKER_LABELS, PATTERN_LABELS,
+  MessagingPattern,
+} from "@/types/channel";
+import {
+  BROKER_ICONS, BROKER_LABELS, PATTERN_LABELS,
+  DEFAULT_RESOURCE, DEFAULT_PATTERN,
 } from "@/types/channel";
 import type { DataLayer } from "@/types/governance";
-
-// Re-import display helpers as values (not types)
-const BROKER_ICONS_MAP: Record<string, string> = {
-  kafka: "🔶", redpanda: "🐼", rabbitmq: "🐰", pulsar: "⚡", nats: "🔷",
-  google_pubsub: "☁️", aws_sns_sqs: "📦", azure_servicebus: "🔵",
-  redis_streams: "🔴", custom: "⚙️",
-};
-const BROKER_LABELS_MAP: Record<string, string> = {
-  kafka: "Kafka", redpanda: "Redpanda", rabbitmq: "RabbitMQ", pulsar: "Pulsar",
-  nats: "NATS", google_pubsub: "Google Pub/Sub", aws_sns_sqs: "AWS SNS/SQS",
-  azure_servicebus: "Azure Service Bus", redis_streams: "Redis Streams", custom: "Custom",
-};
-const PATTERN_LABELS_MAP: Record<string, string> = {
-  topic_log: "Topic Log", pubsub: "Pub/Sub", queue: "Queue",
-};
-
-// Default resource_kind per broker
-const DEFAULT_RESOURCE: Record<string, ResourceKind> = {
-  kafka: "topic", redpanda: "topic", rabbitmq: "exchange", pulsar: "topic",
-  nats: "subject", google_pubsub: "topic", aws_sns_sqs: "queue",
-  azure_servicebus: "queue", redis_streams: "stream", custom: "topic",
-};
-// Default pattern per broker
-const DEFAULT_PATTERN: Record<string, MessagingPattern> = {
-  kafka: "topic_log", redpanda: "topic_log", rabbitmq: "queue", pulsar: "topic_log",
-  nats: "pubsub", google_pubsub: "pubsub", aws_sns_sqs: "queue",
-  azure_servicebus: "queue", redis_streams: "topic_log", custom: "topic_log",
-};
 
 const HEALTH_DOT: Record<string, string> = {
   healthy: "bg-emerald-400",
@@ -205,7 +182,7 @@ export default function ChannelsPage() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1">
                 <Radio size={11} />
-                {brokerFilter === "all" ? "All brokers" : BROKER_LABELS_MAP[brokerFilter]}
+                {brokerFilter === "all" ? "All brokers" : BROKER_LABELS[brokerFilter]}
                 <ChevronDown size={10} />
               </Button>
             </DropdownMenuTrigger>
@@ -213,7 +190,7 @@ export default function ChannelsPage() {
               <DropdownMenuItem onClick={() => setBrokerFilter("all")} className="text-xs">All brokers</DropdownMenuItem>
               {brokerTypes.map((b) => (
                 <DropdownMenuItem key={b} onClick={() => setBrokerFilter(b)} className="text-xs">
-                  {BROKER_ICONS_MAP[b]} {BROKER_LABELS_MAP[b]}
+                  {BROKER_ICONS[b]} {BROKER_LABELS[b]}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -275,13 +252,13 @@ export default function ChannelsPage() {
 
                 {/* Broker */}
                 <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <span>{BROKER_ICONS_MAP[ch.broker_type]}</span>
-                  <span className="truncate">{BROKER_LABELS_MAP[ch.broker_type]}</span>
+                  <span>{BROKER_ICONS[ch.broker_type]}</span>
+                  <span className="truncate">{BROKER_LABELS[ch.broker_type]}</span>
                 </div>
 
                 {/* Pattern */}
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 w-fit">
-                  {PATTERN_LABELS_MAP[ch.messaging_pattern]}
+                  {PATTERN_LABELS[ch.messaging_pattern]}
                 </Badge>
 
                 {/* Layer */}
@@ -420,7 +397,7 @@ function CreateChannelDialog({
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Broker Type</label>
             <div className="flex flex-wrap gap-1.5">
-              {(Object.keys(BROKER_LABELS_MAP) as BrokerType[]).map((b) => (
+              {(Object.keys(BROKER_LABELS) as BrokerType[]).map((b) => (
                 <button
                   key={b}
                   onClick={() => setBrokerType(b)}
@@ -431,7 +408,7 @@ function CreateChannelDialog({
                       : "bg-muted/30 text-muted-foreground border-transparent hover:border-border"
                   )}
                 >
-                  {BROKER_ICONS_MAP[b]} {BROKER_LABELS_MAP[b]}
+                  {BROKER_ICONS[b]} {BROKER_LABELS[b]}
                 </button>
               ))}
             </div>
