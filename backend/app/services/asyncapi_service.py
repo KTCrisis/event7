@@ -86,9 +86,9 @@ DEFAULT_HOST: dict[str, str] = {
     "amazon_eventbridge": "events.us-east-1.amazonaws.com:443",
     "custom": "localhost:9092",
 }
-    # =========================================================================
-    # Hash helpers
-    # =========================================================================
+# =========================================================================
+# Hash helpers
+# =========================================================================
 def _compute_schema_hash(schema_content: dict | str) -> str:
     """Compute a stable SHA-256 hash of schema content."""
     if isinstance(schema_content, dict):
@@ -505,7 +505,7 @@ class AsyncAPIService:
             logger.debug(f"No key schema found for {key_subject} (expected for most topics)")
             return None
 
-python    # =========================================================================
+# =========================================================================
     # Server & Channel Bindings Builders (v2 — protocol-aware)
     # =========================================================================
 
