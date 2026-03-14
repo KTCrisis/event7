@@ -13,6 +13,7 @@
   <img src="https://img.shields.io/badge/Confluent-000000.svg?logo=confluent&logoColor=white" alt="Confluent" />
   <img src="https://img.shields.io/badge/Apicurio-E6392A.svg" alt="Apicurio" />
   <img src="https://img.shields.io/badge/AsyncAPI-3.0-4F46E5.svg" alt="AsyncAPI" />
+  <img src="https://img.shields.io/badge/EventCatalog-Plugin-6366F1.svg" alt="EventCatalog" />
   <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-Welcome-brightgreen.svg" alt="PRs Welcome" /></a>
 </p>
 
@@ -47,14 +48,19 @@ event7 gives developers confidence to evolve schemas, and gives platform teams a
 - **Govern schemas across registries** — Confluent, Apicurio, Karapace, Redpanda, Red Hat — same rules, same scoring
 - **Map schemas to channels across brokers** — Kafka, RabbitMQ, Pulsar, NATS, Redis Streams, cloud brokers
 - **Validate before publishing** — SR compatibility + governance rules + diff preview in one report
-- **Import/generate AsyncAPI specs** — bidirectional: spec → event7, or event7 → spec
+- **Import/generate AsyncAPI specs** — bidirectional: spec → event7, or event7 → spec, with drift detection
+- **Track AsyncAPI coverage** — dual-mode overview with per-subject status, KPIs, and schema drift detection
+- **Export governance to EventCatalog** — scores, rules, channels, teams — the first governance-aware generator
 - **No vendor lock-in** — enrichments, rules, and channels live in event7, not in your registry
 
 ### How event7 fits
 
 ```
-Schema Registry  ↔  event7                ↔  AsyncAPI            →  EventCatalog / Backstage
+Schema Registry  ↔  event7                ↔  AsyncAPI            →  EventCatalog
   (stores)          (governs + validates)      (specifies)            (documents)
+                         │
+                         └── generator-event7 ──→ EventCatalog
+                             (scores, rules, channels, teams)
 ```
 
 event7 is not a registry, not a documentation portal, not a Kafka ops tool. It's the governance and validation layer that sits between your infrastructure and your documentation.
@@ -77,13 +83,14 @@ event7 is not a registry, not a documentation portal, not a Kafka ops tool. It's
 
 | Feature | Description |
 |---------|-------------|
-| **Event Catalog** | Business view with broker badges, data layers, ownership, classification, AsyncAPI drawer |
+| **Schema Catalog** | Business view with broker badges, data layers, ownership, classification, AsyncAPI status column, CatalogSheet (Schema + AsyncAPI tabs) |
 | **Enrichments** | Tags, ownership, descriptions, data layers, classification — stored in event7, not your registry |
 | **Governance Rules** | Conditions, transforms, validations, policies — 4 built-in templates (RAW/CORE/REFINED/APP) |
 | **Governance Scoring** | Three-axis scoring (enrichments + rules + schema quality) with confidence indicator |
 | **Channel Model** | Map schemas to Kafka topics, RabbitMQ exchanges, Redis streams, Pulsar, NATS, cloud brokers |
+| **AsyncAPI Dual Mode** | Per-subject status (origin × status × sync), overview with KPIs, two-tier drift detection (version + hash) |
 | **AsyncAPI Import** | Import a spec → creates channels, bindings, enrichments, and registers schemas in one click |
-| **AsyncAPI Generation** | Generate 3.0 specs with Kafka bindings, key schema, Avro conversion, examples |
+| **AsyncAPI Generation** | Generate 3.0 specs with Kafka bindings, key schema, Avro conversion, examples. Stores hash for drift. |
 | **Smart Registration** | Routes schemas to the right registry — Apicurio accepts all, Confluent-like only Kafka schemas |
 
 ### Tools
@@ -92,6 +99,7 @@ event7 is not a registry, not a documentation portal, not a Kafka ops tool. It's
 |---------|-------------|
 | **Multi-Provider** | Confluent Cloud, Confluent Platform, Apicurio v3, Karapace, Redpanda — same UI |
 | **AI Agent (BYOM)** | Natural-language governance commands with 6 context fetchers + 3 write actions |
+| **EventCatalog Generator** | Export governance data to EventCatalog — scores, rules, channels, teams, AsyncAPI specs. First governance-aware generator. |
 
 The core platform is open-source under **Apache 2.0**. Commercial tiers add managed deployment, provider sync, and enterprise controls. See the [licensing page](https://event7.pages.dev/docs/licensing) for details.
 
@@ -184,6 +192,7 @@ With an empty registry and a connected Apicurio, you can import an AsyncAPI spec
 2. Paste or upload an AsyncAPI 3.0 YAML/JSON spec
 3. Click **Preview** — event7 shows what will be created (channels, bindings, enrichments, schemas)
 4. Click **Apply** — channels, bindings, enrichments are created in event7, and schemas are registered in Apicurio via Smart Registration
+5. Check the **AsyncAPI Overview** tab — you'll see per-subject coverage status and KPIs
 
 This is the fastest way to go from zero to a fully governed set of events.
 
@@ -236,10 +245,11 @@ python scripts/seed_event7.py --skip-rules           # enrichments + channels on
 | **Schema Explorer** | 10 subjects, multiple versions, Avro + JSON Schema formats |
 | **Visual Diff** | Pick `com.event7.User` → diff v1 vs v2 → see `role` field added (non-breaking) |
 | **References Graph** | Interactive d3-force graph — `Order` → `Customer` → `Address` chain, orphan detection |
-| **Event Catalog** | Business view with broker badges (Kafka/RabbitMQ/Redis), data layers, ownership, classification |
+| **Event Catalog** | Business view with broker badges (Kafka/RabbitMQ/Redis), data layers, ownership, AsyncAPI status column |
 | **Channels** | 7 channels across 3 broker types, with bindings and data layers |
 | **Rules** | 7 governance rules — some global, some per-subject, with severity levels |
 | **Validate** | Paste a modified User schema → get PASS/WARN/FAIL verdict with compatibility + governance + diff |
+| **AsyncAPI** | Overview tab with per-subject status — generate specs to see drift detection in action |
 
 ---
 
@@ -265,26 +275,28 @@ You'll need PostgreSQL 15+ and Redis 7+ running separately, plus an Apicurio or 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│  Frontend                                                    │
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Frontend                                                               │
 │  Explorer · Catalog · Channels · Diff · Validate · Graph · Rules · AI   │
-└───────────────────────────┬──────────────────────────────────┘
+└─────────────────────────────────────────────────────────────────────────┘
                             │ REST API
 ┌───────────────────────────┴───────────────────────────────────┐
 │  Backend  (FastAPI)                                           │
 │  Services → Providers → Cache (Redis)                         │
-│            → Database (Supabase / PostgreSQL)                 │
+│            → Database (PostgreSQL)                            │
 │            → Channels · Rules · Enrichments · AsyncAPI Specs  │
-└──────┬──────────────┬─────────────────────────────────────────┘
-       │              │
-┌──────┴─────┐ ┌──────┴──────┐
-│ Confluent  │ │  Apicurio   │  ← your registries (schemas live here)
-│ SR  / CP   │ │  Registry   │
-└────────────┘ └─────────────┘
+│            → Export endpoint (aggregated for EventCatalog)    │
+└──────┬──────────────┬──────────────────┬──────────────────────┘
+       │              │                  │
+┌──────┴─────┐ ┌──────┴──────┐ ┌────────┴────────┐
+│ Confluent  │ │  Apicurio   │ │  EventCatalog   │
+│ SR  / CP   │ │  Registry   │ │  (via generator)│
+└────────────┘ └─────────────┘ └─────────────────┘
 
   event7 = governance layer
   schemas → registry (external)
   channels + rules + enrichments → event7 DB
+  governance data → EventCatalog (via generator-event7)
 ```
 
 **Two adapter patterns:**
@@ -293,6 +305,46 @@ You'll need PostgreSQL 15+ and Redis 7+ running separately, plus an Apicurio or 
 2. **DatabaseProvider** — Supabase for SaaS, PostgreSQL for self-hosted.
 
 Enrichments, channels, rules, and AsyncAPI specs are stored in event7's own database — never pushed to the registry. This keeps governance provider-agnostic.
+
+---
+
+## EventCatalog Integration
+
+event7 includes `generator-event7` — an EventCatalog generator plugin that exports governance data to [EventCatalog](https://www.eventcatalog.dev/). It's the **first governance-aware generator** for EventCatalog.
+
+```
+event7 backend                               EventCatalog
+     │                                            │
+     │  GET /export/eventcatalog                  │
+     │  (schemas + scores + rules +               │
+     │   channels + teams + asyncapi)             │
+     └───────────────────────────────►  npm run generate
+                                        → events with governance badges
+                                        → channels with bindings
+                                        → domains (prefix/tag matching)
+                                        → teams (from owner_team)
+```
+
+### Quick setup
+
+```js
+// eventcatalog.config.js
+export default {
+  generators: [
+    ['@event7/generator-eventcatalog', {
+      event7Url: process.env.EVENT7_URL || 'http://localhost:8000',
+      event7Token: process.env.EVENT7_TOKEN,
+      registryId: process.env.EVENT7_REGISTRY_ID,
+      domains: [
+        { id: 'payments', name: 'Payments', match: { prefix: 'com.acme.payments' } },
+        { id: 'orders', name: 'Orders', match: { tag: 'domain:orders' } },
+      ],
+    }]
+  ]
+};
+```
+
+See `generator-eventcatalog/README.md` for full configuration options.
 
 ---
 
@@ -315,10 +367,10 @@ Enrichments, channels, rules, and AsyncAPI specs are stored in event7's own data
 event7/
 ├── backend/
 │   ├── app/
-│   │   ├── api/            # FastAPI routers (registries, schemas, governance, channels, asyncapi, rules, ai)
+│   │   ├── api/            # FastAPI routers (registries, schemas, governance, channels, asyncapi, rules, ai, export)
 │   │   ├── services/       # Business logic, diff, AsyncAPI generation + import, channel service, rules
 │   │   ├── providers/      # Registry adapters (Confluent, Apicurio)
-│   │   ├── models/         # Pydantic v2 data contracts
+│   │   ├── models/         # Pydantic v2 data contracts (incl. export models, asyncapi_overview)
 │   │   ├── db/             # Database abstraction (Supabase + PostgreSQL)
 │   │   ├── cache/          # Redis with TTL and hierarchical keys
 │   │   └── utils/          # AES-256 encryption, helpers
@@ -327,12 +379,16 @@ event7/
 │   └── scripts/            # Seed data (seed_apicurio.py, seed_event7.py)
 ├── frontend/
 │   ├── src/app/            # App Router — dashboard, docs, auth
-│   │   └── docs/           # Public documentation (intro, features, channels, rules, API ref, licensing)
+│   │   └── docs/           # Public documentation (intro, features, catalog, asyncapi, channels, rules, API ref, licensing)
 │   ├── src/components/     # UI components (shadcn/ui, Recharts, d3-force)
 │   ├── src/lib/            # API clients, Supabase helpers
 │   └── src/providers/      # React context (registry, auth)
+├── generator-eventcatalog/ # EventCatalog generator plugin (TypeScript, CJS via tsup)
+│   ├── src/                # index.ts, mappers (events, channels, domains, teams), templates
+│   ├── tests/              # vitest unit tests
+│   ├── package.json        # @event7/generator-eventcatalog
+│   └── README.md           # Plugin documentation
 ├── docker-compose.local.yml  # Full stack (PG + Redis + Apicurio + backend + frontend)
-└── docker-compose.yml      # Dev (Redis only)
 ```
 
 ---
@@ -357,6 +413,7 @@ No changes to services, routes, or frontend. The Apicurio provider was added exa
 | Cache | Redis 7 with TTL and hierarchical keys |
 | Security | AES-256 Fernet encryption, JWT auth, RLS policies |
 | Deploy | Cloudflare Pages, Railway, Docker multi-stage, Kubernetes-ready |
+| Generator | TypeScript, tsup (CJS), vitest, @eventcatalog/sdk |
 
 ---
 
@@ -366,23 +423,27 @@ No changes to services, routes, or frontend. The Apicurio provider was added exa
 |---------|--------|
 | Confluent + Apicurio providers | ✅ Done |
 | Schema Explorer, Visual Diff, References Graph | ✅ Done |
+| Schema Validator (SR compat + governance rules + diff) | ✅ Done |
 | Event Catalog with enrichments | ✅ Done |
+| Catalog v3 (AsyncAPI column, CatalogSheet, broker badges) | ✅ Done |
 | AsyncAPI 3.0 generation (Kafka bindings, key schema) | ✅ Done |
+| AsyncAPI Import (preview + apply, multi-broker) | ✅ Done |
+| AsyncAPI Dual Mode (overview, KPIs, drift detection) | ✅ Done |
+| Smart schema registration (provider-type routing) | ✅ Done |
 | Dashboard KPIs (Recharts) | ✅ Done |
 | AI Agent (6 context commands + 3 actions) | ✅ Done |
 | Governance Rules engine (CRUD, templates, scoring) | ✅ Done |
 | Channel Model (9 broker types, N:N bindings, data layers) | ✅ Done |
-| AsyncAPI Import (preview + apply, multi-broker) | ✅ Done |
-| Smart schema registration (provider-type routing) | ✅ Done |
-| Catalog enriched (broker badges, updated, AsyncAPI drawer) | ✅ Done |
+| EventCatalog Generator V1 (governance-aware export) | ✅ Done |
+| EventCatalog Export endpoint (aggregated API) | ✅ Done |
 | Dual-mode deployment (SaaS + self-hosted) | ✅ Done |
 | Public documentation (/docs) | ✅ Done |
-| Schema Validator (SR compat + governance rules + diff) | ✅ Done |
 | RLS multi-tenant security | 🔜 Next |
 | Hosted registry provisioning (Apicurio-backed) | 🔜 Next |
 | AuthProvider OIDC | 🔜 Next |
 | Protobuf support | 🔜 Next |
 | Cross-registry aggregated view | 🔜 Next |
+| EventCatalog Enricher Mode V2 | 🔜 Next |
 | Provider Rule Sync (Confluent + Apicurio) | 🔜 Planned |
 | AsyncAPI Export Mode 3 (real channels → spec) | 🔜 Planned |
 | CloudEvents support | 🔜 Planned |
@@ -417,6 +478,7 @@ event7 stands on the shoulders of great open-source projects:
 - **[Confluent](https://www.confluent.io/)** — for defining schema registry as a category, and for the Schema Registry API that became an industry standard
 - **[Apicurio](https://www.apicur.io/)** — for building an excellent open-source registry (Apache 2.0) that made multi-provider governance possible
 - **[AsyncAPI](https://www.asyncapi.com/)** — for bringing a specification standard to the event-driven world
+- **[EventCatalog](https://www.eventcatalog.dev/)** — for creating the documentation layer that complements governance
 
 ---
 
