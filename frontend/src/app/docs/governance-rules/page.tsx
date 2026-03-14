@@ -337,7 +337,7 @@ export default function GovernanceRulesPage() {
               {[
                 { feature: "Rules & Policies CRUD", status: "available" },
                 { feature: "Templates (RAW/CORE/REFINED/APP)", status: "available" },
-                { feature: "Custom templates", status: "planned" },
+                { feature: "Custom templates", status: "available" },
                 { feature: "Governance Score (3-axis + confidence)", status: "available" },
                 { feature: "Dashboard & Catalog integration", status: "available" },
                 { feature: "Provider sync — import from Confluent", status: "planned" },
