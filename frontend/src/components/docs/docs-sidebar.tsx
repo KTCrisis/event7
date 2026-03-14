@@ -1,6 +1,6 @@
 // src/components/docs/docs-sidebar.tsx
 // Sidebar navigation for the /docs layout.
-// v2: Added Catalog + AsyncAPI to Concepts section.
+// v3: Added Concepts + Catalog + AsyncAPI.
 // Placement: frontend/src/components/docs/docs-sidebar.tsx
 
 "use client";
@@ -21,6 +21,7 @@ import {
   Network,
   BookOpen,
   FileJson,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ const sections = [
     label: "Overview",
     items: [
       { name: "Introduction", href: "/docs", icon: Sparkles },
+      { name: "Core Concepts", href: "/docs/concepts", icon: Layers },
       { name: "Features", href: "/docs/features", icon: Blocks },
     ],
   },

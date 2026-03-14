@@ -1,93 +1,33 @@
+// src/app/docs/page.tsx
+// Documentation — Introduction page
+// v3: Redesigned with pipeline visual, persona cards, stat counters, simplified flows.
+// Placement: frontend/src/app/docs/page.tsx
+
 import Link from "next/link";
 import {
   ArrowRight,
   Shield,
   Layers,
-  GitCompare,
   Search,
-  Workflow,
   Bot,
   Network,
   FileCode,
-  Library,
-  BarChart3,
   Scale,
   Upload,
   ShieldCheck,
+  BarChart3,
+  BookOpen,
+  Mail,
+  Code2,
+  GitCompare,
+  Tags,
+  Eye,
 } from "lucide-react";
-
-const highlights = [
-  {
-    icon: Search,
-    title: "Schema Explorer",
-    desc: "Browse subjects, versions, and fields across all your registries in one place.",
-  },
-  {
-    icon: GitCompare,
-    title: "Visual Diff",
-    desc: "Side-by-side field-level diff between any two versions — with breaking change detection.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Schema Validator",
-    desc: "Validate before publishing: SR compatibility + governance rules + diff preview in one report. PASS / WARN / FAIL.",
-  },
-  {
-    icon: Library,
-    title: "Event Catalog",
-    desc: "Business view of your schemas — ownership, tags, classification, data layers, and broker bindings.",
-  },
-  {
-    icon: Network,
-    title: "Channel Model",
-    desc: "Map schemas to messaging channels across Kafka, RabbitMQ, Pulsar, NATS, Redis Streams, and cloud brokers.",
-  },
-  {
-    icon: FileCode,
-    title: "AsyncAPI Bi-directional",
-    desc: "Generate specs from schemas, or import specs to create channels, bindings, and enrichments in one click.",
-  },
-  {
-    icon: Scale,
-    title: "Governance Rules",
-    desc: "Define data rules — naming policies, field requirements, compliance checks — enforced across all schemas.",
-  },
-  {
-    icon: Workflow,
-    title: "References Graph",
-    desc: "Interactive dependency graph between schemas — spot orphans, hotspots, and high-impact schemas.",
-  },
-  {
-    icon: Shield,
-    title: "Governance Overlay",
-    desc: "Tags, ownership, classification, and descriptions stored in event7 — independent of your registry provider.",
-  },
-  {
-    icon: Layers,
-    title: "Multi-Provider",
-    desc: "Connect Confluent Cloud, Confluent Platform, Apicurio, Karapace, or Redpanda — same UI, same governance.",
-  },
-  {
-    icon: BarChart3,
-    title: "Dashboard & KPIs",
-    desc: "Schema health, enrichment coverage, governance score, compatibility distribution — all at a glance.",
-  },
-  {
-    icon: Upload,
-    title: "Smart Registration",
-    desc: "Import AsyncAPI specs and event7 routes schemas to the right registry — Kafka to Confluent, everything else to Apicurio.",
-  },
-  {
-    icon: Bot,
-    title: "AI Agent",
-    desc: "Natural-language commands to audit drift, coverage gaps, and automate governance tasks.",
-  },
-];
 
 export default function DocsIntroPage() {
   return (
     <article>
-      {/* Hero */}
+      {/* ── Hero ── */}
       <div className="mb-12">
         <div className="flex items-center gap-2 mb-4">
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-teal-500/10 text-teal-400 border border-teal-500/20">
@@ -112,13 +52,8 @@ export default function DocsIntroPage() {
         <p className="text-base text-slate-500 leading-relaxed max-w-2xl mb-8">
           Schema registries store schemas. They don&apos;t govern them. event7
           adds a provider-agnostic governance layer above your registries.
-          Schemas stay in your registry (Confluent, Apicurio, Karapace,
-          Redpanda). Everything else — enrichments, channels, rules, validation,
-          AsyncAPI specs — lives in event7.{" "}
-          <span className="text-slate-400 font-medium">
-            event7 is not a registry. It&apos;s the governance layer your
-            registries are missing.
-          </span>
+          Schemas stay in your registry. Everything else — enrichments,
+          channels, rules, validation, AsyncAPI specs — lives in event7.
         </p>
 
         <div className="flex flex-wrap gap-3">
@@ -138,176 +73,357 @@ export default function DocsIntroPage() {
         </div>
       </div>
 
-      {/* Divider */}
-      <div className="h-px bg-gradient-to-r from-transparent via-slate-800 to-transparent mb-12" />
-
-      {/* Two missions */}
+      {/* ── Pipeline visual ── */}
       <section className="mb-14">
         <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
-          Two missions, one platform
+          How event7 fits
+        </h2>
+        <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-6 overflow-x-auto">
+          <div className="flex items-center gap-3 min-w-[600px]">
+            <PipelineNode
+              icon={Layers}
+              label="Schema Registry"
+              sub="Confluent · Apicurio · Karapace · Redpanda"
+              color="slate"
+            />
+            <PipelineArrow label="reads" />
+            <PipelineNode
+              icon={Shield}
+              label="event7"
+              sub="Explore · Validate · Govern"
+              color="teal"
+              highlight
+            />
+            <PipelineArrow label="generates / imports" />
+            <PipelineNode
+              icon={FileCode}
+              label="AsyncAPI"
+              sub="Specs · Channels · Bindings"
+              color="cyan"
+            />
+            <PipelineArrow label="exports" />
+            <PipelineNode
+              icon={BookOpen}
+              label="EventCatalog"
+              sub="Docs · Domains · Teams"
+              color="violet"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-slate-600 mt-3 text-center">
+          event7 is not a registry. It&apos;s the governance layer your registries are missing.
+        </p>
+      </section>
+
+      {/* ── Stat counters ── */}
+      <section className="mb-14">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <StatCounter value="17" label="features" />
+          <StatCounter value="9" label="broker types" />
+          <StatCounter value="5" label="SR providers" />
+          <StatCounter value="4" label="governance templates" />
+          <StatCounter value="100%" label="open-source core" />
+        </div>
+      </section>
+
+      {/* ── Three personas ── */}
+      <section className="mb-14">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
+          Built for three roles
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <PersonaCard
+            color="cyan"
+            title="Developers"
+            subtitle="Version schemas with confidence"
+            items={[
+              { icon: Search, text: "Browse subjects, versions, and field structure" },
+              { icon: GitCompare, text: "Visual diff with breaking change detection" },
+              { icon: ShieldCheck, text: "Validate before publishing — PASS / WARN / FAIL" },
+              { icon: Code2, text: "Generate AsyncAPI specs from schemas" },
+            ]}
+          />
+          <PersonaCard
+            color="teal"
+            title="Platform Teams"
+            subtitle="Govern events across brokers"
+            items={[
+              { icon: Network, text: "Map schemas to Kafka, RabbitMQ, Redis, Pulsar, NATS" },
+              { icon: Upload, text: "Import AsyncAPI specs — channels + bindings in one click" },
+              { icon: Eye, text: "Track AsyncAPI coverage and schema drift" },
+              { icon: Tags, text: "Enrich with tags, ownership, classification, data layers" },
+            ]}
+          />
+          <PersonaCard
+            color="amber"
+            title="Organizations"
+            subtitle="Score and enforce compliance"
+            items={[
+              { icon: Shield, text: "Define rules and policies — 4 built-in templates" },
+              { icon: BarChart3, text: "Three-axis governance scoring (A–F)" },
+              { icon: Scale, text: "Provider-agnostic — no vendor lock-in" },
+              { icon: BookOpen, text: "Export to EventCatalog for documentation" },
+            ]}
+          />
+        </div>
+      </section>
+
+      {/* ── Three flows ── */}
+      <section className="mb-14">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
+          Three workflows
+        </h2>
+        <div className="space-y-4">
+          <FlowCard
+            number="1"
+            color="cyan"
+            title="Connect & Explore"
+            description="Connect your registry (Confluent, Apicurio, or compatible). event7 discovers all subjects automatically. Browse schemas, view versions, inspect references, compare diffs."
+            steps={["Connect registry", "Browse subjects", "Compare versions", "Inspect references"]}
+          />
+          <FlowCard
+            number="2"
+            color="teal"
+            title="Validate & Ship"
+            description="Before publishing a new schema version, paste it into the Validator. event7 checks SR compatibility, evaluates governance rules, and shows a field-level diff — all in one report."
+            steps={["Paste schema", "Check compatibility", "Evaluate rules", "Review diff → PASS"]}
+          />
+          <FlowCard
+            number="3"
+            color="amber"
+            title="Import & Govern"
+            description="Import an AsyncAPI spec to bootstrap channels, bindings, and enrichments. Or enrich subjects manually in the Catalog. Apply governance templates and track scores across your registry."
+            steps={["Import spec / Enrich", "Map channels", "Apply rules", "Track scores"]}
+          />
+        </div>
+      </section>
+
+      {/* ── Deployment modes ── */}
+      <section className="mb-14">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
+          Deployment
         </h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
             <div className="text-xs font-semibold uppercase tracking-widest text-cyan-400 mb-2">
-              Explore
+              SaaS (Preview)
             </div>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Help developers version schemas with confidence: visual diff with
-              breaking change detection, dependency graph to anticipate impact,
-              schema validation that combines SR compatibility and governance
-              rules before publishing.
+            <p className="text-sm text-slate-400 leading-relaxed mb-3">
+              Try event7 without installing anything. Hosted on Cloudflare
+              Pages + Railway + Supabase Cloud. Accounts created upon request.
             </p>
-          </div>
-          <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
-            <div className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-2">
-              Govern
-            </div>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Give organizations a single place to govern events across any
-              registry and any broker: enrichments, ownership, data layers,
-              scoring, channel model, AsyncAPI import/export — all
-              provider-agnostic, all stored in event7.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Highlights grid */}
-      <section>
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
-          What you get
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {highlights.map((h) => (
-            <div
-              key={h.title}
-              className="group rounded-xl border border-slate-800/60 bg-slate-900/30 p-5 hover:border-slate-700 hover:bg-slate-900/50 transition-all duration-200"
+            <a
+              href="mailto:flux7art@gmail.com?subject=event7%20demo%20access"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
             >
-              <div className="flex items-start gap-3.5">
-                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-500/10 text-teal-400">
-                  <h.icon className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-white mb-1">
-                    {h.title}
-                  </h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">
-                    {h.desc}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Architecture overview */}
-      <section className="mt-14">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
-          How it fits
-        </h2>
-        <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-6">
-          <pre className="text-sm text-slate-400 font-mono leading-relaxed overflow-x-auto">
-{`Schema Registry  ↔  event7                ↔  AsyncAPI / CloudEvents  →  EventCatalog / Backstage
-  (stores)          (governs + validates)      (specifies)                (documents)
-
-┌──────────────────────────────────────────────────────────────────┐
-│  event7 UI  (Next.js · Cloudflare Pages)                         │
-│  Explorer · Diff · Validate · Catalog · Channels · Rules · AI    │
-└───────────────────────────┬──────────────────────────────────────┘
-                            │ REST API
-┌───────────────────────────┴──────────────────────────────────────┐
-│  event7 API  (FastAPI · Railway / GKE)                           │
-│  Services → Providers → Cache (Redis)                            │
-│            → Database (Supabase / PostgreSQL)                     │
-│            → Channels · Rules · Enrichments · AsyncAPI Specs      │
-└──────┬──────────────┬────────────────────────────────────────────┘
-       │              │
-┌──────┴─────┐ ┌──────┴──────┐
-│ Confluent  │ │  Apicurio   │   ← your registries (schemas live here)
-│ Cloud / CP │ │  Registry   │
-└────────────┘ └─────────────┘
-                                   event7 = governance layer
-  Kafka · RabbitMQ · Pulsar        schemas → registry (external)
-  NATS · Redis · Pub/Sub           channels + rules + enrichments → event7 DB`}
-          </pre>
-        </div>
-      </section>
-
-      {/* Key flows */}
-      <section className="mt-14">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
-          Key flows
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
-            <div className="text-xs font-semibold uppercase tracking-widest text-cyan-400 mb-2">
-              Connect & Explore
-            </div>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Register a schema registry, browse subjects, view versions,
-              inspect references, and compare diffs — all in one UI.
-            </p>
+              <Mail className="h-3 w-3" />
+              Request demo access →
+            </a>
           </div>
-          <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
-            <div className="text-xs font-semibold uppercase tracking-widest text-teal-400 mb-2">
-              Validate & Ship
-            </div>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Test a schema before publishing: SR compatibility check,
-              governance rules evaluation, and diff preview — in a single
-              report. PASS, WARN, or FAIL.
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
             <div className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-2">
-              Import & Govern
+              Self-hosted (Recommended)
             </div>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Import an AsyncAPI spec to create channels, bindings, and
-              enrichments. Define governance rules. event7 routes schemas
-              to the right registry automatically.
+            <p className="text-sm text-slate-400 leading-relaxed mb-3">
+              Full stack on your machine in 5 minutes. Docker Compose with
+              PostgreSQL, Redis, Apicurio, backend, and frontend. No limits.
             </p>
-          </div>
-          <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
-            <div className="text-xs font-semibold uppercase tracking-widest text-amber-400 mb-2">
-              Catalog & Share
-            </div>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              The Event Catalog gives business teams a searchable view with
-              ownership, data layers, broker types, and AsyncAPI specs —
-              bridging developers and data governance.
-            </p>
+            <Link
+              href="/docs/getting-started"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+            >
+              Installation guide →
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Deployment modes */}
-      <section className="mt-14">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-6">
-          Deployment modes
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
-            <div className="text-xs font-semibold uppercase tracking-widest text-cyan-400 mb-2">
-              SaaS
-            </div>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Sign up, connect your registry, start governing. Hosted on
-              Cloudflare Pages + Railway + Supabase Cloud.
+      {/* ── CTA ── */}
+      <section>
+        <div className="rounded-xl border border-teal-500/20 bg-teal-500/5 p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-white mb-1">
+              Start governing your schemas
+            </h3>
+            <p className="text-sm text-slate-400">
+              5-minute Docker setup, 10 sample schemas, instant governance
+              visibility.
             </p>
           </div>
-          <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
-            <div className="text-xs font-semibold uppercase tracking-widest text-emerald-400 mb-2">
-              Self-hosted
-            </div>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Docker Compose or Kubernetes. Your infra, your data. PostgreSQL +
-              Redis + Apicurio, no external dependencies.
-            </p>
+          <div className="flex gap-3 shrink-0">
+            <Link
+              href="/docs/getting-started"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium text-slate-950 bg-teal-400 hover:bg-teal-300 transition-colors"
+            >
+              Get Started
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+            <Link
+              href="/docs/concepts"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium text-slate-300 border border-slate-700 hover:border-slate-600 hover:text-white transition-colors"
+            >
+              Core Concepts
+            </Link>
           </div>
         </div>
       </section>
     </article>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Sub-components
+// ════════════════════════════════════════════════════════════════════
+
+// ── Pipeline ──
+
+const nodeColors: Record<string, { bg: string; border: string; icon: string; text: string }> = {
+  slate: { bg: "bg-slate-900/50", border: "border-slate-700", icon: "text-slate-400", text: "text-slate-400" },
+  teal: { bg: "bg-teal-500/5", border: "border-teal-500/30", icon: "text-teal-400", text: "text-teal-400" },
+  cyan: { bg: "bg-cyan-500/5", border: "border-cyan-500/20", icon: "text-cyan-400", text: "text-cyan-400" },
+  violet: { bg: "bg-violet-500/5", border: "border-violet-500/20", icon: "text-violet-400", text: "text-violet-400" },
+};
+
+function PipelineNode({
+  icon: Icon,
+  label,
+  sub,
+  color,
+  highlight,
+}: {
+  icon: React.ElementType;
+  label: string;
+  sub: string;
+  color: string;
+  highlight?: boolean;
+}) {
+  const c = nodeColors[color];
+  return (
+    <div
+      className={`flex-1 rounded-xl border ${c.border} ${c.bg} p-4 text-center ${
+        highlight ? "ring-1 ring-teal-500/20" : ""
+      }`}
+    >
+      <div className={`flex justify-center mb-2 ${c.icon}`}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className={`text-sm font-semibold ${highlight ? "text-white" : c.text}`}>
+        {label}
+      </div>
+      <div className="text-[10px] text-slate-600 mt-0.5 leading-relaxed">{sub}</div>
+    </div>
+  );
+}
+
+function PipelineArrow({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 shrink-0 px-1">
+      <span className="text-[9px] text-slate-600">{label}</span>
+      <ArrowRight className="h-4 w-4 text-slate-700" />
+    </div>
+  );
+}
+
+// ── Stats ──
+
+function StatCounter({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-4 text-center">
+      <div className="text-2xl font-bold text-white tabular-nums mb-0.5">{value}</div>
+      <div className="text-[10px] text-slate-500 uppercase tracking-wider">{label}</div>
+    </div>
+  );
+}
+
+// ── Persona ──
+
+const personaColors: Record<string, { accent: string; icon: string }> = {
+  cyan: { accent: "text-cyan-400", icon: "text-cyan-400" },
+  teal: { accent: "text-teal-400", icon: "text-teal-400" },
+  amber: { accent: "text-amber-400", icon: "text-amber-400" },
+};
+
+function PersonaCard({
+  color,
+  title,
+  subtitle,
+  items,
+}: {
+  color: string;
+  title: string;
+  subtitle: string;
+  items: { icon: React.ElementType; text: string }[];
+}) {
+  const c = personaColors[color];
+  return (
+    <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
+      <div className={`text-xs font-bold uppercase tracking-widest ${c.accent} mb-1`}>
+        {title}
+      </div>
+      <p className="text-sm text-slate-300 font-medium mb-4">{subtitle}</p>
+      <ul className="space-y-2.5">
+        {items.map((item) => (
+          <li key={item.text} className="flex items-start gap-2.5">
+            <item.icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${c.icon}`} />
+            <span className="text-xs text-slate-400 leading-relaxed">
+              {item.text}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ── Flow ──
+
+function FlowCard({
+  number,
+  color,
+  title,
+  description,
+  steps,
+}: {
+  number: string;
+  color: string;
+  title: string;
+  description: string;
+  steps: string[];
+}) {
+  const accentMap: Record<string, string> = {
+    cyan: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+    teal: "text-teal-400 bg-teal-500/10 border-teal-500/20",
+    amber: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+  };
+  const accent = accentMap[color] || accentMap.teal;
+
+  return (
+    <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-5">
+      <div className="flex items-start gap-4">
+        <div
+          className={`w-9 h-9 rounded-lg border flex items-center justify-center text-sm font-bold shrink-0 ${accent}`}
+        >
+          {number}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-semibold text-white mb-1.5">{title}</h3>
+          <p className="text-sm text-slate-400 leading-relaxed mb-3">
+            {description}
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {steps.map((step, i) => (
+              <span key={step} className="flex items-center gap-1.5">
+                <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                  {step}
+                </span>
+                {i < steps.length - 1 && (
+                  <span className="text-slate-700 text-xs">→</span>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
