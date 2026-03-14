@@ -1,12 +1,14 @@
-// src/app/(dashboard)/catalog/page.tsx
+// Placement: frontend/src/app/(dashboard)/catalog/page.tsx
+// Catalog v3 — Redesigned with AsyncAPI column + Sheet dual viewer
+// Replaces: AsyncAPIDrawer → CatalogSheet (Schema + AsyncAPI tabs)
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import {
-  Search, Download, Edit3, FileCode, Braces, Tag,
-  Shield, Users, Layers, Link2, Loader2, AlertCircle,
-  DatabaseZap, ChevronDown, Eye, EyeOff, Library,
-  Network, Clock, Pencil,
+  Search, Download, Tag, Shield, Users, Layers, Link2,
+  Loader2, AlertCircle, DatabaseZap, ChevronDown, Eye, EyeOff,
+  Library, Network, Clock, Pencil, FileCode, Braces, CheckCircle2,
+  Circle, Minus,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,21 +23,25 @@ import {
 import { cn } from "@/lib/utils";
 import { useRegistry } from "@/providers/registry-provider";
 import { getCatalog, exportCatalogCsv } from "@/lib/api/governance";
+import { getAsyncAPIOverview } from "@/lib/api/asyncapi";
 import { EnrichmentEditor } from "@/components/catalog/enrichment-editor";
 import { CatalogScoreBadge } from "@/components/rules/catalog-score";
 import { DataLayerBadge } from "@/components/catalog/data-layer-badge";
-import { AsyncAPIDrawer } from "@/components/catalog/asyncapi-drawer";
+import { CatalogSheet } from "@/components/catalog/catalog-sheet";
 import type { CatalogEntry, DataClassification, DataLayer } from "@/types/governance";
+import type { AsyncAPIOverviewResponse, SubjectAsyncAPIStatus } from "@/types/asyncapi";
 
-// Classification badge config
-const CLASS_CONFIG: Record<DataClassification, { label: string; color: string; icon: string }> = {
-  public: { label: "Public", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", icon: "🟢" },
-  internal: { label: "Internal", color: "bg-blue-500/10 text-blue-400 border-blue-500/20", icon: "🔵" },
-  confidential: { label: "Confidential", color: "bg-amber-500/10 text-amber-400 border-amber-500/20", icon: "🟡" },
-  restricted: { label: "Restricted", color: "bg-red-500/10 text-red-400 border-red-500/20", icon: "🔴" },
+// ════════════════════════════════════════════════════════════════════
+// Config
+// ════════════════════════════════════════════════════════════════════
+
+const CLASS_CONFIG: Record<DataClassification, { label: string; color: string }> = {
+  public: { label: "Public", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  internal: { label: "Internal", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+  confidential: { label: "Confidential", color: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+  restricted: { label: "Restricted", color: "bg-red-500/10 text-red-400 border-red-500/20" },
 };
 
-// Broker display config
 const BROKER_CONFIG: Record<string, { label: string; color: string }> = {
   kafka: { label: "Kafka", color: "text-orange-400" },
   rabbitmq: { label: "RabbitMQ", color: "text-amber-400" },
@@ -61,15 +67,36 @@ function timeAgo(dateStr: string | null): string {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-type FilterKey = "all" | "documented" | "undocumented" | "with-refs";
+// ════════════════════════════════════════════════════════════════════
+// Types
+// ════════════════════════════════════════════════════════════════════
+
+type FilterKey = "all" | "documented" | "undocumented" | "with-refs" | "with-asyncapi" | "no-asyncapi";
 type SortKey = "subject" | "version" | "owner" | "classification";
 
-const GRID_WITH_SCORE = "grid-cols-[36px_1fr_90px_70px_120px_100px_80px_60px_50px_70px_50px]";
-const GRID_NO_SCORE = "grid-cols-[1fr_90px_70px_120px_100px_80px_60px_50px_70px_50px]";
+/** Merged catalog + asyncapi status */
+interface CatalogRow extends CatalogEntry {
+  asyncapi_status?: string | null;       // documented | ready | raw
+  asyncapi_origin?: string | null;       // imported | generated | null
+  asyncapi_sync?: string | null;         // in_sync | outdated | unknown | null
+  asyncapi_spec_version?: number | null;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Grid layout
+// ════════════════════════════════════════════════════════════════════
+
+const GRID_WITH_SCORE = "grid-cols-[36px_1fr_80px_70px_100px_90px_70px_60px_55px_70px_50px]";
+const GRID_NO_SCORE = "grid-cols-[1fr_80px_70px_100px_90px_70px_60px_55px_70px_50px]";
+
+// ════════════════════════════════════════════════════════════════════
+// Page Component
+// ════════════════════════════════════════════════════════════════════
 
 export default function CatalogPage() {
   const { selected: registry } = useRegistry();
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
+  const [asyncOverview, setAsyncOverview] = useState<AsyncAPIOverviewResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,59 +112,85 @@ export default function CatalogPage() {
   // Score toggle
   const [showScores, setShowScores] = useState(false);
 
-  // Editor
+  // Sheet & Editor state
+  const [selectedEntry, setSelectedEntry] = useState<CatalogRow | null>(null);
   const [editing, setEditing] = useState<CatalogEntry | null>(null);
-
-  // AsyncAPI drawer
-  const [asyncapiSubject, setAsyncapiSubject] = useState<string | null>(null);
 
   const gridCols = showScores ? GRID_WITH_SCORE : GRID_NO_SCORE;
 
-  // Fetch catalog
+  // ── Fetch catalog + asyncapi overview ──
   useEffect(() => {
     if (!registry) {
       setCatalog([]);
+      setAsyncOverview(null);
       return;
     }
 
     setLoading(true);
     setError(null);
 
-    getCatalog(registry.id)
-      .then(setCatalog)
+    Promise.all([
+      getCatalog(registry.id),
+      getAsyncAPIOverview(registry.id).catch(() => null),
+    ])
+      .then(([catalogData, overviewData]) => {
+        setCatalog(catalogData);
+        setAsyncOverview(overviewData);
+      })
       .catch((err) => setError(err?.detail || "Failed to load catalog"))
       .finally(() => setLoading(false));
   }, [registry]);
 
-  // Unique owners for filter
+  // ── Build asyncapi status map ──
+  const asyncMap = useMemo(() => {
+    const map = new Map<string, SubjectAsyncAPIStatus>();
+    if (asyncOverview?.subjects) {
+      for (const s of asyncOverview.subjects) {
+        map.set(s.subject, s);
+      }
+    }
+    return map;
+  }, [asyncOverview]);
+
+  // ── Merge catalog + asyncapi ──
+  const rows: CatalogRow[] = useMemo(() => {
+    return catalog.map((entry) => {
+      const asyncInfo = asyncMap.get(entry.subject);
+      return {
+        ...entry,
+        asyncapi_status: asyncInfo?.status ?? null,
+        asyncapi_origin: asyncInfo?.origin ?? null,
+        asyncapi_sync: asyncInfo?.sync_status ?? null,
+        asyncapi_spec_version: asyncInfo?.spec_version ?? null,
+      };
+    });
+  }, [catalog, asyncMap]);
+
+  // ── Unique filter options ──
   const owners = useMemo(() => {
     const set = new Set<string>();
-    catalog.forEach((e) => {
-      if (e.owner_team) set.add(e.owner_team);
-    });
+    catalog.forEach((e) => { if (e.owner_team) set.add(e.owner_team); });
     return Array.from(set).sort();
   }, [catalog]);
 
-  // Unique broker types for filter
   const brokers = useMemo(() => {
     const set = new Set<string>();
-    catalog.forEach((e) => {
-      (e.broker_types || []).forEach((b) => set.add(b));
-    });
+    catalog.forEach((e) => { (e.broker_types || []).forEach((b) => set.add(b)); });
     return Array.from(set).sort();
   }, [catalog]);
 
-  // Stats
+  // ── Stats ──
   const stats = useMemo(() => ({
-    total: catalog.length,
-    documented: catalog.filter((e) => e.description).length,
-    withRefs: catalog.filter((e) => e.reference_count > 0).length,
+    total: rows.length,
+    documented: rows.filter((e) => e.description).length,
+    withRefs: rows.filter((e) => e.reference_count > 0).length,
     owners: owners.length,
-  }), [catalog, owners]);
+    withAsyncAPI: rows.filter((e) => e.asyncapi_status === "documented").length,
+  }), [rows, owners]);
 
-  // Filtered + sorted entries
+  // ── Filtered + sorted ──
   const filtered = useMemo(() => {
-    let result = catalog.filter((e) => {
+    let result = rows.filter((e) => {
       const matchSearch =
         !search ||
         e.subject.toLowerCase().includes(search.toLowerCase()) ||
@@ -149,7 +202,9 @@ export default function CatalogPage() {
         filter === "all" ||
         (filter === "documented" && e.description) ||
         (filter === "undocumented" && !e.description) ||
-        (filter === "with-refs" && e.reference_count > 0);
+        (filter === "with-refs" && e.reference_count > 0) ||
+        (filter === "with-asyncapi" && e.asyncapi_status === "documented") ||
+        (filter === "no-asyncapi" && e.asyncapi_status !== "documented");
 
       const matchOwner = ownerFilter === "all" || e.owner_team === ownerFilter;
       const matchClass = classFilter === "all" || e.classification === classFilter;
@@ -171,10 +226,10 @@ export default function CatalogPage() {
     });
 
     return result;
-  }, [catalog, search, filter, ownerFilter, classFilter, layerFilter, brokerFilter, sortBy]);
+  }, [rows, search, filter, ownerFilter, classFilter, layerFilter, brokerFilter, sortBy]);
 
-  // Export CSV
-  const handleExport = async () => {
+  // ── Export CSV ──
+  const handleExport = useCallback(async () => {
     if (!registry) return;
     try {
       const url = await exportCatalogCsv(registry.id);
@@ -186,16 +241,32 @@ export default function CatalogPage() {
     } catch {
       // silent fail
     }
-  };
+  }, [registry]);
 
-  // Update entry in local state after save
-  const handleSaved = (updated: CatalogEntry) => {
+  // ── Update entry in local state ──
+  const handleSaved = useCallback((updated: CatalogEntry) => {
     setCatalog((prev) =>
       prev.map((e) => (e.subject === updated.subject ? updated : e))
     );
-  };
+    // Also update the selected entry if it's open
+    setSelectedEntry((prev) =>
+      prev && prev.subject === updated.subject
+        ? { ...prev, ...updated }
+        : prev
+    );
+  }, []);
 
-  // No registry
+  // ── Open sheet from enrichment editor ──
+  const handleEditFromSheet = useCallback(() => {
+    if (selectedEntry) {
+      setEditing(selectedEntry);
+    }
+  }, [selectedEntry]);
+
+  // ════════════════════════════════════════════════════════════════════
+  // Render — Empty / Loading / Error states
+  // ════════════════════════════════════════════════════════════════════
+
   if (!registry) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
@@ -223,6 +294,10 @@ export default function CatalogPage() {
     );
   }
 
+  // ════════════════════════════════════════════════════════════════════
+  // Render — Main
+  // ════════════════════════════════════════════════════════════════════
+
   return (
     <div className="space-y-4 p-6">
       {/* Header */}
@@ -233,7 +308,7 @@ export default function CatalogPage() {
             Event Catalog
           </h1>
           <p className="text-xs text-muted-foreground">
-            Business view of schemas — document, tag, and classify your events.
+            Business view of schemas — document, tag, classify, and explore your events.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -247,78 +322,67 @@ export default function CatalogPage() {
             onClick={() => setShowScores((v) => !v)}
             title={showScores ? "Hide governance scores" : "Show governance scores"}
           >
-            {showScores ? <EyeOff size={13} /> : <Eye size={13} />}
+            {showScores ? <EyeOff size={14} /> : <Eye size={14} />}
             Scores
           </Button>
           <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleExport}>
-            <Download size={13} />
-            Export CSV
+            <Download size={14} />
+            CSV
           </Button>
         </div>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-3">
-        <MiniKpi label="Total" value={stats.total} icon={<Layers size={14} className="text-cyan-400" />} />
-        <MiniKpi label="Documented" value={stats.documented} icon={<FileCode size={14} className="text-emerald-400" />} />
-        <MiniKpi label="With Refs" value={stats.withRefs} icon={<Link2 size={14} className="text-purple-400" />} />
-        <MiniKpi label="Teams" value={stats.owners} icon={<Users size={14} className="text-amber-400" />} />
+      <div className="grid grid-cols-5 gap-3">
+        <MiniKpi label="Total Schemas" value={stats.total} icon={<Braces size={16} className="text-cyan-400" />} />
+        <MiniKpi label="Documented" value={stats.documented} icon={<Shield size={16} className="text-emerald-400" />} />
+        <MiniKpi label="With Refs" value={stats.withRefs} icon={<Link2 size={16} className="text-violet-400" />} />
+        <MiniKpi label="Teams" value={stats.owners} icon={<Users size={16} className="text-amber-400" />} />
+        <MiniKpi label="AsyncAPI" value={stats.withAsyncAPI} icon={<FileCode size={16} className="text-pink-400" />} />
       </div>
 
-      {/* Filters bar */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {/* Search */}
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-[320px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search subjects, descriptions, owners, tags…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-8 text-sm bg-muted/30"
+            placeholder="Search subjects, descriptions, tags…"
+            className="pl-9 h-8 text-xs"
           />
         </div>
 
         {/* Status filter */}
-        <div className="flex gap-1">
-          {([
-            ["all", "All"],
-            ["documented", "Documented"],
-            ["undocumented", "Undocumented"],
-            ["with-refs", "With Refs"],
-          ] as const).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key)}
-              className={cn(
-                "px-2.5 py-1 rounded text-[11px] font-medium transition-colors border",
-                filter === key
-                  ? "bg-cyan-500/15 text-cyan-400 border-cyan-500/30"
-                  : "bg-muted/20 text-muted-foreground border-transparent hover:border-border"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1 text-xs h-8">
+              Status: {filter === "all" ? "All" : filter.replace("-", " ")}
+              <ChevronDown size={12} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {(["all", "documented", "undocumented", "with-refs", "with-asyncapi", "no-asyncapi"] as FilterKey[]).map((f) => (
+              <DropdownMenuItem key={f} onClick={() => setFilter(f)} className="text-xs">
+                {f === "all" ? "All" : f.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Owner filter */}
         {owners.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1">
-                <Users size={11} />
-                {ownerFilter === "all" ? "All teams" : ownerFilter}
-                <ChevronDown size={10} />
+              <Button variant="outline" size="sm" className="gap-1 text-xs h-8">
+                Team: {ownerFilter === "all" ? "All" : ownerFilter}
+                <ChevronDown size={12} />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setOwnerFilter("all")} className="text-xs">
-                All teams
-              </DropdownMenuItem>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => setOwnerFilter("all")} className="text-xs">All</DropdownMenuItem>
               {owners.map((o) => (
-                <DropdownMenuItem key={o} onClick={() => setOwnerFilter(o)} className="text-xs">
-                  {o}
-                </DropdownMenuItem>
+                <DropdownMenuItem key={o} onClick={() => setOwnerFilter(o)} className="text-xs">{o}</DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -327,19 +391,16 @@ export default function CatalogPage() {
         {/* Classification filter */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1">
-              <Shield size={11} />
-              {classFilter === "all" ? "All levels" : classFilter}
-              <ChevronDown size={10} />
+            <Button variant="outline" size="sm" className="gap-1 text-xs h-8">
+              Class: {classFilter === "all" ? "All" : classFilter}
+              <ChevronDown size={12} />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setClassFilter("all")} className="text-xs">
-              All levels
-            </DropdownMenuItem>
-            {(["public", "internal", "confidential", "restricted"] as DataClassification[]).map((c) => (
-              <DropdownMenuItem key={c} onClick={() => setClassFilter(c)} className="text-xs capitalize">
-                {CLASS_CONFIG[c].icon} {c}
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => setClassFilter("all")} className="text-xs">All</DropdownMenuItem>
+            {(Object.keys(CLASS_CONFIG) as DataClassification[]).map((c) => (
+              <DropdownMenuItem key={c} onClick={() => setClassFilter(c)} className="text-xs">
+                {CLASS_CONFIG[c].label}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -348,19 +409,16 @@ export default function CatalogPage() {
         {/* Layer filter */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1">
-              <Layers size={11} />
-              {layerFilter === "all" ? "All layers" : layerFilter.toUpperCase()}
-              <ChevronDown size={10} />
+            <Button variant="outline" size="sm" className="gap-1 text-xs h-8">
+              Layer: {layerFilter === "all" ? "All" : layerFilter.toUpperCase()}
+              <ChevronDown size={12} />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setLayerFilter("all")} className="text-xs">
-              All layers
-            </DropdownMenuItem>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => setLayerFilter("all")} className="text-xs">All</DropdownMenuItem>
             {(["raw", "core", "refined", "application"] as DataLayer[]).map((l) => (
               <DropdownMenuItem key={l} onClick={() => setLayerFilter(l)} className="text-xs">
-                <DataLayerBadge layer={l} size="sm" />
+                {l.toUpperCase()}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -370,20 +428,16 @@ export default function CatalogPage() {
         {brokers.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1">
-                <Network size={11} />
-                {brokerFilter === "all" ? "All brokers" : BROKER_CONFIG[brokerFilter]?.label || brokerFilter}
-                <ChevronDown size={10} />
+              <Button variant="outline" size="sm" className="gap-1 text-xs h-8">
+                Broker: {brokerFilter === "all" ? "All" : BROKER_CONFIG[brokerFilter]?.label || brokerFilter}
+                <ChevronDown size={12} />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setBrokerFilter("all")} className="text-xs">
-                All brokers
-              </DropdownMenuItem>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => setBrokerFilter("all")} className="text-xs">All</DropdownMenuItem>
               {brokers.map((b) => (
                 <DropdownMenuItem key={b} onClick={() => setBrokerFilter(b)} className="text-xs">
-                  <span className={BROKER_CONFIG[b]?.color || "text-zinc-400"}>●</span>
-                  <span className="ml-1.5">{BROKER_CONFIG[b]?.label || b}</span>
+                  {BROKER_CONFIG[b]?.label || b}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -392,24 +446,24 @@ export default function CatalogPage() {
       </div>
 
       {/* Table */}
-      <Card className="p-0 overflow-hidden">
+      <Card className="overflow-hidden">
         {/* Table header */}
-        <div className={cn("grid gap-2 px-4 py-2 border-b border-border bg-muted/20 text-[10px] uppercase tracking-wider font-medium text-muted-foreground", gridCols)}>
+        <div className={cn("grid gap-2 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border bg-muted/40", gridCols)}>
           {showScores && <div className="text-center">Score</div>}
           <div>Subject</div>
-          <div>Broker</div>
+          <div>AsyncAPI</div>
           <div>Layer</div>
           <div>Owner</div>
           <div>Classification</div>
           <div>Tags</div>
-          <div className="text-center">Format</div>
-          <div className="text-center">Ver.</div>
+          <div>Format</div>
+          <div className="text-center">Ver</div>
           <div>Updated</div>
-          <div />
+          <div></div>
         </div>
 
-        {/* Rows */}
-        <div className="divide-y divide-border/30">
+        {/* Table body */}
+        <div className="divide-y divide-border max-h-[calc(100vh-380px)] overflow-y-auto">
           {filtered.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
               {search ? "No matching entries" : "No schemas in catalog"}
@@ -420,11 +474,16 @@ export default function CatalogPage() {
               return (
                 <div
                   key={entry.subject}
-                  className={cn("grid gap-2 px-4 py-2.5 items-center hover:bg-muted/20 transition-colors group", gridCols)}
+                  onClick={() => setSelectedEntry(entry)}
+                  className={cn(
+                    "grid gap-2 px-4 py-2.5 items-center hover:bg-muted/30 transition-colors cursor-pointer group",
+                    gridCols,
+                    selectedEntry?.subject === entry.subject && "bg-muted/20 ring-1 ring-cyan-500/20"
+                  )}
                 >
-                  {/* Governance Score (conditional) */}
+                  {/* Governance Score */}
                   {showScores && (
-                    <div className="flex justify-center">
+                    <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
                       <CatalogScoreBadge registryId={registry.id} subject={entry.subject} />
                     </div>
                   )}
@@ -439,29 +498,17 @@ export default function CatalogPage() {
                         {entry.description}
                       </div>
                     ) : (
-                      <div className="text-[11px] text-muted-foreground/40 italic">
-                        No description
-                      </div>
+                      <div className="text-[11px] text-muted-foreground/40 italic">No description</div>
                     )}
                   </div>
 
-                  {/* Broker badges */}
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {(entry.broker_types || []).length > 0 ? (
-                      entry.broker_types.map((b) => (
-                        <span
-                          key={b}
-                          className={cn(
-                            "text-[10px] font-medium px-1.5 py-0.5 rounded border border-border/50 bg-muted/30",
-                            BROKER_CONFIG[b]?.color || "text-zinc-400"
-                          )}
-                        >
-                          {BROKER_CONFIG[b]?.label || b}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-[10px] text-muted-foreground/40">—</span>
-                    )}
+                  {/* AsyncAPI status */}
+                  <div>
+                    <AsyncAPIBadge
+                      status={entry.asyncapi_status}
+                      specVersion={entry.asyncapi_spec_version}
+                      syncStatus={entry.asyncapi_sync}
+                    />
                   </div>
 
                   {/* Data Layer */}
@@ -471,47 +518,36 @@ export default function CatalogPage() {
 
                   {/* Owner */}
                   <div className="text-xs text-muted-foreground truncate">
-                    {entry.owner_team || (
-                      <span className="text-muted-foreground/40 italic">—</span>
-                    )}
+                    {entry.owner_team || <span className="text-muted-foreground/40 italic">—</span>}
                   </div>
 
                   {/* Classification */}
-                  <Badge
-                    variant="outline"
-                    className={cn("text-[10px] px-1.5 py-0 h-5 w-fit border", cls.color)}
-                  >
+                  <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-5 w-fit border", cls.color)}>
                     {cls.label}
                   </Badge>
 
                   {/* Tags */}
                   <div className="flex gap-1 overflow-hidden">
                     {entry.tags.length > 0 ? (
-                      entry.tags.slice(0, 2).map((t) => (
-                        <Badge
-                          key={t}
-                          variant="outline"
-                          className="text-[9px] px-1 py-0 h-4 shrink-0"
-                        >
-                          {t}
+                      entry.tags.slice(0, 2).map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-[9px] px-1 py-0 h-4 truncate max-w-[50px]">
+                          {tag}
                         </Badge>
                       ))
                     ) : (
                       <span className="text-[10px] text-muted-foreground/40">—</span>
                     )}
                     {entry.tags.length > 2 && (
-                      <span className="text-[9px] text-muted-foreground/50">
-                        +{entry.tags.length - 2}
-                      </span>
+                      <span className="text-[9px] text-muted-foreground">+{entry.tags.length - 2}</span>
                     )}
                   </div>
 
                   {/* Format */}
-                  <div className="flex justify-center">
+                  <div>
                     <Badge
                       variant="outline"
                       className={cn(
-                        "text-[10px] px-1.5 py-0 h-4 border",
+                        "text-[10px] px-1.5 py-0 h-5 border",
                         entry.format === "AVRO"
                           ? "text-cyan-400 border-cyan-500/20"
                           : "text-amber-400 border-amber-500/20"
@@ -532,21 +568,14 @@ export default function CatalogPage() {
                     {timeAgo(entry.updated_at)}
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => setAsyncapiSubject(entry.subject)}
-                      className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-cyan-400 transition-colors"
-                      title="View AsyncAPI spec"
-                    >
-                      <FileCode size={13} />
-                    </button>
+                  {/* Edit action */}
+                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => setEditing(entry)}
                       className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
                       title="Edit enrichment"
                     >
-                      <Edit3 size={13} />
+                      <Pencil size={13} />
                     </button>
                   </div>
                 </div>
@@ -557,14 +586,34 @@ export default function CatalogPage() {
 
         {/* Footer */}
         <div className="px-4 py-2 border-t border-border text-[11px] text-muted-foreground flex justify-between">
-          <span>{filtered.length} of {catalog.length} entries</span>
+          <span>{filtered.length} of {rows.length} entries</span>
           <span>
-            {stats.documented} documented · {catalog.length - stats.documented} undocumented
+            {stats.documented} documented · {stats.withAsyncAPI} with AsyncAPI · {rows.length - stats.documented} undocumented
           </span>
         </div>
       </Card>
 
-      {/* Enrichment editor drawer */}
+      {/* ── Sheet (Schema + AsyncAPI viewer) ── */}
+      {selectedEntry && registry && (
+        <CatalogSheet
+          registryId={registry.id}
+          entry={selectedEntry}
+          asyncapiStatus={
+            selectedEntry.asyncapi_status
+              ? {
+                  status: selectedEntry.asyncapi_status,
+                  origin: selectedEntry.asyncapi_origin ?? null,
+                  sync_status: selectedEntry.asyncapi_sync ?? null,
+                  spec_version: selectedEntry.asyncapi_spec_version ?? null,
+                }
+              : null
+          }
+          onClose={() => setSelectedEntry(null)}
+          onEdit={handleEditFromSheet}
+        />
+      )}
+
+      {/* ── Enrichment editor drawer ── */}
       {editing && registry && (
         <EnrichmentEditor
           registryId={registry.id}
@@ -573,30 +622,61 @@ export default function CatalogPage() {
           onSaved={handleSaved}
         />
       )}
-
-      {/* AsyncAPI drawer */}
-      {asyncapiSubject && registry && (
-        <AsyncAPIDrawer
-          open={!!asyncapiSubject}
-          onClose={() => setAsyncapiSubject(null)}
-          registryId={registry.id}
-          subject={asyncapiSubject}
-        />
-      )}
     </div>
   );
 }
 
-// --- Mini KPI card ---
-function MiniKpi({
-  label,
-  value,
-  icon,
+// ════════════════════════════════════════════════════════════════════
+// Sub-components
+// ════════════════════════════════════════════════════════════════════
+
+/** AsyncAPI status badge for the catalog table */
+function AsyncAPIBadge({
+  status,
+  specVersion,
+  syncStatus,
 }: {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
+  status: string | null | undefined;
+  specVersion: number | null | undefined;
+  syncStatus: string | null | undefined;
 }) {
+  if (status === "documented") {
+    const syncColor =
+      syncStatus === "in_sync" ? "text-emerald-400" :
+      syncStatus === "outdated" ? "text-amber-400" :
+      "text-zinc-400";
+
+    return (
+      <div className="flex items-center gap-1.5">
+        <CheckCircle2 size={13} className="text-emerald-400" />
+        <span className="text-[10px] font-medium text-emerald-400">
+          v{specVersion || 1}
+        </span>
+        {syncStatus && syncStatus !== "unknown" && (
+          <Circle size={6} className={cn("fill-current", syncColor)} />
+        )}
+      </div>
+    );
+  }
+
+  if (status === "ready") {
+    return (
+      <div className="flex items-center gap-1.5">
+        <Circle size={10} className="text-amber-400" />
+        <span className="text-[10px] text-amber-400">Ready</span>
+      </div>
+    );
+  }
+
+  return (
+    <span className="text-[10px] text-muted-foreground/40">
+      <Minus size={14} />
+    </span>
+  );
+}
+
+/** Mini KPI card */
+function MiniKpi({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
   return (
     <Card className="px-3 py-2.5 flex items-center gap-3">
       {icon}
