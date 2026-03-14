@@ -1,6 +1,6 @@
 // src/app/docs/page.tsx
 // Documentation — Introduction page
-// v3: Redesigned with pipeline visual, persona cards, stat counters, simplified flows.
+// v4: Animated pipeline with bidirectional dot flow.
 // Placement: frontend/src/app/docs/page.tsx
 
 import Link from "next/link";
@@ -27,6 +27,34 @@ import {
 export default function DocsIntroPage() {
   return (
     <article>
+      {/* ── Pipeline keyframes (server component safe) ── */}
+      <style>{`
+        @keyframes dot-flow-right {
+          0%   { left: 0%; opacity: 0; }
+          10%  { opacity: 1; }
+          90%  { opacity: 1; }
+          100% { left: 100%; opacity: 0; }
+        }
+        @keyframes dot-flow-left {
+          0%   { right: 0%; opacity: 0; }
+          10%  { opacity: 1; }
+          90%  { opacity: 1; }
+          100% { right: 100%; opacity: 0; }
+        }
+        .dot-right {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          animation: dot-flow-right 2.4s linear infinite;
+        }
+        .dot-left {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          animation: dot-flow-left 2.4s linear infinite;
+        }
+      `}</style>
+
       {/* ── Hero ── */}
       <div className="mb-12">
         <div className="flex items-center gap-2 mb-4">
@@ -79,14 +107,20 @@ export default function DocsIntroPage() {
           How event7 fits
         </h2>
         <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-6 overflow-x-auto">
-          <div className="flex items-center gap-3 min-w-[600px]">
+          <div className="flex items-center gap-0 min-w-[700px]">
             <PipelineNode
               icon={Layers}
               label="Schema Registry"
               sub="Confluent · Apicurio · Karapace · Redpanda"
               color="slate"
             />
-            <PipelineArrow label="reads" />
+            <PipelineAnimatedArrow
+              direction="bidi"
+              labelRight="reads"
+              labelLeft="syncs"
+              colorRight="#94a3b8"
+              colorLeft="#2dd4bf"
+            />
             <PipelineNode
               icon={Shield}
               label="event7"
@@ -94,14 +128,24 @@ export default function DocsIntroPage() {
               color="teal"
               highlight
             />
-            <PipelineArrow label="generates / imports" />
+            <PipelineAnimatedArrow
+              direction="bidi"
+              labelRight="generates"
+              labelLeft="imports"
+              colorRight="#22d3ee"
+              colorLeft="#a78bfa"
+            />
             <PipelineNode
               icon={FileCode}
               label="AsyncAPI"
               sub="Specs · Channels · Bindings"
               color="cyan"
             />
-            <PipelineArrow label="exports" />
+            <PipelineAnimatedArrow
+              direction="forward"
+              labelRight="exports"
+              colorRight="#a78bfa"
+            />
             <PipelineNode
               icon={BookOpen}
               label="EventCatalog"
@@ -121,7 +165,7 @@ export default function DocsIntroPage() {
           <StatCounter value="17" label="features" />
           <StatCounter value="9" label="broker types" />
           <StatCounter value="5" label="SR providers" />
-          <StatCounter value="4" label="governance templates" />
+          <StatCounter value="4+" label="governance templates" />
           <StatCounter value="100%" label="open-source core" />
         </div>
       </section>
@@ -159,7 +203,7 @@ export default function DocsIntroPage() {
             title="Organizations"
             subtitle="Score and enforce compliance"
             items={[
-              { icon: Shield, text: "Define rules and policies — 4 built-in templates" },
+              { icon: Shield, text: "Define rules and policies — built-in + custom templates" },
               { icon: BarChart3, text: "Three-axis governance scoring (A–F)" },
               { icon: Scale, text: "Provider-agnostic — no vendor lock-in" },
               { icon: BookOpen, text: "Export to EventCatalog for documentation" },
@@ -300,7 +344,7 @@ function PipelineNode({
   const c = nodeColors[color];
   return (
     <div
-      className={`flex-1 rounded-xl border ${c.border} ${c.bg} p-4 text-center ${
+      className={`flex-1 rounded-xl border ${c.border} ${c.bg} p-4 text-center shrink-0 ${
         highlight ? "ring-1 ring-teal-500/20" : ""
       }`}
     >
@@ -315,11 +359,90 @@ function PipelineNode({
   );
 }
 
-function PipelineArrow({ label }: { label: string }) {
+function PipelineAnimatedArrow({
+  direction,
+  labelRight,
+  labelLeft,
+  colorRight,
+  colorLeft,
+}: {
+  direction: "forward" | "bidi";
+  labelRight: string;
+  labelLeft?: string;
+  colorRight: string;
+  colorLeft?: string;
+}) {
   return (
-    <div className="flex flex-col items-center gap-0.5 shrink-0 px-1">
-      <span className="text-[9px] text-slate-600">{label}</span>
-      <ArrowRight className="h-4 w-4 text-slate-700" />
+    <div className="flex flex-col items-center gap-0 shrink-0 w-24 mx-1">
+      {/* Top label (→) */}
+      <span className="text-[9px] text-slate-500 mb-1 leading-none">{labelRight}</span>
+
+      {/* Track */}
+      <div className="relative w-full h-3">
+        {/* Track line */}
+        <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-800 -translate-y-1/2" />
+
+        {/* Forward dots (→) */}
+        <div
+          className="dot-right h-1.5 w-1.5 rounded-full"
+          style={{ backgroundColor: colorRight, animationDelay: "0s" }}
+        />
+        <div
+          className="dot-right h-1.5 w-1.5 rounded-full"
+          style={{ backgroundColor: colorRight, animationDelay: "0.8s" }}
+        />
+        <div
+          className="dot-right h-1 w-1 rounded-full opacity-60"
+          style={{ backgroundColor: colorRight, animationDelay: "1.6s" }}
+        />
+
+        {/* Backward dots (←) — only for bidi */}
+        {direction === "bidi" && colorLeft && (
+          <>
+            <div
+              className="dot-left h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: colorLeft, animationDelay: "0.4s" }}
+            />
+            <div
+              className="dot-left h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: colorLeft, animationDelay: "1.2s" }}
+            />
+            <div
+              className="dot-left h-1 w-1 rounded-full opacity-60"
+              style={{ backgroundColor: colorLeft, animationDelay: "2.0s" }}
+            />
+          </>
+        )}
+
+        {/* Arrow tips */}
+        <div
+          className="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0"
+          style={{
+            borderLeft: `5px solid ${colorRight}`,
+            borderTop: "3px solid transparent",
+            borderBottom: "3px solid transparent",
+            opacity: 0.6,
+          }}
+        />
+        {direction === "bidi" && (
+          <div
+            className="absolute left-0 top-1/2 -translate-y-1/2 w-0 h-0"
+            style={{
+              borderRight: `5px solid ${colorLeft}`,
+              borderTop: "3px solid transparent",
+              borderBottom: "3px solid transparent",
+              opacity: 0.6,
+            }}
+          />
+        )}
+      </div>
+
+      {/* Bottom label (←) */}
+      {direction === "bidi" && labelLeft ? (
+        <span className="text-[9px] text-slate-500 mt-1 leading-none">{labelLeft}</span>
+      ) : (
+        <span className="text-[9px] text-transparent mt-1 leading-none select-none">—</span>
+      )}
     </div>
   );
 }
