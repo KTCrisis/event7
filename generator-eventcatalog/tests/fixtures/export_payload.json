@@ -1,0 +1,119 @@
+{
+  "registry": {
+    "id": "e9282922-291e-4798-9e2e-aef8e84b43c9",
+    "name": "Local Apicurio",
+    "provider_type": "apicurio",
+    "base_url": "http://localhost:8081"
+  },
+  "schemas": [
+    {
+      "subject": "com.event7.Address",
+      "format": "AVRO",
+      "latest_version": 1,
+      "version_count": 1,
+      "schema_content": {
+        "type": "record",
+        "name": "Address",
+        "namespace": "com.event7",
+        "fields": [
+          { "name": "street", "type": "string" },
+          { "name": "city", "type": "string" },
+          { "name": "zip", "type": "string" },
+          { "name": "country", "type": "string" }
+        ]
+      },
+      "enrichment": {
+        "description": "Shared address type used by Customer and Shipment",
+        "owner_team": "platform-team",
+        "tags": ["domain:shared", "pii"],
+        "classification": "confidential",
+        "data_layer": "core"
+      },
+      "references": [],
+      "governance_score": {
+        "score": 72,
+        "grade": "C",
+        "confidence": "medium",
+        "breakdown": {
+          "enrichments": 18, "enrichments_max": 20,
+          "rules": 29, "rules_max": 50,
+          "schema_quality": 25, "schema_quality_max": 30
+        }
+      },
+      "rules_summary": [
+        { "rule_name": "Naming convention", "status": "PASS", "severity": "error", "category": "schema_validation" },
+        { "rule_name": "Description required", "status": "PASS", "severity": "warning", "category": "data_quality" }
+      ],
+      "asyncapi_yaml": null
+    },
+    {
+      "subject": "com.event7.Order",
+      "format": "AVRO",
+      "latest_version": 1,
+      "version_count": 1,
+      "schema_content": {
+        "type": "record",
+        "name": "Order",
+        "namespace": "com.event7",
+        "fields": [
+          { "name": "order_id", "type": "string" },
+          { "name": "amount", "type": "double" }
+        ]
+      },
+      "enrichment": {
+        "description": null,
+        "owner_team": "orders-team",
+        "tags": ["domain:orders"],
+        "classification": "internal",
+        "data_layer": "core"
+      },
+      "references": [
+        { "subject": "com.event7.User", "version": 1 }
+      ],
+      "governance_score": {
+        "score": 45,
+        "grade": "D",
+        "confidence": "low",
+        "breakdown": {
+          "enrichments": 8, "enrichments_max": 20,
+          "rules": 12, "rules_max": 50,
+          "schema_quality": 25, "schema_quality_max": 30
+        }
+      },
+      "rules_summary": [],
+      "asyncapi_yaml": "asyncapi: '3.0.0'\ninfo:\n  title: Order"
+    },
+    {
+      "subject": "com.event7.Payment",
+      "format": "JSON",
+      "latest_version": 1,
+      "version_count": 1,
+      "schema_content": { "type": "object", "title": "Payment" },
+      "enrichment": {
+        "description": null,
+        "owner_team": null,
+        "tags": ["internal"],
+        "classification": "internal",
+        "data_layer": null
+      },
+      "references": [],
+      "governance_score": null,
+      "rules_summary": [],
+      "asyncapi_yaml": null
+    }
+  ],
+  "channels": [
+    {
+      "id": "ch-001",
+      "name": "Order Events",
+      "address": "prod.orders.events.v1",
+      "broker_type": "kafka",
+      "resource_kind": "topic",
+      "data_layer": "core",
+      "bindings": [
+        { "subject": "com.event7.Order", "schema_role": "value", "binding_status": "active" }
+      ]
+    }
+  ],
+  "teams": ["platform-team", "orders-team"]
+}

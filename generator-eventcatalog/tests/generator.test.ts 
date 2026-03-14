@@ -1,0 +1,150 @@
+import { describe, it, expect } from "vitest";
+import { resolveDomain } from "../src/mappers/domains";
+import { slugify } from "../src/mappers/teams";
+import { generateEventMarkdown } from "../src/templates/event-markdown";
+import type { ExportSchema, DomainConfig, ExportRegistryInfo } from "../src/types";
+import fixture from "./fixtures/export-payload.json";
+
+// ── Helpers ──
+
+const registry: ExportRegistryInfo = fixture.registry;
+const schemas = fixture.schemas as ExportSchema[];
+
+const domains: DomainConfig[] = [
+  { id: "shared", name: "Shared", match: { tag: "domain:shared" } },
+  { id: "orders", name: "Orders", match: { tag: "domain:orders" } },
+];
+
+const defaultDomain = { id: "unassigned", name: "Unassigned" };
+
+// ── Tests ──
+
+describe("resolveDomain", () => {
+  it("matches by tag", () => {
+    const address = schemas.find((s) => s.subject === "com.event7.Address")!;
+    const result = resolveDomain(address, domains, defaultDomain);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("shared");
+  });
+
+  it("matches Order by tag", () => {
+    const order = schemas.find((s) => s.subject === "com.event7.Order")!;
+    const result = resolveDomain(order, domains, defaultDomain);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("orders");
+  });
+
+  it("falls back to default domain", () => {
+    const payment = schemas.find((s) => s.subject === "com.event7.Payment")!;
+    const result = resolveDomain(payment, domains, defaultDomain);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("unassigned");
+  });
+
+  it("matches by prefix", () => {
+    const prefixDomains: DomainConfig[] = [
+      { id: "event7", name: "Event7", match: { prefix: "com.event7" } },
+    ];
+    const address = schemas.find((s) => s.subject === "com.event7.Address")!;
+    const result = resolveDomain(address, prefixDomains);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("event7");
+  });
+
+  it("returns null without default", () => {
+    const payment = schemas.find((s) => s.subject === "com.event7.Payment")!;
+    const result = resolveDomain(payment, [], undefined);
+    expect(result).toBeNull();
+  });
+});
+
+describe("slugify", () => {
+  it("converts team name to slug", () => {
+    expect(slugify("payments-team")).toBe("payments-team");
+    expect(slugify("Platform Team")).toBe("platform-team");
+    expect(slugify("My Super Team!")).toBe("my-super-team");
+  });
+});
+
+describe("generateEventMarkdown", () => {
+  it("includes governance section when score exists", () => {
+    const address = schemas.find((s) => s.subject === "com.event7.Address")!;
+    const md = generateEventMarkdown(address, registry, {
+      includeGovernance: true,
+      includeReferences: true,
+    });
+
+    expect(md).toContain("## Governance");
+    expect(md).toContain("72/100");
+    expect(md).toContain("(C)");
+    expect(md).toContain("## Rules");
+    expect(md).toContain("Naming convention");
+    expect(md).toContain("✅ PASS");
+  });
+
+  it("skips governance when disabled", () => {
+    const address = schemas.find((s) => s.subject === "com.event7.Address")!;
+    const md = generateEventMarkdown(address, registry, {
+      includeGovernance: false,
+      includeReferences: true,
+    });
+
+    expect(md).not.toContain("## Governance");
+    expect(md).not.toContain("## Rules");
+  });
+
+  it("includes metadata section", () => {
+    const address = schemas.find((s) => s.subject === "com.event7.Address")!;
+    const md = generateEventMarkdown(address, registry, {
+      includeGovernance: false,
+      includeReferences: false,
+    });
+
+    expect(md).toContain("## Metadata");
+    expect(md).toContain("AVRO");
+    expect(md).toContain("CORE");
+    expect(md).toContain("CONFIDENTIAL");
+    expect(md).toContain("apicurio");
+  });
+
+  it("includes references when present", () => {
+    const order = schemas.find((s) => s.subject === "com.event7.Order")!;
+    const md = generateEventMarkdown(order, registry, {
+      includeGovernance: false,
+      includeReferences: true,
+    });
+
+    expect(md).toContain("## References");
+    expect(md).toContain("com.event7.User");
+  });
+
+  it("shows description when available", () => {
+    const address = schemas.find((s) => s.subject === "com.event7.Address")!;
+    const md = generateEventMarkdown(address, registry, {
+      includeGovernance: false,
+      includeReferences: false,
+    });
+
+    expect(md).toContain("Shared address type used by Customer and Shipment");
+  });
+
+  it("shows fallback when no description", () => {
+    const payment = schemas.find((s) => s.subject === "com.event7.Payment")!;
+    const md = generateEventMarkdown(payment, registry, {
+      includeGovernance: false,
+      includeReferences: false,
+    });
+
+    expect(md).toContain("No description provided.");
+  });
+
+  it("includes footer with event7 link", () => {
+    const address = schemas.find((s) => s.subject === "com.event7.Address")!;
+    const md = generateEventMarkdown(address, registry, {
+      includeGovernance: false,
+      includeReferences: false,
+    });
+
+    expect(md).toContain("Synced from [event7]");
+  });
+});

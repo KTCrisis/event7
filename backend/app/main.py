@@ -15,6 +15,7 @@ from app.db.factory import create_database
 from app.db.base import DatabaseProvider
 from app.api.ai import router as ai_router
 
+
 # Instances globales
 settings = get_settings()
 redis_cache = RedisCache()
@@ -64,6 +65,7 @@ from app.api.asyncapi import router as asyncapi_router
 from app.api.hosted import router as hosted_router
 from app.api.rules import router as rules_router
 from app.api.channels import router as channels_router
+from app.api.export import router as export_router
 
 app.include_router(hosted_router)
 app.include_router(registries_router)
@@ -73,6 +75,7 @@ app.include_router(asyncapi_router)
 app.include_router(ai_router)
 app.include_router(rules_router)
 app.include_router(channels_router)
+app.include_router(export_router)
 
 # === Health Check ===
 @app.get("/health")

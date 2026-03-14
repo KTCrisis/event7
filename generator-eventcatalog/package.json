@@ -1,0 +1,41 @@
+{
+  "name": "@event7/generator-eventcatalog",
+  "version": "0.1.0",
+  "description": "EventCatalog generator for event7 — import governance data, enrichments, channels, and scores",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "build:watch": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "eventcatalog",
+    "generator",
+    "event7",
+    "schema-registry",
+    "governance",
+    "kafka",
+    "avro",
+    "asyncapi"
+  ],
+  "author": "event7",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KTCrisis/event7"
+  },
+  "peerDependencies": {
+    "@eventcatalog/sdk": ">=0.1.0"
+  },
+  "devDependencies": {
+    "@eventcatalog/sdk": "^0.1.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.1"
+  }
+}
