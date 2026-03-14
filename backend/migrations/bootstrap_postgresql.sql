@@ -196,10 +196,17 @@ CREATE TABLE IF NOT EXISTS channels (
     address VARCHAR(1000) NOT NULL,
     broker_type VARCHAR(50) NOT NULL CHECK (broker_type IN (
         'kafka', 'redpanda', 'rabbitmq', 'pulsar', 'nats',
-        'google_pubsub', 'aws_sns_sqs', 'azure_servicebus', 'redis_streams', 'custom'
+        'google_pubsub', 'aws_sns_sqs', 'azure_servicebus', 'redis_streams',
+        'solace', 'ibmmq', 'activemq_artemis',
+        'mqtt', 'mqtt_secure',
+        'websocket', 'websocket_secure',
+        'anypoint_mq', 'mercure', 'stomp',
+        'amazon_kinesis', 'amazon_eventbridge',
+        'custom'
     )),
     resource_kind VARCHAR(50) NOT NULL CHECK (resource_kind IN (
-        'topic', 'exchange', 'subject', 'queue', 'stream'
+        'topic', 'exchange', 'subject', 'queue', 'stream',
+        'channel', 'destination', 'event_bus'
     )),
     messaging_pattern VARCHAR(50) NOT NULL CHECK (messaging_pattern IN (
         'topic_log', 'pubsub', 'queue'
