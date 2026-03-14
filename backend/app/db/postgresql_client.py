@@ -201,41 +201,58 @@ class PostgreSQLDatabase(DatabaseProvider):
         spec_content: dict,
         is_auto_generated: bool = True,
         user_id: str = "",
+        source_schema_hash: str | None = None,
+        source_schema_version: int | None = None,
     ) -> dict | None:
-        """Create or update an AsyncAPI spec."""
-        import json
-        try:
-            with self._conn.cursor() as cur:
-                cur.execute("""
-                    INSERT INTO asyncapi_specs (registry_id, subject, spec_content, is_auto_generated)
-                    VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (registry_id, subject)
-                    DO UPDATE SET spec_content = EXCLUDED.spec_content,
-                                is_auto_generated = EXCLUDED.is_auto_generated,
-                                updated_at = NOW()
-                    RETURNING *
-                """, (registry_id, subject, json.dumps(spec_content), is_auto_generated))
-                self._conn.commit()
-                row = cur.fetchone()
-                if not row:
-                    return None
-                cols = [desc[0] for desc in cur.description]
-                result = dict(zip(cols, row))
-                # Parse spec_content back if it's a string
-                if isinstance(result.get("spec_content"), str):
-                    result["spec_content"] = json.loads(result["spec_content"])
-                self.log_audit(
-                    user_id=user_id,
-                    registry_id=registry_id,
-                    action="asyncapi_generate" if is_auto_generated else "asyncapi_update",
-                    details={"subject": subject},
-                )
-                return result
-        except Exception as e:
-            logger.error(f"Failed to upsert AsyncAPI spec: {e}")
-            self._conn.rollback()
-            return None
-            
+        """Create or update an AsyncAPI spec. Auto-increments spec_version on update."""
+        result = self._fetchone(
+            """INSERT INTO asyncapi_specs (
+                   registry_id, subject, spec_content, is_auto_generated,
+                   spec_version, source_schema_hash, source_schema_version
+               ) VALUES (%s::uuid, %s, %s::jsonb, %s, 1, %s, %s)
+               ON CONFLICT (registry_id, subject)
+               DO UPDATE SET
+                   spec_content = EXCLUDED.spec_content,
+                   is_auto_generated = EXCLUDED.is_auto_generated,
+                   spec_version = asyncapi_specs.spec_version + 1,
+                   source_schema_hash = EXCLUDED.source_schema_hash,
+                   source_schema_version = EXCLUDED.source_schema_version,
+                   updated_at = NOW()
+               RETURNING *""",
+            (registry_id, subject, json.dumps(spec_content), is_auto_generated,
+             source_schema_hash, source_schema_version),
+        )
+        if result and user_id:
+            self.log_audit(
+                user_id=user_id,
+                registry_id=registry_id,
+                action="asyncapi_upsert",
+                details={"subject": subject, "is_auto_generated": is_auto_generated},
+            )
+        return result
+ 
+ 
+    def get_asyncapi_specs_for_registry(self, registry_id: str) -> list[dict]:
+        return self._fetchall(
+            """SELECT subject, spec_content, is_auto_generated,
+                      source_schema_hash, source_schema_version,
+                      spec_version, updated_at
+               FROM asyncapi_specs
+               WHERE registry_id = %s::uuid
+               ORDER BY subject""",
+            (registry_id,),
+        )
+        
+    def get_bound_subjects_for_registry(self, registry_id: str) -> set[str]:
+        rows = self._fetchall(
+            """SELECT DISTINCT cs.subject_name
+               FROM channel_subjects cs
+               JOIN channels c ON c.id = cs.channel_id
+               WHERE c.registry_id = %s::uuid""",
+            (registry_id,),
+        )
+        return {r["subject_name"] for r in rows}
+             
     # ================================================================
     # AUDIT LOG
     # ================================================================

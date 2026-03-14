@@ -93,6 +93,7 @@ class DatabaseProvider(ABC):
         """Delete an AsyncAPI spec. Returns True if deleted."""
         
         ...
+
     @abstractmethod
     def upsert_asyncapi_spec(
         self,
@@ -101,9 +102,22 @@ class DatabaseProvider(ABC):
         spec_content: dict,
         is_auto_generated: bool = True,
         user_id: str = "",
+        source_schema_hash: str | None = None,
+        source_schema_version: int | None = None,
     ) -> dict | None:
         """Create or update an AsyncAPI spec."""
         ...
+        
+    @abstractmethod
+    def get_asyncapi_specs_for_registry(self, registry_id: str) -> list[dict]:
+        """Get all AsyncAPI specs for a registry (batch query for overview)."""
+        ...
+ 
+    @abstractmethod
+    def get_bound_subjects_for_registry(self, registry_id: str) -> set[str]:
+        """Get the set of subject_names that have at least one channel binding."""
+        ...
+ 
     # ================================================================
     # AUDIT LOG
     # ================================================================

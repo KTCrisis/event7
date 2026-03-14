@@ -23,9 +23,11 @@ from app.models.asyncapi import (
     AsyncAPIImportPreview,
     AsyncAPIImportResult,
 )
+from app.models.asyncapi_overview import AsyncAPIOverviewResponse
 from app.services.schema_service import SchemaService
 from app.services.asyncapi_service import AsyncAPIService
 from app.services.asyncapi_import_service import AsyncAPIImportService
+
 from app.utils.auth import get_current_user
 
 router = APIRouter(prefix="/api/v1/registries/{registry_id}", tags=["asyncapi"])
@@ -69,6 +71,22 @@ def _get_import_service(
         provider_type=provider_type,
     )
 
+@router.get("/asyncapi/overview", response_model=AsyncAPIOverviewResponse)
+async def get_asyncapi_overview(
+    user: UserContext = Depends(get_current_user),
+    asyncapi_service: AsyncAPIService = Depends(_get_asyncapi_service),
+):
+    """
+    AsyncAPI dual-mode overview for all subjects in the registry.
+ 
+    Returns per-subject status (origin/status separated) and aggregated KPIs.
+    - origin: "imported" | "generated" | null (provenance)
+    - status: "documented" | "ready" | "raw" (coverage level)
+ 
+    Used by the frontend Overview tab to display coverage, filters, and actions.
+    """
+    return await asyncapi_service.get_overview()
+ 
 # ================================================================
 # GENERATE
 # ================================================================

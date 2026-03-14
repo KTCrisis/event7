@@ -12,6 +12,7 @@ import type {
   AsyncAPIImportRequest,
   AsyncAPIImportPreview,
   AsyncAPIImportResult,
+  AsyncAPIOverviewResponse
 } from "@/types/asyncapi";
 
 // ════════════════════════════════════════════════════════════════════
@@ -99,3 +100,17 @@ export async function importApply(
     { spec_content: specContent, register_schemas: registerSchemas } satisfies AsyncAPIImportRequest
   );
 }
+
+// ════════════════════════════════════════════════════════════════════
+// OVERVIEW (Dual Mode)
+// ════════════════════════════════════════════════════════════════════
+
+/** Fetch dual-mode overview: KPIs + per-subject status. */
+export async function getAsyncAPIOverview(
+  registryId: string
+): Promise<AsyncAPIOverviewResponse> {
+  return api.get<AsyncAPIOverviewResponse>(
+    `/api/v1/registries/${registryId}/asyncapi/overview`
+  );
+}
+ 

@@ -197,6 +197,7 @@ class SupabaseDatabase(DatabaseProvider):
             logger.error(f"Failed to delete AsyncAPI spec: {e}")
             return False
             
+
     def upsert_asyncapi_spec(
         self,
         registry_id: str,
@@ -204,39 +205,90 @@ class SupabaseDatabase(DatabaseProvider):
         spec_content: dict,
         is_auto_generated: bool = True,
         user_id: str = "",
+        source_schema_hash: str | None = None,
+        source_schema_version: int | None = None,
     ) -> dict | None:
-        """Create or update an AsyncAPI spec."""
-        if not self.client:
-            return None
-
-        data = {
-            "registry_id": registry_id,
-            "subject": subject,
-            "spec_content": spec_content,
-            "is_auto_generated": is_auto_generated,
-        }
-
-        try:
-            response = (
+        """Create or update an AsyncAPI spec. Auto-increments spec_version on update."""
+        existing = self.get_asyncapi_spec(registry_id, subject)
+ 
+        if existing:
+            new_version = (existing.get("spec_version") or 0) + 1
+            update_data = {
+                "spec_content": spec_content,
+                "is_auto_generated": is_auto_generated,
+                "spec_version": new_version,
+            }
+            if source_schema_hash is not None:
+                update_data["source_schema_hash"] = source_schema_hash
+            if source_schema_version is not None:
+                update_data["source_schema_version"] = source_schema_version
+ 
+            result = (
                 self.client.table("asyncapi_specs")
-                .upsert(data, on_conflict="registry_id,subject")
+                .update(update_data)
+                .eq("registry_id", registry_id)
+                .eq("subject", subject)
                 .execute()
             )
-            if not response.data:
-                return None
-
-            action = "asyncapi_generate" if is_auto_generated else "asyncapi_update"
+        else:
+            insert_data = {
+                "registry_id": registry_id,
+                "subject": subject,
+                "spec_content": spec_content,
+                "is_auto_generated": is_auto_generated,
+                "spec_version": 1,
+            }
+            if source_schema_hash is not None:
+                insert_data["source_schema_hash"] = source_schema_hash
+            if source_schema_version is not None:
+                insert_data["source_schema_version"] = source_schema_version
+ 
+            result = (
+                self.client.table("asyncapi_specs")
+                .insert(insert_data)
+                .execute()
+            )
+ 
+        row = (result.data or [None])[0]
+        if row and user_id:
             self.log_audit(
                 user_id=user_id,
                 registry_id=registry_id,
-                action=action,
+                action="asyncapi_upsert",
                 details={"subject": subject, "is_auto_generated": is_auto_generated},
             )
+        return row
 
-            return response.data[0]
-        except Exception as e:
-            logger.error(f"Failed to upsert AsyncAPI spec: {e}")
-            return None
+    def get_asyncapi_specs_for_registry(self, registry_id: str) -> list[dict]:
+        result = (
+            self.client.table("asyncapi_specs")
+            .select("subject, spec_content, is_auto_generated, source_schema_hash, source_schema_version, spec_version, updated_at")
+            .eq("registry_id", registry_id)
+            .order("subject")
+            .execute()
+        )
+        return result.data or []
+ 
+    def get_bound_subjects_for_registry(self, registry_id: str) -> set[str]:
+        # Supabase doesn't support JOINs via PostgREST natively.
+        # Two-step: get channel IDs for registry, then get distinct subjects.
+        channels_result = (
+            self.client.table("channels")
+            .select("id")
+            .eq("registry_id", registry_id)
+            .execute()
+        )
+        channel_ids = [c["id"] for c in (channels_result.data or [])]
+        if not channel_ids:
+            return set()
+ 
+        bindings_result = (
+            self.client.table("channel_subjects")
+            .select("subject_name")
+            .in_("channel_id", channel_ids)
+            .execute()
+        )
+        return {r["subject_name"] for r in (bindings_result.data or [])}
     # ================================================================
     # AUDIT LOG
     # ================================================================

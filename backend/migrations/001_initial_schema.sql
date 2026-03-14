@@ -121,17 +121,19 @@ CREATE TABLE schema_snapshots (
 );
 
 -- --- AsyncAPI Specs (générées ou éditées manuellement) ---
-CREATE TABLE asyncapi_specs (
+CREATE TABLE IF NOT EXISTS asyncapi_specs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     registry_id UUID NOT NULL REFERENCES registries(id) ON DELETE CASCADE,
     subject TEXT NOT NULL,
     spec_content JSONB NOT NULL,
     is_auto_generated BOOLEAN NOT NULL DEFAULT TRUE,
+    source_schema_hash TEXT,                    -- SHA-256 du schema source (pour sync_status futur),
+    source_schema_version INTEGER,
+    spec_version INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
     CONSTRAINT uq_asyncapi_registry_subject UNIQUE (registry_id, subject)
-);
+    );
 
 -- --- Audit Logs ---
 CREATE TABLE audit_logs (

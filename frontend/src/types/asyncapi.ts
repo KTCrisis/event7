@@ -107,3 +107,44 @@ export interface AsyncAPIImportResult {
   results: ImportEntityResult[];
   warnings: string[];
 }
+
+// ════════════════════════════════════════════════════════════════════
+// OVERVIEW (Dual Mode)
+// ════════════════════════════════════════════════════════════════════
+
+ 
+export interface SubjectAsyncAPIStatus {
+  subject: string;
+  origin: "imported" | "generated" | null;
+  status: "documented" | "ready" | "raw";
+  sync_status: "in_sync" | "outdated" | "unknown" | null;
+  asyncapi_version: string | null;
+  spec_title: string | null;
+  spec_updated_at: string | null;
+  governance_score: number | null;
+  governance_grade: string | null;
+  spec_version: number | null;
+  has_enrichment: boolean;
+  has_description: boolean;
+  has_channels: boolean;
+  has_bindings: boolean;
+  description: string | null;
+  owner_team: string | null;
+  data_layer: string | null;
+}
+ 
+export interface AsyncAPIOverviewKPIs {
+  total_subjects: number;
+  documented: number;
+  ready: number;
+  raw: number;
+  imported: number;
+  generated: number;
+  coverage_pct: number;
+}
+ 
+export interface AsyncAPIOverviewResponse {
+  kpis: AsyncAPIOverviewKPIs;
+  subjects: SubjectAsyncAPIStatus[];
+}
+ 

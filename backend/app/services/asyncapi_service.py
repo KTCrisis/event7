@@ -16,7 +16,7 @@ Changelog v2 — Kafka Bindings Enhancement:
 
 import json
 from datetime import datetime, timezone
-
+import hashlib
 from loguru import logger
 
 from app.cache.redis_cache import RedisCache
@@ -25,6 +25,16 @@ from app.models.asyncapi import AsyncAPISpec, AsyncAPIGenerateRequest
 from app.models.schema import SchemaDetail, SchemaFormat
 from app.providers.base import SchemaRegistryProvider
 
+    # =========================================================================
+    # Hash helpers
+    # =========================================================================
+def _compute_schema_hash(schema_content: dict | str) -> str:
+    """Compute a stable SHA-256 hash of schema content."""
+    if isinstance(schema_content, dict):
+        raw = json.dumps(schema_content, sort_keys=True, separators=(",", ":"))
+    else:
+        raw = str(schema_content)
+    return hashlib.sha256(raw.encode()).hexdigest()
 
 class AsyncAPIService:
     """
@@ -72,6 +82,8 @@ class AsyncAPIService:
 
         # 1. Fetch value schema from provider
         schema = await self.provider.get_schema(subject, "latest")
+        source_hash = _compute_schema_hash(schema.schema_content)
+        source_version = schema.version if hasattr(schema, "version") else None
 
         # 2. Fetch key schema (if enabled and subject follows -value convention)
         key_schema = None
@@ -101,6 +113,8 @@ class AsyncAPIService:
             spec_content=spec_content,
             is_auto_generated=True,
             user_id=user_id,
+            source_schema_hash=source_hash,
+            source_schema_version=source_version,
         )
 
         # 7. Invalidate + populate cache
@@ -194,6 +208,174 @@ class AsyncAPIService:
 
         logger.info(f"AsyncAPI spec manually updated for {subject}")
         return spec
+
+    # =========================================================================
+    # Overview (Dual Mode)
+    # =========================================================================
+    async def get_overview(self) -> "AsyncAPIOverviewResponse":
+        """
+        Build the AsyncAPI overview with two-tier drift detection.
+        Tier 1: schema version comparison (fast, no extra fetch)
+        Tier 2: hash comparison (only for version-matching documented subjects)
+        """
+        from app.models.asyncapi_overview import (
+            AsyncAPIOverviewResponse,
+            AsyncAPIOverviewKPIs,
+            SubjectAsyncAPIStatus,
+        )
+ 
+        # ── 1. All subjects from provider ──
+        try:
+            subject_infos = await self.provider.list_subjects()
+        except Exception as e:
+            logger.error(f"Failed to list subjects from provider: {e}")
+            subject_infos = []
+ 
+        # Build lookup: subject → latest_version
+        subject_versions: dict[str, int | None] = {}
+        subjects: list[str] = []
+        for si in subject_infos:
+            subjects.append(si.subject)
+            subject_versions[si.subject] = getattr(si, "latest_version", None)
+ 
+        # ── 2. All enrichments (batch) ──
+        enrichments_list = self.db.get_enrichments_for_registry(self.registry_id)
+        enrichments_map: dict[str, dict] = {e["subject"]: e for e in enrichments_list}
+ 
+        # ── 3. All AsyncAPI specs (batch) ──
+        specs_list = self.db.get_asyncapi_specs_for_registry(self.registry_id)
+        specs_map: dict[str, dict] = {s["subject"]: s for s in specs_list}
+ 
+        # ── 4. All bound subject names (batch) ──
+        bound_subjects: set[str] = self.db.get_bound_subjects_for_registry(self.registry_id)
+ 
+        # ── 5. Tier 2: hash check for subjects where version matches ──
+        # Only fetch schemas for documented subjects where we need hash verification
+        subjects_needing_hash: list[str] = []
+        for subject in subjects:
+            spec = specs_map.get(subject)
+            if not spec or not spec.get("source_schema_hash"):
+                continue
+            stored_version = spec.get("source_schema_version")
+            current_version = subject_versions.get(subject)
+            # Version matches (or no version info) but we have a hash → verify
+            if stored_version is not None and current_version is not None:
+                if stored_version == current_version:
+                    subjects_needing_hash.append(subject)
+ 
+        # Batch-fetch schemas for hash verification (only the few that need it)
+        hash_results: dict[str, str] = {}
+        for subject in subjects_needing_hash:
+            try:
+                schema_detail = await self.provider.get_schema(subject, "latest")
+                hash_results[subject] = _compute_schema_hash(schema_detail.schema_content)
+            except Exception as e:
+                logger.warning(f"Failed to fetch schema for hash check: {subject}: {e}")
+ 
+        # ── 6. Build per-subject status ──
+        results: list[SubjectAsyncAPIStatus] = []
+ 
+        for subject in subjects:
+            enrichment = enrichments_map.get(subject)
+            spec = specs_map.get(subject)
+            has_bindings = subject in bound_subjects
+ 
+            # — Origin —
+            origin = None
+            if spec:
+                origin = "generated" if spec.get("is_auto_generated", True) else "imported"
+ 
+            # — Status —
+            if spec:
+                status = "documented"
+            elif enrichment and (enrichment.get("description") or has_bindings):
+                status = "ready"
+            else:
+                status = "raw"
+ 
+            # — Sync status (two-tier) —
+            sync_status = None
+            if spec:
+                stored_version = spec.get("source_schema_version")
+                current_version = subject_versions.get(subject)
+                stored_hash = spec.get("source_schema_hash")
+ 
+                if stored_version is not None and current_version is not None:
+                    if stored_version != current_version:
+                        # Tier 1: version mismatch → outdated
+                        sync_status = "outdated"
+                    elif subject in hash_results and stored_hash:
+                        # Tier 2: version matches, compare hash
+                        if hash_results[subject] == stored_hash:
+                            sync_status = "in_sync"
+                        else:
+                            sync_status = "outdated"
+                    elif stored_hash:
+                        sync_status = "in_sync"  # version match, no hash to compare further
+                    else:
+                        sync_status = "unknown"
+                else:
+                    sync_status = "unknown"
+ 
+            # — Spec metadata —
+            spec_title = None
+            asyncapi_version = None
+            spec_updated_at = None
+            spec_version = None
+ 
+            if spec:
+                spec_version = spec.get("spec_version")
+                if spec.get("spec_content"):
+                    content = spec["spec_content"]
+                    if isinstance(content, dict):
+                        asyncapi_version = content.get("asyncapi")
+                        info = content.get("info", {})
+                        if isinstance(info, dict):
+                            spec_title = info.get("title")
+                spec_updated_at = str(spec["updated_at"]) if spec.get("updated_at") else None
+ 
+            results.append(
+                SubjectAsyncAPIStatus(
+                    subject=subject,
+                    origin=origin,
+                    status=status,
+                    sync_status=sync_status,
+                    asyncapi_version=asyncapi_version,
+                    spec_title=spec_title,
+                    spec_updated_at=spec_updated_at,
+                    spec_version=spec_version,
+                    has_enrichment=enrichment is not None,
+                    has_description=bool(enrichment and enrichment.get("description")),
+                    has_channels=has_bindings,
+                    has_bindings=has_bindings,
+                    description=enrichment.get("description") if enrichment else None,
+                    owner_team=enrichment.get("owner_team") if enrichment else None,
+                    data_layer=enrichment.get("data_layer") if enrichment else None,
+                )
+            )
+ 
+        # ── 7. Compute KPIs ──
+        total = len(results)
+        documented = sum(1 for r in results if r.status == "documented")
+        ready = sum(1 for r in results if r.status == "ready")
+        raw = sum(1 for r in results if r.status == "raw")
+        imported_count = sum(1 for r in results if r.origin == "imported")
+        generated_count = sum(1 for r in results if r.origin == "generated")
+        coverage_pct = round(documented / total * 100, 1) if total > 0 else 0.0
+ 
+        return AsyncAPIOverviewResponse(
+            kpis=AsyncAPIOverviewKPIs(
+                total_subjects=total,
+                documented=documented,
+                ready=ready,
+                raw=raw,
+                imported=imported_count,
+                generated=generated_count,
+                coverage_pct=coverage_pct,
+            ),
+            subjects=results,
+        )
+
 
     # =========================================================================
     # Key Schema Detection
@@ -314,7 +496,7 @@ class AsyncAPIService:
                 "contact": {
                     "name": owner,
                 },
-                "tags": [{"name": tag} for tag in tags],
+                **({"tags": [{"name": str(tag)} for tag in tags if tag]} if tags else {}),
                 "x-classification": classification,
                 "x-schema-registry": {
                     "subject": subject,
