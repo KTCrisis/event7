@@ -9,6 +9,7 @@ P1: Ajout Depends(get_current_user) sur toutes les routes.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from loguru import logger
 
 from app.api.dependencies import get_schema_service
 from app.models.auth import UserContext
@@ -17,6 +18,19 @@ from app.services.schema_service import SchemaService
 from app.utils.auth import get_current_user
 from app.models.validator import SchemaValidateRequest, SchemaValidateResponse
 from app.services.validator_service import SchemaValidatorService
+
+
+def _handle_service_error(e: Exception, subject: str, operation: str) -> HTTPException:
+    """Map service exceptions to appropriate HTTP status codes."""
+    msg = str(e).lower()
+    if "not found" in msg or "404" in msg or "40401" in msg:
+        return HTTPException(status_code=404, detail=f"{operation}: {e}")
+    if "unauthorized" in msg or "401" in msg or "403" in msg:
+        return HTTPException(status_code=502, detail=f"Registry auth failed: {e}")
+    if "timeout" in msg or "connect" in msg:
+        return HTTPException(status_code=502, detail=f"Registry unreachable: {e}")
+    logger.error(f"{operation} for {subject}: {e}")
+    return HTTPException(status_code=500, detail=f"{operation}: {e}")
 
 router = APIRouter(prefix="/api/v1/registries/{registry_id}", tags=["schemas"])
 
@@ -47,8 +61,10 @@ async def get_schema(
     """Récupère le détail d'un schema à une version donnée"""
     try:
         return await service.get_schema(subject, version)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Schema not found: {e}")
+        raise _handle_service_error(e, subject, "Schema fetch failed")
 
 
 @router.get("/subjects/{subject}", response_model=SchemaDetail)
@@ -60,8 +76,10 @@ async def get_schema_latest(
     """Récupère la dernière version d'un schema"""
     try:
         return await service.get_schema(subject, "latest")
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Schema not found: {e}")
+        raise _handle_service_error(e, subject, "Schema fetch failed")
 
 
 # === Versions ===
@@ -76,8 +94,10 @@ async def list_versions(
     """Liste les numéros de version d'un subject"""
     try:
         return await service.get_versions(subject)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Subject not found: {e}")
+        raise _handle_service_error(e, subject, "Version list failed")
 
 
 @router.get("/subjects/{subject}/versions-detail", response_model=list[SchemaVersion])
@@ -89,8 +109,10 @@ async def list_versions_detail(
     """Liste toutes les versions avec leur contenu complet"""
     try:
         return await service.get_versions_detail(subject)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Subject not found: {e}")
+        raise _handle_service_error(e, subject, "Version detail failed")
 
 
 # === Create / Delete ===

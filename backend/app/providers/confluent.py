@@ -54,7 +54,10 @@ class ConfluentProvider(SchemaRegistryProvider):
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
-            error_body = e.response.json() if e.response.content else {}
+            try:
+                error_body = e.response.json() if e.response.content else {}
+            except (ValueError, UnicodeDecodeError):
+                error_body = {}
             error_code = error_body.get("error_code", e.response.status_code)
             error_msg = error_body.get("message", str(e))
             logger.error(f"Confluent API error [{error_code}]: {error_msg}")

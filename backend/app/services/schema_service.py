@@ -185,10 +185,11 @@ class SchemaService:
         # Invalidate cached views that embed enrichment data
         import asyncio
         try:
-            asyncio.ensure_future(self.cache.delete(self._key("catalog")))
-            asyncio.ensure_future(self.cache.delete(self._key("subjects", "enriched")))
-        except Exception:
-            pass  # non-blocking
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.cache.delete(self._key("catalog")))
+            loop.create_task(self.cache.delete(self._key("subjects", "enriched")))
+        except RuntimeError:
+            pass  # No running loop (e.g. tests) — cache will expire via TTL
 
         return Enrichment(**data)
 

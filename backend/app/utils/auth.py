@@ -12,7 +12,7 @@ Supporte deux algorithmes:
 - ES256 (ECC, nouveau défaut Supabase): vérifié avec la clé publique JWKS
 """
 
-from functools import lru_cache
+import time
 from uuid import UUID
 
 import httpx
@@ -31,19 +31,35 @@ _DEV_USER = UserContext(
     role="authenticated",
 )
 
+# JWKS cache with TTL (3600s = 1h). Failed fetches are NOT cached.
+_jwks_cache: dict | None = None
+_jwks_cache_time: float = 0.0
+_JWKS_TTL = 3600
 
-@lru_cache(maxsize=1)
+
 def _fetch_jwks(supabase_url: str) -> dict:
-    """Fetch Supabase JWKS (cached — keys rarely change)."""
+    """Fetch Supabase JWKS (cached with TTL, failed fetches not cached)."""
+    global _jwks_cache, _jwks_cache_time
+
+    now = time.monotonic()
+    if _jwks_cache is not None and (now - _jwks_cache_time) < _JWKS_TTL:
+        return _jwks_cache
+
     jwks_url = f"{supabase_url}/auth/v1/.well-known/jwks.json"
     try:
         resp = httpx.get(jwks_url, timeout=10.0)
         resp.raise_for_status()
         jwks = resp.json()
         logger.info(f"Fetched JWKS from {jwks_url} ({len(jwks.get('keys', []))} keys)")
+        _jwks_cache = jwks
+        _jwks_cache_time = now
         return jwks
     except Exception as e:
         logger.error(f"Failed to fetch JWKS from {jwks_url}: {e}")
+        # Return stale cache if available, otherwise empty
+        if _jwks_cache is not None:
+            logger.warning("Using stale JWKS cache after fetch failure")
+            return _jwks_cache
         return {"keys": []}
 
 
@@ -107,9 +123,14 @@ def _decode_supabase_jwt(token: str, settings: Settings) -> dict:
                     detail="Invalid authentication token",
                 )
         else:
-            logger.warning("ES256 token but no JWKS key found, falling back to HS256")
+            # No fallback to HS256 for ES256 tokens — prevents algorithm confusion
+            logger.error("ES256 token but no JWKS key found — check Supabase JWKS endpoint")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unable to verify ES256 token (JWKS key not found)",
+            )
 
-    # 3. HS256 — verify with legacy secret
+    # 3. HS256 — verify with legacy secret (only for tokens that declare HS256)
     if settings.supabase_jwt_secret:
         try:
             payload = jwt.decode(

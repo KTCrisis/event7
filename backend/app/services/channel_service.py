@@ -49,13 +49,10 @@ class ChannelService:
         """Invalidate all channel cache for this registry."""
         try:
             import asyncio
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(self.cache.delete_pattern(self._key("*")))
-            else:
-                loop.run_until_complete(self.cache.delete_pattern(self._key("*")))
-        except Exception:
-            pass  # Best effort — cache invalidation is non-critical
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.cache.delete_pattern(self._key("*")))
+        except RuntimeError:
+            pass  # No running loop (e.g. tests) — cache will expire via TTL
 
     # ================================================================
     # CHANNELS CRUD

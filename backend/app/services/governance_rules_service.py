@@ -484,6 +484,9 @@ class GovernanceRulesService:
 
         if not row:
             raise ValueError("Failed to clone template — name may already exist")
+
+        return self._row_to_template(row)
+
     # ================================================================
     # TEMPLATES — Helpers
     # ================================================================

@@ -160,7 +160,7 @@ class AsyncAPIService:
         channels = self.db.get_channels_for_subject(self.registry_id, subject)
 
         # 6. Fetch governance score — NEW
-        gov_score = self._fetch_governance_score(subject)
+        gov_score = await self._fetch_governance_score(subject)
 
         # 7. Build spec — ENHANCED
         spec_content = self._build_spec(
@@ -448,7 +448,7 @@ class AsyncAPIService:
     # Governance Score Fetch
     # =========================================================================
 
-    def _fetch_governance_score(self, subject: str) -> dict | None:
+    async def _fetch_governance_score(self, subject: str) -> dict | None:
         """Fetch governance score for a subject. Returns None if no rules configured."""
         try:
             from app.services.governance_rules_service import GovernanceRulesService
@@ -457,7 +457,7 @@ class AsyncAPIService:
                 db=self.db,
                 registry_id=self.registry_id,
             )
-            score = service.get_score(subject=subject)
+            score = await service.compute_score(subject=subject)
             if not score or score.total_rules == 0:
                 return None
             return {

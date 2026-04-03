@@ -1,7 +1,7 @@
 // src/providers/registry-provider.tsx
 "use client";
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { registriesApi } from "@/lib/api/registries";
 import type { RegistryResponse } from "@/types/registry";
 
@@ -21,14 +21,16 @@ export function RegistryProvider({ children }: { children: React.ReactNode }) {
   const [registries, setRegistries] = useState<RegistryResponse[]>([]);
   const [selected, setSelected] = useState<RegistryResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
       const data = await registriesApi.list();
       setRegistries(data);
 
-      // Restore selection from cookie or pick first
-      if (!selected && data.length > 0) {
+      // Restore selection from cookie or pick first (only if nothing selected)
+      if (!selectedRef.current && data.length > 0) {
         const savedId =
           typeof document !== "undefined"
             ? document.cookie
@@ -44,16 +46,16 @@ export function RegistryProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const select = (registry: RegistryResponse) => {
+  const select = useCallback((registry: RegistryResponse) => {
     setSelected(registry);
     document.cookie = `${STORAGE_KEY}=${registry.id};path=/;max-age=31536000`;
-  };
+  }, []);
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
   return (
     <RegistryContext.Provider

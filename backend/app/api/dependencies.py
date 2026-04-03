@@ -74,6 +74,7 @@ async def get_schema_service(
         )
 
     # --- Create provider ---
+    # --- Create provider (errors here = 500) ---
     provider = None
     try:
         provider = create_provider(
@@ -81,7 +82,15 @@ async def get_schema_service(
             base_url=registry["base_url"],
             credentials_encrypted=registry.get("credentials_encrypted"),
         )
+    except Exception as e:
+        logger.error(f"Error creating provider for registry {registry_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to connect to schema registry",
+        )
 
+    # --- Yield service to route handler, then clean up ---
+    try:
         service = SchemaService(
             provider=provider,
             cache=redis_cache,
@@ -91,14 +100,6 @@ async def get_schema_service(
 
         yield service  # P0-LIFECYCLE: route handler runs here
 
-    except HTTPException:
-        raise  # Re-raise FastAPI exceptions as-is
-    except Exception as e:
-        logger.error(f"Error creating service for registry {registry_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to connect to schema registry",
-        )
     finally:
         # P0-LIFECYCLE: always close the provider's HTTP client
         if provider is not None:

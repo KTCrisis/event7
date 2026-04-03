@@ -675,7 +675,7 @@ class SupabaseDatabase(DatabaseProvider):
         try:
             # Fetch all bindings for this registry's channels
             channels_resp = (
-                self._client.table("channels")
+                self.client.table("channels")
                 .select("id, broker_type")
                 .eq("registry_id", registry_id)
                 .execute()
@@ -689,7 +689,7 @@ class SupabaseDatabase(DatabaseProvider):
             channel_ids = list(channel_map.keys())
 
             bindings_resp = (
-                self._client.table("channel_subjects")
+                self.client.table("channel_subjects")
                 .select("channel_id, subject_name")
                 .in_("channel_id", channel_ids)
                 .execute()
