@@ -237,6 +237,10 @@ async def _query_agent(
                         "stream": True,
                     },
                 ) as response:
+                    if response.status_code >= 400:
+                        body = await response.aread()
+                        yield _sse_text(f"⚠ Ollama error ({response.status_code}): {body.decode(errors='replace')[:200]}")
+                        return
                     async for line in response.aiter_lines():
                         line = line.strip()
                         if not line:
@@ -294,6 +298,9 @@ async def _action_agent(
                         ],
                     },
                 )
+                if response.status_code >= 400:
+                    yield _sse_text(f"⚠ Ollama error ({response.status_code}): {response.text[:200]}")
+                    return
                 raw = response.json()
 
             tool_calls = raw.get("message", {}).get("tool_calls", [])

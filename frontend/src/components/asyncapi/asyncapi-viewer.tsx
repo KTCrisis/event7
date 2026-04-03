@@ -163,7 +163,7 @@ export function AsyncApiViewer({
       setEditSuccess(true);
       setTimeout(() => setEditSuccess(false), 3000);
     } catch (err: any) {
-      setEditError(err?.message || "Failed to save");
+      setEditError(err?.detail || err?.message || "Failed to save");
     } finally {
       setEditSaving(false);
     }
@@ -185,7 +185,7 @@ export function AsyncApiViewer({
       if (err instanceof SyntaxError) {
         setRawError("Invalid JSON syntax");
       } else {
-        setRawError(err?.message || "Failed to save");
+        setRawError(err?.detail || err?.message || "Failed to save");
       }
     } finally {
       setRawSaving(false);

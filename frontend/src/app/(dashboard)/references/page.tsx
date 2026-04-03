@@ -29,7 +29,7 @@ export default function ReferencesPage() {
       setGraph(data);
       setStats(computeStats(data));
     } catch (err: any) {
-      setError(err?.message || "Failed to load graph");
+      setError(err?.detail || err?.message || "Failed to load graph");
     } finally {
       setLoading(false);
     }

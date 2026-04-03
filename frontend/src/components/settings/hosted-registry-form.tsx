@@ -37,12 +37,12 @@ export function HostedRegistryForm({
       onSuccess();
     } catch (err: any) {
       // Backend returns 501 until provisioning is implemented
-      if (err?.status === 501 || err?.message?.includes("501")) {
+      if (err?.status === 501 || err?.detail?.includes("501") || err?.message?.includes("501")) {
         setError(
           "Hosted registries are coming soon. Connect an existing registry for now."
         );
       } else {
-        setError(err?.message || "Failed to create hosted registry");
+        setError(err?.detail || err?.message || "Failed to create hosted registry");
       }
     } finally {
       setLoading(false);

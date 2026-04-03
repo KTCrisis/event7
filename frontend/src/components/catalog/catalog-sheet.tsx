@@ -85,7 +85,7 @@ export function CatalogSheet({
         if (!cancelled) setSchema(data);
       })
       .catch((err) => {
-        if (!cancelled) setSchemaError(err?.message || "Failed to load schema");
+        if (!cancelled) setSchemaError(err?.detail || err?.message || "Failed to load schema");
       })
       .finally(() => {
         if (!cancelled) setSchemaLoading(false);
@@ -130,7 +130,7 @@ export function CatalogSheet({
       });
       setSpec(result);
     } catch (err: any) {
-      setAsyncError(err?.message || "Failed to generate spec");
+      setAsyncError(err?.detail || err?.message || "Failed to generate spec");
     } finally {
       setGenerating(false);
     }

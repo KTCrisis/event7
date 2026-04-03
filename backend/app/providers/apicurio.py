@@ -174,12 +174,20 @@ class ApicurioProvider(SchemaRegistryProvider):
 
     async def list_subjects(self) -> list[SubjectInfo]:
         """List all artifacts in the default group as subjects."""
-        results = await self._get(
-            f"{BASE_PATH}/search/artifacts",
-            params={"groupId": GROUP_ID, "limit": 500, "order": "asc", "orderby": "name"},
-        )
-
-        artifacts = results.get("artifacts", [])
+        # Paginated fetch — Apicurio defaults to 20 per page
+        artifacts = []
+        offset = 0
+        page_size = 500
+        while True:
+            results = await self._get(
+                f"{BASE_PATH}/search/artifacts",
+                params={"groupId": GROUP_ID, "limit": page_size, "offset": offset, "order": "asc", "orderby": "name"},
+            )
+            page = results.get("artifacts", [])
+            artifacts.extend(page)
+            if len(page) < page_size:
+                break
+            offset += page_size
         subjects = []
 
         for art in artifacts:

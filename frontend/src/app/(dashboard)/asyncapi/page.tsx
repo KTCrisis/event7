@@ -183,7 +183,7 @@ export default function AsyncApiPage() {
       const data = await getAsyncAPIOverview(registryId);
       setOverview(data);
     } catch (err: any) {
-      setOverviewError(err?.message || "Failed to load overview");
+      setOverviewError(err?.detail || err?.message || "Failed to load overview");
     } finally {
       setOverviewLoading(false);
     }
@@ -226,7 +226,7 @@ export default function AsyncApiPage() {
       const existing = await getAsyncAPI(registryId, subject);
       setViewerSpec(existing);
     } catch (err: any) {
-      setViewerError(err?.message || "Failed to load spec");
+      setViewerError(err?.detail || err?.message || "Failed to load spec");
     } finally {
       setViewerLoading(false);
     }

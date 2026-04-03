@@ -76,7 +76,7 @@ export default function DashboardPage() {
         channelMap,
       });
     } catch (err: any) {
-      setError(err?.message || "Failed to load dashboard data");
+      setError(err?.detail || err?.message || "Failed to load dashboard data");
     } finally {
       setLoading(false);
     }

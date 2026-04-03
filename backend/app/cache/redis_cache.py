@@ -23,7 +23,10 @@ class RedisCache:
             settings.redis_url,
             decode_responses=True,
         )
-        logger.info(f"Redis connected: {settings.redis_url}")
+        # Log host only, not credentials
+        from urllib.parse import urlparse
+        parsed = urlparse(settings.redis_url)
+        logger.info(f"Redis connected: {parsed.hostname}:{parsed.port or 6379}")
 
     async def disconnect(self):
         if self._client:

@@ -118,7 +118,7 @@ export default function CatalogPage() {
 
   const gridCols = showScores ? GRID_WITH_SCORE : GRID_NO_SCORE;
 
-  // ── Fetch catalog + asyncapi overview ──
+  // ── Fetch catalog + asyncapi overview (with cancellation) ──
   useEffect(() => {
     if (!registry) {
       setCatalog([]);
@@ -126,6 +126,7 @@ export default function CatalogPage() {
       return;
     }
 
+    let cancelled = false;
     setLoading(true);
     setError(null);
 
@@ -134,11 +135,14 @@ export default function CatalogPage() {
       getAsyncAPIOverview(registry.id).catch(() => null),
     ])
       .then(([catalogData, overviewData]) => {
+        if (cancelled) return;
         setCatalog(catalogData);
         setAsyncOverview(overviewData);
       })
-      .catch((err) => setError(err?.detail || "Failed to load catalog"))
-      .finally(() => setLoading(false));
+      .catch((err) => { if (!cancelled) setError(err?.detail || "Failed to load catalog"); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
   }, [registry]);
 
   // ── Build asyncapi status map ──

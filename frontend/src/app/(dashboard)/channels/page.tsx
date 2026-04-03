@@ -3,7 +3,7 @@
 // v2: Tier 1-3 broker types (22 total), imports from types/channel.ts
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import {
   Search, Plus, Loader2, AlertCircle, Radio,
   ChevronDown, Trash2, DatabaseZap, Network,
@@ -57,18 +57,20 @@ export default function ChannelsPage() {
   // Create dialog
   const [showCreate, setShowCreate] = useState(false);
 
-  // Fetch channels
-  const load = () => {
+  // Fetch channels (with cancellation to prevent race conditions)
+  const loadRef = useRef(0);
+  const load = useCallback(() => {
     if (!registry) { setChannels([]); return; }
+    const id = ++loadRef.current;
     setLoading(true);
     setError(null);
     listChannels(registry.id)
-      .then(setChannels)
-      .catch((err) => setError(err?.detail || "Failed to load channels"))
-      .finally(() => setLoading(false));
-  };
+      .then((data) => { if (id === loadRef.current) setChannels(data); })
+      .catch((err) => { if (id === loadRef.current) setError(err?.detail || "Failed to load channels"); })
+      .finally(() => { if (id === loadRef.current) setLoading(false); });
+  }, [registry]);
 
-  useEffect(() => { load(); }, [registry]);
+  useEffect(() => { load(); }, [load]);
 
   // Stats
   const stats = useMemo(() => {

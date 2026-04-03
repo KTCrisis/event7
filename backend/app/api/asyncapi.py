@@ -11,6 +11,7 @@ Changelog:
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from loguru import logger
 
 import yaml
 
@@ -55,13 +56,13 @@ def _get_import_service(
     user: UserContext = Depends(get_current_user),
 ) -> AsyncAPIImportService:
     """Construit un AsyncAPIImportService avec provider_type détecté."""
-    provider_type = "apicurio"
+    provider_type = "confluent"  # safe default (most common)
     try:
         reg = service.db.get_registry_by_id(service.registry_id, str(user.user_id))
         if reg:
-            provider_type = reg.get("provider_type", "apicurio")
-    except Exception:
-        pass
+            provider_type = reg.get("provider_type", "confluent")
+    except Exception as e:
+        logger.warning(f"Failed to detect provider_type for registry {service.registry_id}, defaulting to confluent: {e}")
 
     return AsyncAPIImportService(
         provider=service.provider,

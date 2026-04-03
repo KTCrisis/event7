@@ -141,10 +141,18 @@ class SchemaValidatorService:
             # Check compatibility
             result = await self.provider.check_compatibility(subject, schema_dict)
 
+            # Provider may return a Pydantic model or a dict
+            if hasattr(result, "is_compatible"):
+                is_compat = result.is_compatible
+                messages = result.messages if hasattr(result, "messages") else []
+            else:
+                is_compat = result.get("is_compatible", False)
+                messages = result.get("messages", [])
+
             return CompatibilityResult(
-                is_compatible=result.get("is_compatible", False),
+                is_compatible=is_compat,
                 mode=mode_str,
-                messages=result.get("messages", []),
+                messages=messages,
                 provider_checked=True,
             )
         except Exception as e:
