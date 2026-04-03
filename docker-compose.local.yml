@@ -60,7 +60,7 @@ services:
       APICURIO_REST_DELETION_GROUP_ENABLED: "true"
       APICURIO_REST_DELETION_VERSION_ENABLED: "true"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/apis/registry/v3/system/info || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
