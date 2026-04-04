@@ -225,7 +225,7 @@ class AsyncAPIImportService:
                     continue
 
                 subject_name, schema_content, schema_role, schema_format = self._resolve_message(
-                    msg_id, msg_def, component_messages, component_schemas
+                    msg_id, msg_def, component_messages, component_schemas, spec
                 )
                 if not subject_name:
                     warnings.append(f"Channel '{channel_id}' message '{msg_id}': could not resolve subject name")
@@ -793,6 +793,7 @@ class AsyncAPIImportService:
         msg_def: dict,
         component_messages: dict,
         component_schemas: dict,
+        root_spec: dict | None = None,
     ) -> tuple[str | None, dict | None, str, str]:
         """
         Resolve a message definition to (subject_name, schema_content, schema_role, schema_format).
@@ -804,7 +805,7 @@ class AsyncAPIImportService:
         # Resolve $ref if message is a reference
         if "$ref" in msg_def:
             ref_path = msg_def["$ref"]
-            resolved = self._resolve_ref(ref_path, component_messages)
+            resolved = self._resolve_ref(ref_path, component_messages, root_spec)
             if resolved:
                 msg_def = resolved
             else:
@@ -834,7 +835,7 @@ class AsyncAPIImportService:
 
         if "$ref" in payload:
             ref_path = payload["$ref"]
-            schema_content = self._resolve_ref(ref_path, component_schemas)
+            schema_content = self._resolve_ref(ref_path, component_schemas, root_spec)
             if not subject_name:
                 subject_name = ref_path.split("/")[-1]
         elif isinstance(payload, dict) and payload:
@@ -844,18 +845,34 @@ class AsyncAPIImportService:
 
         return subject_name, schema_content, schema_role, schema_format
 
-    def _resolve_ref(self, ref_path: str, components: dict) -> dict | None:
-        """Resolve a $ref like '#/components/schemas/Order' to its definition."""
-        if not ref_path.startswith("#/"):
-            return None
-        parts = ref_path.lstrip("#/").split("/")
-        current: dict = components
+    def _resolve_ref(self, ref_path: str, components: dict, root_spec: dict | None = None) -> dict | None:
+        """Resolve a $ref like '#/components/schemas/Order' to its definition.
 
-        # Navigate from the last component (e.g., "schemas" dict → "Order")
-        # $ref = #/components/schemas/Order → need just the key "Order" in component_schemas
+        First tries a shortcut: look up the last path segment in `components`
+        (works for simple refs like #/components/schemas/Order when components=schemas_dict).
+
+        Falls back to walking the full path from root_spec if available
+        (handles nested refs like #/components/messages/Envelope/payload).
+        """
+        if not ref_path.startswith("#/"):
+            return None  # External refs not supported
+
+        parts = ref_path.lstrip("#/").split("/")
+
+        # Shortcut: last segment lookup in the provided sub-dict
         key = parts[-1] if parts else ""
         if key in components:
             return components[key]
+
+        # Full path traversal from root spec
+        if root_spec is not None:
+            current = root_spec
+            for part in parts:
+                if isinstance(current, dict) and part in current:
+                    current = current[part]
+                else:
+                    return None
+            return current if isinstance(current, dict) else None
 
         return None
 
