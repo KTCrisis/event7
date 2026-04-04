@@ -17,6 +17,7 @@ from loguru import logger
 
 from app.cache.redis_cache import RedisCache
 from app.db.base import DatabaseProvider
+from app.services.rules_context_resolver import build_schema_context, resolve_severity
 from app.models.governance_rules import (
     ApplyTemplateResponse,
     EnforcementStatus,
@@ -622,6 +623,13 @@ class GovernanceRulesService:
         if not rows:
             return RuleScoreBreakdown()
 
+        # Build context for severity resolution (subject-level only)
+        schema_context = None
+        if subject is not None:
+            enrichment = self.db.get_enrichment(self.registry_id, subject)
+            bindings = self.db.get_channels_for_subject(self.registry_id, subject)
+            schema_context = build_schema_context(enrichment, bindings)
+
         POINTS = {
             ("verifiable", "critical"): 15,
             ("verifiable", "error"): 10,
@@ -650,7 +658,8 @@ class GovernanceRulesService:
 
             scope = r.get("rule_scope", "declarative")
             kind = r.get("rule_kind", "POLICY")
-            severity = r.get("severity", "warning")
+            base_severity = r.get("severity", "warning")
+            severity = resolve_severity(base_severity, schema_context) if schema_context else base_severity
             eval_source = r.get("evaluation_source", "declared_only")
 
             if kind == "POLICY":

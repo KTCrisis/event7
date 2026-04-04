@@ -61,6 +61,8 @@ class RuleViolation(BaseModel):
     severity: str
     message: str
     category: str = "custom"
+    base_severity: str | None = None
+    context_applied: bool = False
 
 
 class RuleSkipped(BaseModel):
@@ -79,6 +81,7 @@ class GovernanceResult(BaseModel):
     passed: int = 0
     failed: int = 0
     total: int = 0
+    context: dict | None = None
 
 
 class DiffResult(BaseModel):

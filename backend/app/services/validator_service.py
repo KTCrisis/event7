@@ -31,6 +31,7 @@ from app.models.validator import (
 )
 from app.providers.base import SchemaRegistryProvider
 from app.services.diff_service import compute_schema_diff
+from app.services.rules_context_resolver import build_schema_context
 from app.services.rules_evaluator import evaluate_rules_for_schema
 
 
@@ -185,11 +186,17 @@ class SchemaValidatorService:
                     total=0,
                 )
 
+            # Load enrichment context for severity resolution
+            enrichment = self.db.get_enrichment(self.registry_id, subject)
+            bindings = self.db.get_channels_for_subject(self.registry_id, subject)
+            schema_context = build_schema_context(enrichment, bindings)
+
             # Délègue l'évaluation au rules_evaluator
             violations, skipped, passed = evaluate_rules_for_schema(
                 rules=rules_rows,
                 schema_content=schema_dict,
                 subject=subject,
+                schema_context=schema_context,
             )
 
             total = passed + len(violations) + len(skipped)
@@ -208,6 +215,7 @@ class SchemaValidatorService:
                 passed=passed,
                 failed=len(violations),
                 total=total,
+                context=schema_context.to_dict(),
             )
         except Exception as e:
             logger.warning(f"Validator: governance evaluation failed for {subject}: {e}")

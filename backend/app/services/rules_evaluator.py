@@ -18,6 +18,7 @@ from typing import Any
 from loguru import logger
 
 from app.models.validator import RuleSkipped, RuleViolation
+from app.services.rules_context_resolver import SchemaContext, resolve_severity
 
 
 # ============================================================
@@ -235,6 +236,7 @@ def evaluate_rules_for_schema(
     rules: list[dict],
     schema_content: dict,
     subject: str = "",
+    schema_context: SchemaContext | None = None,
 ) -> tuple[list[RuleViolation], list[RuleSkipped], int]:
     """
     Evaluate governance rules against a candidate schema.
@@ -243,6 +245,7 @@ def evaluate_rules_for_schema(
         rules: list of rule rows from DB (list_governance_rules result)
         schema_content: parsed schema dict (Avro or JSON Schema)
         subject: subject name (for naming convention checks)
+        schema_context: optional enrichment context for severity resolution
 
     Returns:
         (violations, skipped, passed_count)
@@ -266,6 +269,7 @@ def evaluate_rules_for_schema(
             skipped.append(RuleSkipped(
                 rule_id=rule_id,
                 rule_name=rule_name,
+                rule_scope=rule_scope,
                 reason="Declared only — no enforcement expected",
             ))
             continue
@@ -281,6 +285,7 @@ def evaluate_rules_for_schema(
             skipped.append(RuleSkipped(
                 rule_id=rule_id,
                 rule_name=rule_name,
+                rule_scope=rule_scope,
                 reason=reason,
             ))
             continue
@@ -290,6 +295,7 @@ def evaluate_rules_for_schema(
             skipped.append(RuleSkipped(
                 rule_id=rule_id,
                 rule_name=rule_name,
+                rule_scope=rule_scope,
                 reason=f"Runtime rule type '{rule_type}' — not evaluated in dry-run",
             ))
             continue
@@ -302,6 +308,7 @@ def evaluate_rules_for_schema(
             skipped.append(RuleSkipped(
                 rule_id=rule_id,
                 rule_name=rule_name,
+                rule_scope=rule_scope,
                 reason=f"No evaluator for rule '{rule_name}' (type: {rule_type})",
             ))
             continue
@@ -313,13 +320,21 @@ def evaluate_rules_for_schema(
             if error_msg is None:
                 passed += 1
             else:
+                effective_severity = severity
+                context_applied = False
+                if schema_context is not None:
+                    effective_severity = resolve_severity(severity, schema_context)
+                    context_applied = effective_severity != severity
+
                 violations.append(RuleViolation(
                     rule_id=rule_id,
                     rule_name=rule_name,
                     rule_scope=rule_scope,
-                    severity=severity,
+                    severity=effective_severity,
                     message=error_msg,
                     category=category,
+                    base_severity=severity if context_applied else None,
+                    context_applied=context_applied,
                 ))
         except Exception as e:
             logger.warning(f"Rules evaluator: error evaluating rule '{rule_name}': {e}")
