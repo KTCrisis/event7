@@ -30,7 +30,7 @@ BROKER_TO_PROTOCOL: dict[str, str] = {
     "kafka": "kafka-secure", "redpanda": "kafka-secure",
     "rabbitmq": "amqp", "pulsar": "pulsar+ssl", "nats": "nats",
     "redis_streams": "redis", "google_pubsub": "googlepubsub",
-    "aws_sns_sqs": "sns", "azure_servicebus": "amqp",
+    "aws_sns_sqs": "sns", "azure_servicebus": "amqps",
     # Tier 2 — Enterprise & IoT
     "solace": "solace", "ibmmq": "ibmmq", "activemq_artemis": "jms",
     "mqtt": "mqtt", "mqtt_secure": "mqtts",
@@ -548,6 +548,7 @@ class AsyncAPIService:
                     f"{BROKER_SERVER_DESCRIPTION.get(bt, bt)} "
                     f"— via event7 registry {registry_name}"
                 ),
+                "x-broker-type": bt,  # Round-trip fidelity: protocol alone is ambiguous
             }
 
             sb = self._build_server_bindings(bt)
@@ -976,8 +977,17 @@ class AsyncAPIService:
             return self._avro_to_jsonschema(content)
         elif schema.format == SchemaFormat.JSON_SCHEMA:
             return content
+        elif schema.format == SchemaFormat.PROTOBUF:
+            # Protobuf .proto definitions are not JSON Schema — wrap in a
+            # multi-format schema object per AsyncAPI 3.0 spec
+            return {
+                "type": "object",
+                "description": f"Protobuf schema (see x-raw-schema for .proto definition)",
+                "x-schema-format": "protobuf",
+                "x-raw-schema": content if isinstance(content, str) else str(content),
+            }
         else:
-            return content
+            return content if isinstance(content, dict) else {"type": "object", "x-raw-schema": str(content)}
 
     def _avro_to_jsonschema(self, avro_schema: dict | str | list) -> dict:
         """Convertit un schema Avro en JSON Schema (pour le payload AsyncAPI)."""

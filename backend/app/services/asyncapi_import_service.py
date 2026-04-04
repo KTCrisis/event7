@@ -366,6 +366,12 @@ class AsyncAPIImportService:
                     ))
                     warnings.append(f"Failed to register schema '{schema.subject_name}': {e}")
         # ── 2. Create channels ──
+        # Pre-load existing channels so we can map bindings to pre-existing ones
+        existing_channels = self.db.get_channels(self.registry_id)
+        existing_by_address: dict[str, str] = {
+            c["address"]: str(c["id"]) for c in existing_channels if c.get("address")
+        }
+
         channel_id_map: dict[str, str] = {}  # address → channel_id
         for ch in preview.channels:
             try:
@@ -400,11 +406,14 @@ class AsyncAPIImportService:
             except Exception as e:
                 err = str(e)
                 if "unique" in err.lower() or "duplicate" in err.lower():
+                    # Map bindings to the existing channel
+                    if ch.address in existing_by_address:
+                        channel_id_map[ch.address] = existing_by_address[ch.address]
                     results.append(ImportEntityResult(
                         entity_type="channel",
                         name=ch.address,
                         status="skipped",
-                        detail="Already exists",
+                        detail="Already exists (bindings will still be created)",
                     ))
                 else:
                     results.append(ImportEntityResult(
@@ -577,10 +586,18 @@ class AsyncAPIImportService:
     # ================================================================
 
     def _resolve_default_broker(self, servers: dict) -> str:
-        """Extract the default broker_type from the first server's protocol."""
+        """Extract the default broker_type from the first server.
+
+        Prefers x-broker-type extension (round-trip fidelity from event7-generated specs),
+        falls back to protocol-based lookup.
+        """
         for server_id, server_def in servers.items():
             if not isinstance(server_def, dict):
                 continue
+            # Prefer explicit broker type (set by event7 on export)
+            x_broker = server_def.get("x-broker-type")
+            if x_broker:
+                return x_broker
             protocol = server_def.get("protocol", "").lower()
             if protocol in PROTOCOL_TO_BROKER:
                 return PROTOCOL_TO_BROKER[protocol]
