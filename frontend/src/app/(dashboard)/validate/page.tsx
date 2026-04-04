@@ -38,6 +38,7 @@ import type {
 // ================================================================
 
 function VerdictBadge({ verdict }: { verdict: Verdict }) {
+  const key = verdict.toLowerCase() as "pass" | "warn" | "fail";
   const config = {
     pass: {
       icon: CheckCircle2,
@@ -60,7 +61,7 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
       border: "border-red-500/30",
       text: "text-red-400",
     },
-  }[verdict];
+  }[key];
 
   const Icon = config.icon;
 
