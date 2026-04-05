@@ -22,6 +22,8 @@ import {
   BookOpen,
   FileJson,
   Layers,
+  Share2,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,13 +44,15 @@ const sections = [
     ],
   },
   {
-    label: "Concepts",
+    label: "Guides",
     items: [
       { name: "Catalog", href: "/docs/catalog", icon: BookOpen },
       { name: "AsyncAPI", href: "/docs/asyncapi", icon: FileJson },
       { name: "Schema Validator", href: "/docs/validator", icon: ShieldCheck },
       { name: "Channel Model", href: "/docs/channels", icon: Network },
       { name: "Governance Rules", href: "/docs/governance-rules", icon: Shield },
+      { name: "References Graph", href: "/docs/references", icon: Share2 },
+      { name: "AI Agent", href: "/docs/ai-agent", icon: Bot },
     ],
   },
   {

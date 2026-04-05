@@ -22,6 +22,8 @@ const mobileLinks = [
   { name: "Schema Validator", href: "/docs/validator" },
   { name: "Channel Model", href: "/docs/channels" },
   { name: "Governance Rules", href: "/docs/governance-rules" },
+  { name: "References Graph", href: "/docs/references" },
+  { name: "AI Agent", href: "/docs/ai-agent" },
   { name: "API Reference", href: "/docs/api-reference" },
   { name: "Licensing", href: "/docs/licensing" },
   { name: "Roadmap", href: "/docs/roadmap" },
