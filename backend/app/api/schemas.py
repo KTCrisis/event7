@@ -26,8 +26,10 @@ def _handle_service_error(e: Exception, subject: str, operation: str) -> HTTPExc
     if "not found" in msg or "404" in msg or "40401" in msg:
         return HTTPException(status_code=404, detail=f"{operation}: {e}")
     if "unauthorized" in msg or "401" in msg or "403" in msg:
-        return HTTPException(status_code=502, detail=f"Registry auth failed: {e}")
-    if "timeout" in msg or "connect" in msg:
+        return HTTPException(status_code=401, detail=f"Registry auth failed: {e}")
+    if "timeout" in msg:
+        return HTTPException(status_code=504, detail=f"Registry timeout: {e}")
+    if "connect" in msg:
         return HTTPException(status_code=502, detail=f"Registry unreachable: {e}")
     logger.error(f"{operation} for {subject}: {e}")
     return HTTPException(status_code=500, detail=f"{operation}: {e}")

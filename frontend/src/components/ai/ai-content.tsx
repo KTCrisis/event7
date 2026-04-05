@@ -53,8 +53,16 @@ function fmtTime(ts: number) {
   return new Date(ts).toLocaleTimeString("en", { hour12: false });
 }
 
-function renderMarkdown(text: string) {
+function escapeHtml(text: string) {
   return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderMarkdown(text: string) {
+  return escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-zinc-100">$1</strong>')
     .replace(/`(.+?)`/g, '<code class="text-teal-400 font-mono text-xs">$1</code>')
     .replace(/\n/g, "<br/>");
@@ -556,7 +564,7 @@ export function AIContent() {
                   __html:
                     m.role === "agent"
                       ? renderMarkdown(m.content)
-                      : m.content,
+                      : escapeHtml(m.content),
                 }}
               />
             </div>

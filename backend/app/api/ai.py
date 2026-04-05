@@ -301,7 +301,11 @@ async def _action_agent(
                 if response.status_code >= 400:
                     yield _sse_text(f"⚠ Ollama error ({response.status_code}): {response.text[:200]}")
                     return
-                raw = response.json()
+                try:
+                    raw = response.json()
+                except Exception:
+                    yield _sse_text("⚠ Ollama returned invalid JSON response")
+                    return
 
             tool_calls = raw.get("message", {}).get("tool_calls", [])
 

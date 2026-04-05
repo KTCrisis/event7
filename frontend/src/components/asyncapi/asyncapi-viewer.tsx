@@ -107,8 +107,7 @@ export function AsyncApiViewer({
           );
         }
         if (!cancelled) setRenderState("ok");
-      } catch (err) {
-        console.error("AsyncAPI render error:", err);
+      } catch {
         if (!cancelled) setRenderState("error");
       }
     }

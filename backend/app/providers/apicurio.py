@@ -142,9 +142,6 @@ class ApicurioProvider(SchemaRegistryProvider):
         if not artifact_type:
             return SchemaFormat.AVRO
         return mapping.get(artifact_type.upper(), SchemaFormat.AVRO)
-        if not artifact_type:
-            return SchemaFormat.AVRO
-        return mapping.get(artifact_type.upper(), SchemaFormat.AVRO)
 
     @staticmethod
     def _parse_schema_content(raw: str | dict) -> dict:

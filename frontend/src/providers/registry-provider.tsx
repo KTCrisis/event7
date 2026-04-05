@@ -41,8 +41,8 @@ export function RegistryProvider({ children }: { children: React.ReactNode }) {
         const saved = data.find((r) => r.id === savedId);
         setSelected(saved || data[0]);
       }
-    } catch (err) {
-      console.error("Failed to fetch registries:", err);
+    } catch {
+      // Silent fail — registries will show as empty
     } finally {
       setLoading(false);
     }

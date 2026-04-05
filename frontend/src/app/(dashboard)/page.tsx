@@ -419,6 +419,7 @@ function computeStats(data: DashboardData) {
   const brokerCounts: Record<string, number> = {};
   let totalBindingCount = 0;
   for (const ch of rawChannels) {
+    if (!ch) continue;
     const bt = ch.broker_type || "unknown";
     brokerCounts[bt] = (brokerCounts[bt] || 0) + 1;
     totalBindingCount += ch.binding_count ?? ch.bindings?.length ?? 0;

@@ -26,9 +26,9 @@ export function Topbar() {
   useEffect(() => {
     const supabase = createClient();
     if (!supabase) return;
-    supabase.auth.getUser().then(({ data }) => {
-      setUserEmail(data.user?.email ?? null);
-    });
+    supabase.auth.getUser()
+      .then(({ data }) => setUserEmail(data.user?.email ?? null))
+      .catch(() => setUserEmail(null));
   }, []);
 
   useEffect(() => {
