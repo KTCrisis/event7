@@ -218,7 +218,7 @@ export default function DocsIntroPage() {
       <section className="mb-14">
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <StatCounter value="17" label="features" />
-          <StatCounter value="9" label="broker types" />
+          <StatCounter value="22" label="broker types" />
           <StatCounter value="5" label="SR providers" />
           <StatCounter value="4+" label="governance templates" />
           <StatCounter value="100%" label="open-source core" />

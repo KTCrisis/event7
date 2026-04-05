@@ -134,7 +134,7 @@ The mapping between them lives in the channel_subjects pivot table.`}
       {/* Broker types */}
       <Section title="Supported Brokers">
         <p className="text-sm text-slate-400 leading-relaxed mb-6">
-          event7 supports 9 broker types. Each maps to a default resource kind
+          event7 supports 22 broker types. Each maps to a default resource kind
           and messaging pattern:
         </p>
         <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 overflow-hidden">
@@ -383,7 +383,7 @@ The mapping between them lives in the channel_subjects pivot table.`}
             <tbody className="divide-y divide-slate-800/40">
               {[
                 { feature: "Channel CRUD + Bindings", status: "available" },
-                { feature: "Multi-broker support (9 broker types)", status: "available" },
+                { feature: "Multi-broker support (22 broker types)", status: "available" },
                 { feature: "AsyncAPI Import (preview + apply)", status: "available" },
                 { feature: "Smart schema registration (provider-aware)", status: "available" },
                 { feature: "Data layers on channels + enrichments", status: "available" },

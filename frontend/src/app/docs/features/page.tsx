@@ -166,14 +166,14 @@ const groups: FeatureGroup[] = [
         icon: Upload,
         name: "AsyncAPI Import",
         description:
-          "Import a v3 spec to create channels, bindings, enrichments, and register schemas — all in one operation. Two-phase: preview then apply. 9 broker protocols supported.",
+          "Import a v3 spec to create channels, bindings, enrichments, and register schemas — all in one operation. Two-phase: preview then apply. 22 broker protocols supported.",
         badge: "Community",
       },
       {
         icon: Network,
         name: "Channel Model",
         description:
-          "Map subjects to messaging channels across 9 broker types. N:N bindings with strategy, data layers (RAW→CORE→REFINED→APP), and broker-specific config.",
+          "Map subjects to messaging channels across 22 broker types. N:N bindings with strategy, data layers (RAW→CORE→REFINED→APP), and broker-specific config.",
         badge: "Community",
         link: "/docs/channels",
       },

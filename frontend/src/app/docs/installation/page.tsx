@@ -263,7 +263,7 @@ pip install requests pyyaml   # if not already installed
 python scripts/seed_apicurio.py --url http://localhost:8081`}
             </CodeBlock>
             <p className="text-xs text-slate-500 mt-2">
-              Creates 10 Avro + JSON Schema subjects with cross-references and multiple versions.
+              Creates 9 Avro + JSON Schema subjects with cross-references and multiple versions.
             </p>
           </div>
 
@@ -299,7 +299,7 @@ python scripts/seed_event7.py --skip-rules           # enrichments + channels on
             <tbody>
               {[
                 { page: "Dashboard", desc: "Schema count, enrichment coverage %, compatibility chart, governance score funnel" },
-                { page: "Explorer", desc: "10 subjects, multiple versions, Avro + JSON Schema formats" },
+                { page: "Explorer", desc: "9 subjects, multiple versions, Avro + JSON Schema formats" },
                 { page: "Diff Viewer", desc: "com.event7.User → diff v1 vs v2 → role field added" },
                 { page: "References", desc: "Order → Customer → Address chain, orphan detection" },
                 { page: "Catalog", desc: "Broker badges (Kafka/RabbitMQ/Redis), data layers, ownership" },

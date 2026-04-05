@@ -117,7 +117,7 @@ export default function AsyncAPIPage() {
             icon={Upload}
             title="Import"
             color="cyan"
-            desc="Upload an AsyncAPI v3 spec (YAML or JSON) to create channels, bindings, enrichments, and optionally register schemas — all in one operation. Two-phase: preview (dry-run) then apply. Supports 9 broker protocols."
+            desc="Upload an AsyncAPI v3 spec (YAML or JSON) to create channels, bindings, enrichments, and optionally register schemas — all in one operation. Two-phase: preview (dry-run) then apply. Supports 22 broker protocols."
             flow={["Upload spec", "Preview", "Apply"]}
             result="origin=imported, status=documented"
           />

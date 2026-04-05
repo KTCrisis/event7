@@ -189,7 +189,7 @@ export default function ApiReferencePage() {
         API Reference
       </h1>
       <p className="text-base text-slate-400 leading-relaxed mb-4 max-w-2xl">
-        The event7 backend exposes a REST API on FastAPI. All endpoints under{" "}
+        The event7 backend exposes 60+ REST endpoints via FastAPI. All routes under{" "}
         <code className="text-teal-400 bg-teal-500/5 px-1.5 py-0.5 rounded text-xs">
           /api/v1
         </code>{" "}

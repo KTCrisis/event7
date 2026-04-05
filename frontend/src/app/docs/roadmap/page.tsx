@@ -25,7 +25,7 @@ const done: RoadmapItem[] = [
   { name: "Governance Score — 3-axis scoring with confidence indicator", tier: "Community" },
   { name: "Dashboard governance integration — coverage, rules, enforcement funnel", tier: "Community" },
   { name: "Catalog score badges with toggle", tier: "Community" },
-  { name: "Channel Model — 9 broker types, N:N bindings, data layers", tier: "Community" },
+  { name: "Channel Model — 22 broker types, N:N bindings, data layers", tier: "Community" },
   { name: "RabbitMQ exchange/queue support", tier: "Community" },
   { name: "Cloud broker channels (Pub/Sub, SNS/SQS, Service Bus)", tier: "Community" },
   { name: "AsyncAPI 3.0 generation and export", tier: "Community" },

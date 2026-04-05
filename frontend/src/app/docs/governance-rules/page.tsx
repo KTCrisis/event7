@@ -183,6 +183,15 @@ export default function GovernanceRulesPage() {
             </tbody>
           </table>
         </div>
+        <div className="mt-4 rounded-xl border border-teal-500/20 bg-teal-500/5 p-4 text-sm text-slate-400 leading-relaxed">
+          <span className="font-medium text-teal-400">Contextual severity: </span>
+          Rule severity can be automatically escalated or de-escalated based on
+          schema enrichment context. A warning on a <code className="text-teal-400">restricted</code> schema
+          with 10+ channel bindings may become an error. Factors: classification
+          (restricted +1, confidential +1 for error+), binding count (&ge;5 +1,
+          &ge;10 +2), and data layer (RAW &minus;1, APPLICATION +1).
+          Escalations stack and are capped at critical / floored at info.
+        </div>
       </Section>
 
       {/* Templates */}
