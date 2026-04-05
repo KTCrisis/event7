@@ -2,6 +2,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import { registriesApi } from "@/lib/api/registries";
 import type { RegistryResponse } from "@/types/registry";
 
@@ -42,7 +43,9 @@ export function RegistryProvider({ children }: { children: React.ReactNode }) {
         setSelected(saved || data[0]);
       }
     } catch {
-      // Silent fail — registries will show as empty
+      toast.error("Failed to load registries", {
+        description: "Check your backend connection and try again.",
+      });
     } finally {
       setLoading(false);
     }
