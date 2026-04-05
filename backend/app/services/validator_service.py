@@ -297,6 +297,14 @@ class SchemaValidatorService:
     # Verdict
     # ================================================================
 
+    # Modes where breaking changes should NOT pass — defense in depth
+    # If SR says compatible but diff says breaking, event7 overrides to FAIL
+    _STRICT_MODES = {
+        "BACKWARD", "BACKWARD_TRANSITIVE",
+        "FORWARD", "FORWARD_TRANSITIVE",
+        "FULL", "FULL_TRANSITIVE",
+    }
+
     @staticmethod
     def _compute_verdict(
         compatibility: CompatibilityResult,
@@ -306,9 +314,10 @@ class SchemaValidatorService:
         """
         Verdict logic:
           FAIL  = non compatible OU violations error/critical
-                  OU breaking changes with compatibility mode NONE (SR not protecting)
+                  OU breaking changes with strict mode (defense in depth)
+                  OU breaking changes with NONE mode (SR not protecting)
           WARN  = compatible + violations warning/info
-                  OU breaking changes detected (even if SR says compatible)
+                  OU breaking changes detected (non-strict mode)
           PASS  = compatible + no violations + no breaking changes
         """
         # Non compatible → FAIL
@@ -321,6 +330,10 @@ class SchemaValidatorService:
             if v.severity in ("error", "critical")
         ]
         if severe:
+            return Verdict.FAIL
+
+        # Breaking changes + strict mode → FAIL (SR bug or misconfiguration)
+        if diff.is_breaking and compatibility.mode in SchemaValidatorService._STRICT_MODES:
             return Verdict.FAIL
 
         # Breaking changes with NONE mode → FAIL (SR is not protecting you)

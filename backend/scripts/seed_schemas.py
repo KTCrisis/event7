@@ -1,9 +1,38 @@
 """
-event7 - Seed Test Schemas
-Pousse un jeu de données réaliste dans un SR Confluent vide.
-Inclut : versions multiples, références, Avro + JSON Schema.
+event7 — Seed Test Schemas (Confluent SR)
+Pushes a realistic dataset into a Confluent Schema Registry.
 
-Lance avec: python scripts/seed_schemas.py
+Aligned with seed_apicurio.py — same 9 subjects, same namespaces,
+same references, same schema evolution. This allows seed_event7.py
+to work identically regardless of the provider.
+
+Subjects:
+  1. com.event7.Address      (Avro, 2 versions, referenced by Customer + Shipment)
+  2. com.event7.User         (Avro, 2 versions, referenced by Order + AuditEvent)
+  3. com.event7.Customer     (Avro, 1 version, refs Address)
+  4. com.event7.Order        (Avro, 1 version, refs User)
+  5. com.event7.Shipment     (Avro, 1 version, refs Address + Order)
+  6. com.event7.Invoice      (Avro, 1 version, refs Customer + Order)
+  7. com.event7.Payment      (JSON Schema, 1 version)
+  8. com.event7.Notification (Avro, 1 version)
+  9. com.event7.AuditEvent   (Avro, 1 version, refs User)
+
+Reference graph:
+  Address <-- Customer <-- Invoice
+    ^                        ^
+    +-- Shipment             |
+          ^                  |
+  User <-- Order ------------+
+    ^
+    +-- AuditEvent
+
+Usage:
+  python scripts/seed_schemas.py
+
+Requires .env with:
+  CONFLUENT_SR_URL=https://psrc-xxxxx.region.confluent.cloud
+  CONFLUENT_SR_API_KEY=...
+  CONFLUENT_SR_API_SECRET=...
 """
 
 import asyncio
@@ -19,316 +48,293 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-# === Schemas Avro ===
+# ================================================================
+# AVRO SCHEMAS
+# ================================================================
 
-# Shared schema (sera référencé par d'autres)
+# --- Address (CORE, shared) ---
+
 ADDRESS_V1 = {
     "type": "record",
     "name": "Address",
-    "namespace": "com.event7.common",
-    "doc": "Shared address schema",
+    "namespace": "com.event7",
+    "doc": "Canonical address type shared across all domains",
     "fields": [
         {"name": "street", "type": "string", "doc": "Street address"},
-        {"name": "city", "type": "string"},
-        {"name": "zip_code", "type": "string"},
-        {"name": "country", "type": "string", "default": "FR"},
+        {"name": "city", "type": "string", "doc": "City"},
+        {"name": "zip", "type": "string", "doc": "ZIP/postal code"},
+        {"name": "country", "type": "string", "doc": "Country code"},
     ],
 }
 
 ADDRESS_V2 = {
     "type": "record",
     "name": "Address",
-    "namespace": "com.event7.common",
-    "doc": "Shared address schema with region",
+    "namespace": "com.event7",
+    "doc": "Canonical address type shared across all domains",
     "fields": [
         {"name": "street", "type": "string", "doc": "Street address"},
-        {"name": "city", "type": "string"},
-        {"name": "zip_code", "type": "string"},
-        {"name": "country", "type": "string", "default": "FR"},
+        {"name": "city", "type": "string", "doc": "City"},
+        {"name": "zip", "type": "string", "doc": "ZIP/postal code"},
+        {"name": "country", "type": "string", "doc": "Country code"},
         {"name": "region", "type": ["null", "string"], "default": None, "doc": "Region or state"},
     ],
 }
 
-# Customer schema v1
+# --- User (CORE, identity) ---
+
+USER_V1 = {
+    "type": "record",
+    "name": "User",
+    "namespace": "com.event7",
+    "doc": "Core user identity with role-based access",
+    "fields": [
+        {"name": "id", "type": "string", "doc": "User UUID"},
+        {"name": "email", "type": "string", "doc": "Email address (PII)"},
+        {"name": "name", "type": "string", "doc": "Full name (PII)"},
+        {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "Registration timestamp"},
+    ],
+}
+
+USER_V2 = {
+    "type": "record",
+    "name": "User",
+    "namespace": "com.event7",
+    "doc": "Core user identity with role-based access",
+    "fields": [
+        {"name": "id", "type": "string", "doc": "User UUID"},
+        {"name": "email", "type": "string", "doc": "Email address (PII)"},
+        {"name": "name", "type": "string", "doc": "Full name (PII)"},
+        {
+            "name": "role",
+            "type": {
+                "type": "enum",
+                "name": "UserRole",
+                "symbols": ["USER", "ADMIN", "MODERATOR"],
+            },
+            "default": "USER",
+            "doc": "User role",
+        },
+        {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "Registration timestamp"},
+    ],
+}
+
+# --- Customer (CORE, refs Address) ---
+
 CUSTOMER_V1 = {
     "type": "record",
-    "name": "CustomerCreated",
-    "namespace": "com.event7.customers",
-    "doc": "Event emitted when a new customer is created",
+    "name": "Customer",
+    "namespace": "com.event7",
+    "doc": "Customer profile with billing and shipping addresses",
     "fields": [
-        {"name": "customer_id", "type": "string", "doc": "Unique customer identifier"},
-        {"name": "email", "type": "string", "doc": "Customer email (PII)"},
-        {"name": "first_name", "type": "string"},
-        {"name": "last_name", "type": "string"},
-        {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+        {"name": "id", "type": "string", "doc": "Customer UUID"},
+        {"name": "name", "type": "string", "doc": "Full name"},
+        {"name": "email", "type": "string", "doc": "Contact email (PII)"},
+        {"name": "billing_address", "type": "com.event7.Address", "doc": "Billing address"},
+        {"name": "shipping_address", "type": ["null", "com.event7.Address"], "default": None, "doc": "Shipping address"},
     ],
 }
 
-# Customer schema v2 — added phone + status
-CUSTOMER_V2 = {
-    "type": "record",
-    "name": "CustomerCreated",
-    "namespace": "com.event7.customers",
-    "doc": "Event emitted when a new customer is created",
-    "fields": [
-        {"name": "customer_id", "type": "string", "doc": "Unique customer identifier"},
-        {"name": "email", "type": "string", "doc": "Customer email (PII)"},
-        {"name": "first_name", "type": "string"},
-        {"name": "last_name", "type": "string"},
-        {"name": "phone", "type": ["null", "string"], "default": None, "doc": "Phone number (PII)"},
-        {
-            "name": "status",
-            "type": {
-                "type": "enum",
-                "name": "CustomerStatus",
-                "symbols": ["ACTIVE", "INACTIVE", "SUSPENDED"],
-            },
-            "default": "ACTIVE",
-        },
-        {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
-    ],
-}
+# --- Order (CORE, refs User) ---
 
-# Customer v3 — added loyalty_tier
-CUSTOMER_V3 = {
-    "type": "record",
-    "name": "CustomerCreated",
-    "namespace": "com.event7.customers",
-    "doc": "Event emitted when a new customer is created",
-    "fields": [
-        {"name": "customer_id", "type": "string", "doc": "Unique customer identifier"},
-        {"name": "email", "type": "string", "doc": "Customer email (PII)"},
-        {"name": "first_name", "type": "string"},
-        {"name": "last_name", "type": "string"},
-        {"name": "phone", "type": ["null", "string"], "default": None, "doc": "Phone number (PII)"},
-        {
-            "name": "status",
-            "type": {
-                "type": "enum",
-                "name": "CustomerStatus",
-                "symbols": ["ACTIVE", "INACTIVE", "SUSPENDED"],
-            },
-            "default": "ACTIVE",
-        },
-        {
-            "name": "loyalty_tier",
-            "type": ["null", "string"],
-            "default": None,
-            "doc": "Loyalty program tier (BRONZE, SILVER, GOLD, PLATINUM)",
-        },
-        {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
-    ],
-}
-
-# Order schema — references Address
 ORDER_V1 = {
     "type": "record",
-    "name": "OrderPlaced",
-    "namespace": "com.event7.orders",
-    "doc": "Event emitted when an order is placed",
+    "name": "Order",
+    "namespace": "com.event7",
+    "doc": "Order placed by a user. Triggers downstream flows.",
     "fields": [
-        {"name": "order_id", "type": "string"},
-        {"name": "customer_id", "type": "string", "doc": "FK to customer"},
-        {
-            "name": "items",
-            "type": {
-                "type": "array",
-                "items": {
-                    "type": "record",
-                    "name": "OrderItem",
-                    "fields": [
-                        {"name": "product_id", "type": "string"},
-                        {"name": "product_name", "type": "string"},
-                        {"name": "quantity", "type": "int"},
-                        {"name": "unit_price", "type": {"type": "bytes", "logicalType": "decimal", "precision": 10, "scale": 2}},
-                    ],
-                },
-            },
-        },
-        {"name": "total_amount", "type": {"type": "bytes", "logicalType": "decimal", "precision": 12, "scale": 2}},
-        {"name": "currency", "type": "string", "default": "EUR"},
-        {"name": "placed_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
-    ],
-}
-
-# Order v2 — added discount + delivery_type
-ORDER_V2 = {
-    "type": "record",
-    "name": "OrderPlaced",
-    "namespace": "com.event7.orders",
-    "doc": "Event emitted when an order is placed",
-    "fields": [
-        {"name": "order_id", "type": "string"},
-        {"name": "customer_id", "type": "string", "doc": "FK to customer"},
-        {
-            "name": "items",
-            "type": {
-                "type": "array",
-                "items": {
-                    "type": "record",
-                    "name": "OrderItem",
-                    "fields": [
-                        {"name": "product_id", "type": "string"},
-                        {"name": "product_name", "type": "string"},
-                        {"name": "quantity", "type": "int"},
-                        {"name": "unit_price", "type": {"type": "bytes", "logicalType": "decimal", "precision": 10, "scale": 2}},
-                    ],
-                },
-            },
-        },
-        {"name": "total_amount", "type": {"type": "bytes", "logicalType": "decimal", "precision": 12, "scale": 2}},
-        {"name": "discount_percent", "type": ["null", "float"], "default": None, "doc": "Discount applied"},
-        {"name": "currency", "type": "string", "default": "EUR"},
-        {
-            "name": "delivery_type",
-            "type": {
-                "type": "enum",
-                "name": "DeliveryType",
-                "symbols": ["STANDARD", "EXPRESS", "PICKUP"],
-            },
-            "default": "STANDARD",
-        },
-        {"name": "placed_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
-    ],
-}
-
-# Payment schema
-PAYMENT_V1 = {
-    "type": "record",
-    "name": "PaymentProcessed",
-    "namespace": "com.event7.payments",
-    "doc": "Event emitted when a payment is processed",
-    "fields": [
-        {"name": "payment_id", "type": "string"},
-        {"name": "order_id", "type": "string", "doc": "FK to order"},
-        {"name": "customer_id", "type": "string", "doc": "FK to customer"},
-        {"name": "amount", "type": {"type": "bytes", "logicalType": "decimal", "precision": 12, "scale": 2}},
-        {"name": "currency", "type": "string", "default": "EUR"},
-        {
-            "name": "method",
-            "type": {
-                "type": "enum",
-                "name": "PaymentMethod",
-                "symbols": ["CARD", "BANK_TRANSFER", "PAYPAL", "APPLE_PAY"],
-            },
-        },
+        {"name": "order_id", "type": "string", "doc": "Order UUID"},
+        {"name": "user_id", "type": "string", "doc": "FK to User"},
+        {"name": "amount", "type": "double", "doc": "Total amount"},
+        {"name": "currency", "type": "string", "doc": "Currency code"},
         {
             "name": "status",
             "type": {
                 "type": "enum",
-                "name": "PaymentStatus",
-                "symbols": ["PENDING", "COMPLETED", "FAILED", "REFUNDED"],
+                "name": "OrderStatus",
+                "symbols": ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"],
             },
+            "doc": "Order lifecycle status",
         },
-        {"name": "processed_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+        {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "Order timestamp"},
     ],
 }
 
-# Inventory — simple schema
-INVENTORY_V1 = {
+# --- Shipment (REFINED, refs Address + Order) ---
+
+SHIPMENT_V1 = {
     "type": "record",
-    "name": "InventoryUpdated",
-    "namespace": "com.event7.inventory",
-    "doc": "Event emitted when inventory level changes",
+    "name": "Shipment",
+    "namespace": "com.event7",
+    "doc": "Shipment tracking for an Order",
     "fields": [
-        {"name": "product_id", "type": "string"},
-        {"name": "warehouse_id", "type": "string"},
-        {"name": "quantity_available", "type": "int"},
-        {"name": "quantity_reserved", "type": "int", "default": 0},
-        {"name": "updated_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+        {"name": "shipment_id", "type": "string", "doc": "Shipment UUID"},
+        {"name": "order_id", "type": "string", "doc": "FK to Order"},
+        {"name": "destination", "type": "com.event7.Address", "doc": "Delivery address"},
+        {"name": "carrier", "type": "string", "doc": "Carrier name"},
+        {"name": "tracking_number", "type": ["null", "string"], "default": None, "doc": "Tracking number"},
+        {
+            "name": "status",
+            "type": {
+                "type": "enum",
+                "name": "ShipmentStatus",
+                "symbols": ["PREPARING", "SHIPPED", "IN_TRANSIT", "DELIVERED"],
+            },
+            "doc": "Shipment status",
+        },
+    ],
+}
+
+# --- Invoice (REFINED, refs Customer + Order) ---
+
+INVOICE_V1 = {
+    "type": "record",
+    "name": "Invoice",
+    "namespace": "com.event7",
+    "doc": "Invoice generated from an Order",
+    "fields": [
+        {"name": "invoice_id", "type": "string", "doc": "Invoice UUID"},
+        {"name": "order_id", "type": "string", "doc": "FK to Order"},
+        {"name": "customer_id", "type": "string", "doc": "FK to Customer"},
+        {"name": "total", "type": "double", "doc": "Invoice total"},
+        {"name": "currency", "type": "string", "doc": "Currency code"},
+        {"name": "issued_at", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "Issue timestamp"},
+    ],
+}
+
+# --- Notification (APPLICATION) ---
+
+NOTIFICATION_V1 = {
+    "type": "record",
+    "name": "Notification",
+    "namespace": "com.event7",
+    "doc": "Multi-channel notification (EMAIL, SMS, PUSH)",
+    "fields": [
+        {"name": "id", "type": "string", "doc": "Notification UUID"},
+        {"name": "user_id", "type": "string", "doc": "Target user"},
+        {
+            "name": "channel",
+            "type": {
+                "type": "enum",
+                "name": "Channel",
+                "symbols": ["EMAIL", "SMS", "PUSH"],
+            },
+            "doc": "Delivery channel",
+        },
+        {"name": "title", "type": "string", "doc": "Notification title"},
+        {"name": "body", "type": "string", "doc": "Notification body"},
+        {"name": "sent_at", "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}], "default": None, "doc": "Send timestamp"},
+    ],
+}
+
+# --- AuditEvent (RAW, refs User) ---
+
+AUDIT_EVENT_V1 = {
+    "type": "record",
+    "name": "AuditEvent",
+    "namespace": "com.event7",
+    "doc": "Immutable audit trail entry for compliance",
+    "fields": [
+        {"name": "event_id", "type": "string", "doc": "Event UUID"},
+        {"name": "actor_id", "type": "string", "doc": "User who performed the action"},
+        {"name": "action", "type": "string", "doc": "Action performed"},
+        {"name": "resource_type", "type": "string", "doc": "Target resource type"},
+        {"name": "resource_id", "type": "string", "doc": "Target resource ID"},
+        {"name": "details", "type": ["null", "string"], "default": None, "doc": "Additional details"},
+        {"name": "timestamp", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "Event timestamp"},
     ],
 }
 
 
-# === JSON Schema ===
+# ================================================================
+# JSON SCHEMA
+# ================================================================
 
-PRODUCT_CATALOG_V1 = {
+PAYMENT_V1 = {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "title": "ProductCatalogUpdated",
-    "description": "Event emitted when product catalog is updated",
     "type": "object",
+    "title": "Payment",
+    "description": "Payment transaction linked to an Order",
     "properties": {
-        "product_id": {"type": "string", "description": "Unique product ID"},
-        "name": {"type": "string"},
-        "category": {"type": "string"},
-        "price": {"type": "number", "minimum": 0},
-        "currency": {"type": "string", "default": "EUR"},
-        "in_stock": {"type": "boolean"},
+        "payment_id": {"type": "string", "description": "Payment UUID"},
+        "order_id": {"type": "string", "description": "FK to Order"},
+        "amount": {"type": "number", "description": "Payment amount"},
+        "method": {"type": "string", "enum": ["card", "bank_transfer", "paypal"], "description": "Payment method"},
+        "status": {"type": "string", "enum": ["pending", "completed", "failed"], "description": "Payment status"},
+        "processed_at": {"type": "string", "format": "date-time", "description": "Processing timestamp"},
     },
-    "required": ["product_id", "name", "category", "price"],
-}
-
-PRODUCT_CATALOG_V2 = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "title": "ProductCatalogUpdated",
-    "description": "Event emitted when product catalog is updated",
-    "type": "object",
-    "properties": {
-        "product_id": {"type": "string", "description": "Unique product ID"},
-        "name": {"type": "string"},
-        "category": {"type": "string"},
-        "subcategory": {"type": "string", "description": "Product subcategory"},
-        "price": {"type": "number", "minimum": 0},
-        "currency": {"type": "string", "default": "EUR"},
-        "in_stock": {"type": "boolean"},
-        "tags": {"type": "array", "items": {"type": "string"}},
-        "weight_kg": {"type": "number", "description": "Product weight in kg"},
-    },
-    "required": ["product_id", "name", "category", "price"],
-}
-
-SHIPPING_NOTIFICATION_V1 = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "title": "ShippingNotification",
-    "description": "Event emitted when shipment status changes",
-    "type": "object",
-    "properties": {
-        "shipment_id": {"type": "string"},
-        "order_id": {"type": "string"},
-        "carrier": {"type": "string", "enum": ["DHL", "UPS", "FEDEX", "COLISSIMO"]},
-        "status": {"type": "string", "enum": ["PREPARING", "SHIPPED", "IN_TRANSIT", "DELIVERED"]},
-        "tracking_url": {"type": "string", "format": "uri"},
-        "estimated_delivery": {"type": "string", "format": "date"},
-    },
-    "required": ["shipment_id", "order_id", "carrier", "status"],
+    "required": ["payment_id", "order_id", "amount", "method"],
 }
 
 
-# === Seed Logic ===
+# ================================================================
+# SEED SEQUENCE
+# ================================================================
 
+# (subject, schema, schema_type, references)
+# References use version -1 = resolve to latest at seed time
 SCHEMAS_TO_SEED = [
-    # (subject, schema, schema_type, references)
-    # Address — 2 versions
-    ("com.event7.common.Address", ADDRESS_V1, "AVRO", []),
-    ("com.event7.common.Address", ADDRESS_V2, "AVRO", []),
-    # Customer — 3 versions
-    ("com.event7.customers.CustomerCreated-value", CUSTOMER_V1, "AVRO", []),
-    ("com.event7.customers.CustomerCreated-value", CUSTOMER_V2, "AVRO", []),
-    ("com.event7.customers.CustomerCreated-value", CUSTOMER_V3, "AVRO", []),
-    # Order — 2 versions, references Address
-    (
-        "com.event7.orders.OrderPlaced-value",
-        ORDER_V1,
-        "AVRO",
-        [{"name": "com.event7.common.Address", "subject": "com.event7.common.Address", "version": -1}],
-    ),
-    (
-        "com.event7.orders.OrderPlaced-value",
-        ORDER_V2,
-        "AVRO",
-        [{"name": "com.event7.common.Address", "subject": "com.event7.common.Address", "version": -1}],
-    ),
-    # Payment — 1 version
-    ("com.event7.payments.PaymentProcessed-value", PAYMENT_V1, "AVRO", []),
-    # Inventory — 1 version
-    ("com.event7.inventory.InventoryUpdated-value", INVENTORY_V1, "AVRO", []),
-    # Product Catalog (JSON Schema) — 2 versions
-    ("com.event7.catalog.ProductCatalogUpdated-value", PRODUCT_CATALOG_V1, "JSON", []),
-    ("com.event7.catalog.ProductCatalogUpdated-value", PRODUCT_CATALOG_V2, "JSON", []),
-    # Shipping (JSON Schema) — 1 version
-    ("com.event7.shipping.ShippingNotification-value", SHIPPING_NOTIFICATION_V1, "JSON", []),
+    # 1. Address — 2 versions (CORE, shared base)
+    ("com.event7.Address", ADDRESS_V1, "AVRO", []),
+    ("com.event7.Address", ADDRESS_V2, "AVRO", []),
+
+    # 2. User — 2 versions (CORE, identity)
+    ("com.event7.User", USER_V1, "AVRO", []),
+    ("com.event7.User", USER_V2, "AVRO", []),
+
+    # 3. Customer — refs Address (CORE)
+    ("com.event7.Customer", CUSTOMER_V1, "AVRO", [
+        {"name": "com.event7.Address", "subject": "com.event7.Address", "version": -1},
+    ]),
+
+    # 4. Order — refs User (CORE)
+    ("com.event7.Order", ORDER_V1, "AVRO", [
+        {"name": "com.event7.User", "subject": "com.event7.User", "version": -1},
+    ]),
+
+    # 5. Shipment — refs Address + Order (REFINED)
+    ("com.event7.Shipment", SHIPMENT_V1, "AVRO", [
+        {"name": "com.event7.Address", "subject": "com.event7.Address", "version": -1},
+        {"name": "com.event7.Order", "subject": "com.event7.Order", "version": -1},
+    ]),
+
+    # 6. Invoice — refs Customer + Order (REFINED)
+    ("com.event7.Invoice", INVOICE_V1, "AVRO", [
+        {"name": "com.event7.Customer", "subject": "com.event7.Customer", "version": -1},
+        {"name": "com.event7.Order", "subject": "com.event7.Order", "version": -1},
+    ]),
+
+    # 7. Payment — JSON Schema (RAW)
+    ("com.event7.Payment", PAYMENT_V1, "JSON", []),
+
+    # 8. Notification — no refs (APPLICATION)
+    ("com.event7.Notification", NOTIFICATION_V1, "AVRO", []),
+
+    # 9. AuditEvent — refs User (RAW)
+    ("com.event7.AuditEvent", AUDIT_EVENT_V1, "AVRO", [
+        {"name": "com.event7.User", "subject": "com.event7.User", "version": -1},
+    ]),
 ]
 
+# Compatibility rules aligned with data layers
+COMPATIBILITY_RULES = {
+    # Global default
+    "__global__": "BACKWARD",
+    # CORE — canonical model, never break
+    "com.event7.Address": "FULL_TRANSITIVE",
+    "com.event7.User": "FULL_TRANSITIVE",
+    "com.event7.Customer": "FULL_TRANSITIVE",
+    "com.event7.Order": "FULL_TRANSITIVE",
+    # REFINED — aggregations, strict backward
+    "com.event7.Shipment": "BACKWARD_TRANSITIVE",
+    "com.event7.Invoice": "BACKWARD_TRANSITIVE",
+    # RAW + APPLICATION — inherits global BACKWARD
+}
+
+
+# ================================================================
+# SEED LOGIC
+# ================================================================
 
 async def seed():
     url = os.getenv("CONFLUENT_SR_URL")
@@ -336,10 +342,11 @@ async def seed():
     secret = os.getenv("CONFLUENT_SR_API_SECRET")
 
     if not url:
-        print("❌ CONFLUENT_SR_URL non configuré")
+        print("CONFLUENT_SR_URL not set in .env")
+        print("Required: CONFLUENT_SR_URL, CONFLUENT_SR_API_KEY, CONFLUENT_SR_API_SECRET")
         return
 
-    print(f"🌱 Seeding schemas into {url}\n")
+    print(f"Seeding schemas into {url}\n")
 
     async with httpx.AsyncClient(
         base_url=url,
@@ -348,7 +355,7 @@ async def seed():
         timeout=30.0,
     ) as client:
         # Set global compatibility to NONE for easy seeding
-        print("⚙️  Setting global compatibility to NONE (for seeding)...")
+        print("Setting global compatibility to NONE (for seeding)...")
         await client.put("/config", json={"compatibility": "NONE"})
 
         current_subject = None
@@ -358,7 +365,7 @@ async def seed():
             if subject != current_subject:
                 current_subject = subject
                 version_counter = 1
-                print(f"\n📋 {subject}")
+                print(f"\n  {subject}")
             else:
                 version_counter += 1
 
@@ -366,18 +373,14 @@ async def seed():
                 "schema": json.dumps(schema),
                 "schemaType": schema_type,
             }
+
             if references:
-                # Resolve -1 to latest version
                 resolved_refs = []
                 for ref in references:
                     ref_version = ref["version"]
                     if ref_version == -1:
-                        # Get latest version of referenced subject
                         resp = await client.get(f"/subjects/{ref['subject']}/versions/latest")
-                        if resp.status_code == 200:
-                            ref_version = resp.json()["version"]
-                        else:
-                            ref_version = 1
+                        ref_version = resp.json()["version"] if resp.status_code == 200 else 1
                     resolved_refs.append({
                         "name": ref["name"],
                         "subject": ref["subject"],
@@ -389,23 +392,52 @@ async def seed():
 
             if response.status_code == 200:
                 schema_id = response.json().get("id")
-                print(f"   ✅ v{version_counter} registered (id={schema_id}) [{schema_type}]")
+                refs_label = f" (refs: {len(references)})" if references else ""
+                print(f"    v{version_counter} registered (id={schema_id}) [{schema_type}]{refs_label}")
             else:
                 error = response.json() if response.content else {}
-                print(f"   ❌ v{version_counter} failed: {error.get('message', response.status_code)}")
+                print(f"    v{version_counter} FAILED: {error.get('message', response.status_code)}")
 
-        # Restore compatibility to BACKWARD
-        print("\n⚙️  Restoring global compatibility to BACKWARD...")
-        await client.put("/config", json={"compatibility": "BACKWARD"})
+        # Set compatibility rules per subject
+        print("\n\nConfiguring compatibility rules...")
+        for subject, mode in COMPATIBILITY_RULES.items():
+            if subject == "__global__":
+                resp = await client.put("/config", json={"compatibility": mode})
+                label = "GLOBAL"
+            else:
+                resp = await client.put(f"/config/{subject}", json={"compatibility": mode})
+                label = subject
+            if resp.status_code == 200:
+                print(f"    {label} -> {mode}")
+            else:
+                print(f"    {label} FAILED: {resp.status_code}")
 
         # Summary
         resp = await client.get("/subjects")
         subjects = resp.json() if resp.status_code == 200 else []
-        print(f"\n🎉 Done! {len(subjects)} subjects in registry:")
-        for s in subjects:
+        print(f"\nDone! {len(subjects)} subjects in registry:")
+        for s in sorted(subjects):
             resp = await client.get(f"/subjects/{s}/versions")
             versions = resp.json() if resp.status_code == 200 else []
-            print(f"   • {s} ({len(versions)} versions)")
+            resp_c = await client.get(f"/config/{s}")
+            compat = resp_c.json().get("compatibilityLevel", "inherits global") if resp_c.status_code == 200 else "inherits global"
+            print(f"    {s} ({len(versions)} versions, {compat})")
+
+        print(f"\nReference graph:")
+        print(f"  Address <-- Customer <-- Invoice")
+        print(f"    ^                        ^")
+        print(f"    +-- Shipment             |")
+        print(f"          ^                  |")
+        print(f"  User <-- Order ------------+")
+        print(f"    ^")
+        print(f"    +-- AuditEvent")
+        print(f"\nCompatibility rules:")
+        print(f"  GLOBAL:   BACKWARD")
+        print(f"  CORE:     FULL_TRANSITIVE (Address, User, Customer, Order)")
+        print(f"  REFINED:  BACKWARD_TRANSITIVE (Shipment, Invoice)")
+        print(f"  RAW/APP:  BACKWARD (Payment, Notification, AuditEvent)")
+        print(f"\nNext: create a registry in event7 Settings, then run:")
+        print(f"  python scripts/seed_event7.py")
 
 
 if __name__ == "__main__":

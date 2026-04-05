@@ -136,13 +136,11 @@ class TestDependencyLifecycle:
             service = await gen.__anext__()
 
             # Simulate route handler raising an exception
-            # dependencies.py catches it and converts to HTTPException 500
-            with pytest.raises(HTTPException) as exc_info:
+            # dependencies.py uses finally (not except) — exception propagates
+            with pytest.raises(RuntimeError, match="route exploded"):
                 await gen.athrow(RuntimeError("route exploded"))
 
-            assert exc_info.value.status_code == 500
-
-            # CRITICAL: close() must still have been called
+            # CRITICAL: close() must still have been called (via finally block)
             mock_provider.close.assert_awaited_once()
 
     @pytest.mark.asyncio

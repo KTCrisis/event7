@@ -254,7 +254,20 @@ class TestValidatorService:
 
     @pytest.mark.asyncio
     async def test_validate_governance_warning_warn(self):
-        """Compatible but governance rule warning → WARN."""
+        """Compatible, non-breaking diff, but governance warning → WARN."""
+        # Schema that adds a field without doc (triggers require-doc warning)
+        # but keeps all existing fields (non-breaking)
+        candidate = {
+            "type": "record",
+            "name": "User",
+            "namespace": "com.event7",
+            "fields": [
+                {"name": "id", "type": "string", "doc": "User ID"},
+                {"name": "email", "type": "string", "doc": "Email address"},
+                {"name": "name", "type": "string", "doc": "Full name"},
+                {"name": "phone", "type": ["null", "string"], "default": None},
+            ],
+        }
         rules = [
             _make_rule("require-doc-fields", severity="warning"),
         ]
@@ -265,7 +278,7 @@ class TestValidatorService:
         )
         request = SchemaValidateRequest(
             subject="com.event7.User",
-            schema_content=json.dumps(AVRO_NO_DOC),
+            schema_content=json.dumps(candidate),
         )
         result = await svc.validate(request)
 

@@ -60,9 +60,18 @@ class TestUserContext:
 
 class TestDecodeJWT:
 
+    @staticmethod
+    def _make_settings(jwt_secret: str = TEST_JWT_SECRET):
+        """Build a mock Settings with the given JWT secret."""
+        from unittest.mock import MagicMock
+        s = MagicMock()
+        s.supabase_jwt_secret = jwt_secret
+        s.supabase_url = ""  # no ES256 JWKS
+        return s
+
     def test_valid_token(self):
         token = make_jwt_token()
-        payload = _decode_supabase_jwt(token, TEST_JWT_SECRET)
+        payload = _decode_supabase_jwt(token, self._make_settings())
         assert payload["sub"] == str(TEST_USER_ID)
         assert payload["email"] == TEST_USER_EMAIL
         assert payload["role"] == "authenticated"
@@ -70,25 +79,25 @@ class TestDecodeJWT:
     def test_expired_token_raises_401(self):
         token = make_jwt_token(expired=True)
         with pytest.raises(HTTPException) as exc_info:
-            _decode_supabase_jwt(token, TEST_JWT_SECRET)
+            _decode_supabase_jwt(token, self._make_settings())
         assert exc_info.value.status_code == 401
         assert "expired" in exc_info.value.detail.lower()
 
     def test_wrong_secret_raises_401(self):
         token = make_jwt_token(secret="correct-secret-that-is-32-bytes!")
         with pytest.raises(HTTPException) as exc_info:
-            _decode_supabase_jwt(token, "wrong-secret-that-is-32-bytes!!x")
+            _decode_supabase_jwt(token, self._make_settings("wrong-secret-that-is-32-bytes!!x"))
         assert exc_info.value.status_code == 401
 
     def test_garbage_token_raises_401(self):
         with pytest.raises(HTTPException) as exc_info:
-            _decode_supabase_jwt("this.is.garbage", TEST_JWT_SECRET)
+            _decode_supabase_jwt("this.is.garbage", self._make_settings())
         assert exc_info.value.status_code == 401
 
     def test_wrong_audience_raises_401(self):
         token = make_jwt_token(audience="wrong-audience")
         with pytest.raises(HTTPException) as exc_info:
-            _decode_supabase_jwt(token, TEST_JWT_SECRET)
+            _decode_supabase_jwt(token, self._make_settings())
         assert exc_info.value.status_code == 401
 
 
@@ -174,13 +183,14 @@ class TestGetCurrentUser:
         assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_missing_jwt_secret_raises_500(self):
+    async def test_missing_jwt_secret_raises_401(self):
+        """No JWT secret + no JWKS → token can't be verified → 401."""
         token = make_jwt_token()
         request = self._make_request(token=token)
         settings = self._make_settings(auth_enabled=True, jwt_secret="")
         with pytest.raises(HTTPException) as exc_info:
             await get_current_user(request, settings)
-        assert exc_info.value.status_code == 500
+        assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
     async def test_missing_sub_claim_raises_401(self):
