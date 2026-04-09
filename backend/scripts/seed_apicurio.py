@@ -182,22 +182,23 @@ SCHEMAS = [
         },
         "references": [],
     },
-    # 8. Notification (Avro — no references)
+    # 8. Notification (JSON Schema — no references)
     {
         "artifactId": "com.event7.Notification",
-        "artifactType": "AVRO",
+        "artifactType": "JSON",
         "content": {
-            "type": "record",
-            "name": "Notification",
-            "namespace": "com.event7",
-            "fields": [
-                {"name": "id", "type": "string"},
-                {"name": "user_id", "type": "string"},
-                {"name": "channel", "type": {"type": "enum", "name": "Channel", "symbols": ["EMAIL", "SMS", "PUSH"]}},
-                {"name": "title", "type": "string"},
-                {"name": "body", "type": "string"},
-                {"name": "sent_at", "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}], "default": None},
-            ],
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "title": "Notification",
+            "properties": {
+                "id": {"type": "string"},
+                "user_id": {"type": "string"},
+                "channel": {"type": "string", "enum": ["EMAIL", "SMS", "PUSH"]},
+                "title": {"type": "string"},
+                "body": {"type": "string"},
+                "sent_at": {"type": ["string", "null"], "format": "date-time"},
+            },
+            "required": ["id", "user_id", "channel", "title", "body"],
         },
         "references": [],
     },
@@ -223,6 +224,28 @@ SCHEMAS = [
             {"groupId": GROUP, "artifactId": "com.event7.User", "version": "1", "name": "com.event7.User"},
         ],
     },
+    # 10. GeoLocation (Protobuf — no references, base schema)
+    {
+        "artifactId": "com.event7.GeoLocation",
+        "artifactType": "PROTOBUF",
+        "content": 'syntax = "proto3";\n\npackage com.event7;\n\nmessage GeoLocation {\n  double latitude = 1;\n  double longitude = 2;\n  float accuracy = 3;\n  int64 timestamp = 4;\n}\n',
+        "references": [],
+    },
+    # 11. DeviceEvent (Protobuf — no references, IoT telemetry)
+    {
+        "artifactId": "com.event7.DeviceEvent",
+        "artifactType": "PROTOBUF",
+        "content": 'syntax = "proto3";\n\npackage com.event7;\n\nenum DeviceType {\n  DEVICE_TYPE_UNKNOWN = 0;\n  SENSOR = 1;\n  GATEWAY = 2;\n  ACTUATOR = 3;\n}\n\nenum EventSeverity {\n  EVENT_SEVERITY_UNKNOWN = 0;\n  INFO = 1;\n  WARNING = 2;\n  CRITICAL = 3;\n}\n\nmessage DeviceEvent {\n  string device_id = 1;\n  DeviceType device_type = 2;\n  string event_name = 3;\n  EventSeverity severity = 4;\n  double value = 5;\n  string unit = 6;\n  int64 timestamp = 7;\n  map<string, string> metadata = 8;\n}\n',
+        "references": [],
+    },
+    # 11b. DeviceEvent v2 (add firmware_version — schema evolution)
+    {
+        "artifactId": "com.event7.DeviceEvent",
+        "artifactType": "PROTOBUF",
+        "version_only": True,
+        "content": 'syntax = "proto3";\n\npackage com.event7;\n\nenum DeviceType {\n  DEVICE_TYPE_UNKNOWN = 0;\n  SENSOR = 1;\n  GATEWAY = 2;\n  ACTUATOR = 3;\n  CONTROLLER = 4;\n}\n\nenum EventSeverity {\n  EVENT_SEVERITY_UNKNOWN = 0;\n  INFO = 1;\n  WARNING = 2;\n  CRITICAL = 3;\n}\n\nmessage DeviceEvent {\n  string device_id = 1;\n  DeviceType device_type = 2;\n  string event_name = 3;\n  EventSeverity severity = 4;\n  double value = 5;\n  string unit = 6;\n  int64 timestamp = 7;\n  map<string, string> metadata = 8;\n  string firmware_version = 9;\n}\n',
+        "references": [],
+    },
 ]
 
 
@@ -244,6 +267,9 @@ COMPATIBILITY_RULES = {
     # APPLICATION layer — consumption views (inherits global)
     # "com.event7.Notification": uses global BACKWARD
     # "com.event7.AuditEvent": uses global BACKWARD
+    # Protobuf — IoT telemetry, backward compat
+    "com.event7.GeoLocation": "FULL_TRANSITIVE",
+    "com.event7.DeviceEvent": "BACKWARD_TRANSITIVE",
 }
 
 
@@ -282,13 +308,15 @@ def delete_artifact(base_url: str, artifact_id: str):
 def create_artifact(base_url: str, schema: dict) -> bool:
     """Create an artifact with optional references."""
     artifact_id = schema["artifactId"]
-    content_str = json.dumps(schema["content"])
+    raw_content = schema["content"]
+    is_proto = schema["artifactType"] == "PROTOBUF"
+    content_str = raw_content if isinstance(raw_content, str) else json.dumps(raw_content)
     refs = schema.get("references", [])
     is_version_only = schema.get("version_only", False)
 
     content_block = {
         "content": content_str,
-        "contentType": "application/json",
+        "contentType": "application/x-protobuf" if is_proto else "application/json",
     }
     if refs:
         content_block["references"] = refs
@@ -465,6 +493,10 @@ def main():
 
     # Summary
     print(f"\nDone: {success}/{len(SCHEMAS)} schemas created")
+    print(f"\nSchema formats:")
+    print(f"  AVRO:     Address, User, Customer, Order, Shipment, Invoice, AuditEvent (7)")
+    print(f"  JSON:     Payment, Notification (2)")
+    print(f"  PROTOBUF: GeoLocation, DeviceEvent (2)")
     print(f"\nReference graph:")
     print(f"  Address ← Customer ← Invoice")
     print(f"    ↑                    ↑")
@@ -473,12 +505,13 @@ def main():
     print(f"  User ← Order ──────────┘")
     print(f"    ↑")
     print(f"    └── AuditEvent")
+    print(f"  GeoLocation (standalone)  DeviceEvent (standalone, v2 evolution)")
 
     if not args.skip_compat:
         print(f"\nCompatibility rules:")
         print(f"  GLOBAL default:  BACKWARD")
-        print(f"  CORE layer:      FULL_TRANSITIVE (Address, User, Customer, Order)")
-        print(f"  REFINED layer:   BACKWARD_TRANSITIVE (Shipment, Invoice)")
+        print(f"  CORE layer:      FULL_TRANSITIVE (Address, User, Customer, Order, GeoLocation)")
+        print(f"  REFINED layer:   BACKWARD_TRANSITIVE (Shipment, Invoice, DeviceEvent)")
         print(f"  RAW/APP layer:   BACKWARD (Payment, Notification, AuditEvent — inherits global)")
 
     print(f"\nView in event7: http://localhost:3000")

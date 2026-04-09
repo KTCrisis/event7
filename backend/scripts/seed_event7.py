@@ -107,6 +107,22 @@ ENRICHMENTS = [
         "classification": "restricted",
         "data_layer": "raw",
     },
+    {
+        "subject": "com.event7.GeoLocation",
+        "description": "Geographic coordinates (Protobuf). Base schema for location-aware services.",
+        "owner_team": "platform",
+        "tags": ["geo", "iot", "shared", "protobuf"],
+        "classification": "internal",
+        "data_layer": "core",
+    },
+    {
+        "subject": "com.event7.DeviceEvent",
+        "description": "IoT device telemetry events (Protobuf). Sensor readings, gateway status, actuator commands.",
+        "owner_team": "iot",
+        "tags": ["iot", "telemetry", "device", "protobuf"],
+        "classification": "internal",
+        "data_layer": "raw",
+    },
 ]
 
 
@@ -226,6 +242,22 @@ CHANNELS = [
         "broker_config": {"maxlen": 500000, "approximate_trimming": True},
         "bindings": [
             {"subject_name": "com.event7.AuditEvent", "binding_strategy": "channel_bound", "schema_role": "value", "binding_origin": "manual"},
+        ],
+    },
+    {
+        "name": "IoT Device Telemetry",
+        "address": "iot.device.telemetry",
+        "broker_type": "kafka",
+        "resource_kind": "topic",
+        "messaging_pattern": "topic_log",
+        "data_layer": "raw",
+        "description": "High-throughput device telemetry — Protobuf serialization for bandwidth efficiency.",
+        "owner": "iot",
+        "tags": ["iot", "telemetry", "protobuf"],
+        "broker_config": {"partitions": 24, "replication_factor": 3, "retention_ms": 86400000},
+        "bindings": [
+            {"subject_name": "com.event7.DeviceEvent", "binding_strategy": "channel_bound", "schema_role": "value", "binding_origin": "manual"},
+            {"subject_name": "com.event7.GeoLocation", "binding_strategy": "domain_bound", "schema_role": "key", "binding_origin": "manual"},
         ],
     },
 ]
@@ -481,7 +513,7 @@ def main():
     print(f"{'='*60}")
     print(f"  Registry:     {registry_id[:8]}…")
     if not args.skip_enrichments:
-        print(f"  Enrichments:  {len(ENRICHMENTS)} subjects (4 layers, 6 teams)")
+        print(f"  Enrichments:  {len(ENRICHMENTS)} subjects (4 layers, 7 teams)")
     if not args.skip_channels:
         print(f"  Channels:     {len(CHANNELS)} channels (3 brokers: kafka/rabbitmq/redis)")
         print(f"  Bindings:     {total_bindings} subject bindings")
@@ -495,14 +527,20 @@ def main():
     print(f"      raw.payment.ingestion     → Payment (value)")
     print(f"      refined.billing.reports   → Invoice (value)")
     print(f"      logistics.shipment.track. → Shipment (value) + Address (key)")
+    print(f"      iot.device.telemetry      → DeviceEvent (value) + GeoLocation (key) [Protobuf]")
     print(f"    RabbitMQ exchange:")
     print(f"      app.notifications.dispatch → Notification (routing_key: notify.*)")
     print(f"    Redis Streams:")
     print(f"      security.audit.stream     → AuditEvent (value)")
 
+    print(f"\n  Schema formats:")
+    print(f"    AVRO:     Address, User, Customer, Order, Shipment, Invoice, AuditEvent (7)")
+    print(f"    JSON:     Payment, Notification (2)")
+    print(f"    PROTOBUF: GeoLocation, DeviceEvent (2)")
+
     print(f"\n  Layer distribution:")
-    print(f"    RAW:         Payment, AuditEvent + 2 channels")
-    print(f"    CORE:        Address, User, Customer, Order + 2 channels")
+    print(f"    RAW:         Payment, AuditEvent, DeviceEvent + 3 channels")
+    print(f"    CORE:        Address, User, Customer, Order, GeoLocation + 2 channels")
     print(f"    REFINED:     Shipment, Invoice + 2 channels")
     print(f"    APPLICATION: Notification + 1 channel")
 
