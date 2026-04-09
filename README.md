@@ -85,7 +85,7 @@ event7 is not a registry, not a documentation portal, not a Kafka ops tool. It's
 |---------|-------------|
 | **Schema Catalog** | Business view with broker badges, data layers, ownership, classification, AsyncAPI status column, CatalogSheet (Schema + AsyncAPI tabs) |
 | **Enrichments** | Tags, ownership, descriptions, data layers, classification — stored in event7, not your registry |
-| **Governance Rules** | Conditions, transforms, validations, policies — 4 built-in templates (RAW/CORE/REFINED/APP) |
+| **Governance Rules** | Conditions, transforms, validations, policies — 4 built-in templates + Confluent Data Contract import (ruleSet + PII metadata) |
 | **Governance Scoring** | Three-axis scoring (enrichments + rules + schema quality) with confidence indicator |
 | **Channel Model** | Map schemas to Kafka topics, RabbitMQ exchanges, Redis streams, Pulsar, NATS, cloud brokers |
 | **AsyncAPI Dual Mode** | Per-subject status (origin × status × sync), overview with KPIs, two-tier drift detection (version + hash) |
@@ -444,7 +444,8 @@ No changes to services, routes, or frontend. The Apicurio provider was added exa
 | Protobuf support (diff, validation, syntax highlighting) | ✅ Done |
 | Cross-registry aggregated view | 🔜 Next |
 | EventCatalog Enricher Mode V2 | 🔜 Next |
-| Provider Rule Sync (Confluent + Apicurio) | 🔜 Planned |
+| Provider Rule Sync — Confluent import (ruleSet + metadata) | ✅ Done |
+| Provider Rule Sync — Confluent push + Apicurio | 🔜 Planned |
 | AsyncAPI Export Mode 3 (real channels → spec) | 🔜 Planned |
 | CloudEvents support | 🔜 Planned |
 | AWS Glue / Azure SR providers | 🔜 Planned |

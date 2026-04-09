@@ -102,6 +102,8 @@ const groups: EndpointGroup[] = [
       { method: "PUT", path: "/rules/{rule_id}", description: "Update a rule (partial update, only non-null fields)" },
       { method: "DELETE", path: "/rules/{rule_id}", description: "Delete a rule" },
       { method: "POST", path: "/rules/templates/{template_id}/apply", description: "Apply a governance template to registry or subject" },
+      { method: "POST", path: "/rules/import-provider?subject=...", description: "Import Confluent ruleSet + metadata for a subject" },
+      { method: "POST", path: "/rules/import-provider-all", description: "Import Confluent ruleSet from all subjects with Data Contracts" },
       { method: "GET", path: "/governance/score", description: "Governance score for registry or subject (?subject=...)" },
     ],
   },

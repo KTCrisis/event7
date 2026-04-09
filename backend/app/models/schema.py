@@ -42,6 +42,10 @@ class SchemaDetail(BaseModel):
     references: list["SchemaReference"] = Field(default_factory=list)
     registered_at: datetime | None = None
 
+    # Confluent Data Contracts (optional — only populated by Confluent provider)
+    rule_set: dict | None = None  # {"domainRules": [...], "migrationRules": [...]}
+    metadata: dict | None = None  # {"properties": {...}, "tags": {...}}
+
 
 class SchemaVersion(BaseModel):
     """Une version dans l'historique"""

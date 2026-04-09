@@ -5,10 +5,10 @@ Logique métier pour les governance rules, policies, templates, et scoring.
 Placement: backend/app/services/governance_rules_service.py
 
 Flow: Route → Service → DB (DatabaseProvider) + Cache (Redis)
-Pas de provider SR en V1 — les rules sont stockées dans event7 DB uniquement.
-Le sync provider (import/push) sera ajouté en V2.
+V1: DB-only rules. V2: Provider sync (Confluent ruleSet import/export).
 
 v2: Custom templates support (create, update, delete, clone, is_builtin).
+v3: Confluent Data Contract import — ruleSet + metadata → event7 rules.
 """
 
 from uuid import UUID
@@ -263,6 +263,111 @@ class GovernanceRulesService:
             )
 
         return deleted
+
+    # ================================================================
+    # PROVIDER SYNC — Import Confluent ruleSet
+    # ================================================================
+
+    async def import_provider_rules(
+        self,
+        subject: str,
+        rule_set: dict,
+        metadata: dict | None = None,
+        user_id: str = "",
+    ) -> dict:
+        """Import Confluent ruleSet + metadata into event7 governance rules.
+
+        Maps Confluent domainRules/migrationRules to GovernanceRuleCreate,
+        then creates them in the DB with source='imported_provider'.
+
+        Returns: {"imported": N, "skipped": N, "rules": [rule_ids]}
+        """
+        from app.services.confluent_rules_mapper import import_ruleset, extract_pii_fields
+
+        mapped_rules = import_ruleset(subject, rule_set, metadata)
+        if not mapped_rules:
+            return {"imported": 0, "skipped": 0, "rules": [], "pii_fields": []}
+
+        imported = 0
+        skipped = 0
+        rule_ids = []
+
+        # Get existing imported rules for this subject to avoid duplicates
+        existing = self.db.list_governance_rules(
+            registry_id=self.registry_id,
+            subject=subject,
+            source="imported_provider",
+        )
+        existing_names = {r["rule_name"] for r in existing}
+
+        for rule_payload in mapped_rules:
+            if rule_payload.rule_name in existing_names:
+                skipped += 1
+                continue
+
+            data = {
+                "registry_id": self.registry_id,
+                "subject": rule_payload.subject,
+                "rule_name": rule_payload.rule_name,
+                "description": rule_payload.description,
+                "rule_scope": rule_payload.rule_scope.value,
+                "rule_category": rule_payload.rule_category.value,
+                "rule_kind": rule_payload.rule_kind.value,
+                "rule_type": rule_payload.rule_type,
+                "rule_mode": rule_payload.rule_mode.value,
+                "expression": rule_payload.expression,
+                "params": rule_payload.params,
+                "tags": rule_payload.tags,
+                "on_success": rule_payload.on_success,
+                "on_failure": rule_payload.on_failure,
+                "severity": rule_payload.severity.value,
+                "enforcement_status": rule_payload.enforcement_status.value,
+                "evaluation_source": rule_payload.evaluation_source.value,
+                "target_type": rule_payload.target_type.value,
+                "target_ref": rule_payload.target_ref,
+                "source": "imported_provider",
+                "provider_rule_ref": {
+                    "provider": "confluent",
+                    "subject": subject,
+                    "original_rule_name": rule_payload.rule_name,
+                },
+                "created_by": user_id if user_id else None,
+            }
+
+            data = {k: v for k, v in data.items() if v is not None}
+
+            row = self.db.create_governance_rule(data)
+            if row:
+                imported += 1
+                rule_ids.append(row["id"])
+
+        if imported > 0:
+            await self._invalidate_cache(subject)
+            logger.info(
+                f"Imported {imported} Confluent rules for {subject} "
+                f"(skipped {skipped} duplicates)"
+            )
+
+            self.db.log_audit(
+                user_id=user_id,
+                registry_id=self.registry_id,
+                action="rules_import_provider",
+                details={
+                    "subject": subject,
+                    "provider": "confluent",
+                    "imported": imported,
+                    "skipped": skipped,
+                },
+            )
+
+        pii_fields = extract_pii_fields(metadata)
+
+        return {
+            "imported": imported,
+            "skipped": skipped,
+            "rules": rule_ids,
+            "pii_fields": pii_fields,
+        }
 
     # ================================================================
     # TEMPLATES — Read + Apply

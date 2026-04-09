@@ -8,7 +8,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Shield, Plus, Search, Loader2, AlertCircle,
   DatabaseZap, RefreshCw, Layers, Zap, ClipboardList,
-  ChevronDown, Trash2, Edit3,
+  ChevronDown, Trash2, Edit3, Download,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useRegistry } from "@/providers/registry-provider";
-import { listRules, deleteRule, listTemplates, applyTemplate } from "@/lib/api/rules";
+import { listRules, deleteRule, listTemplates, applyTemplate, importProviderRulesAll } from "@/lib/api/rules";
 import { RuleEditor } from "@/components/rules/rule-editor";
 import { TemplateManager } from "@/components/rules/template-manager";
 import {
@@ -68,6 +68,9 @@ export default function RulesPage() {
 
   // Template applying
   const [applyingTemplate, setApplyingTemplate] = useState<string | null>(null);
+
+  // Provider import
+  const [importing, setImporting] = useState(false);
 
   // Fetch data
   const loadData = useCallback(async () => {
@@ -170,6 +173,24 @@ export default function RulesPage() {
       alert(err?.detail || "Failed to apply template");
     } finally {
       setApplyingTemplate(null);
+    }
+  };
+
+  const handleImportProvider = async () => {
+    if (!registry) return;
+    setImporting(true);
+    try {
+      const result = await importProviderRulesAll(registry.id);
+      if (result.imported > 0) {
+        loadData();
+      }
+      alert(result.message + (result.pii_fields.length > 0
+        ? `\n\nPII fields detected: ${result.pii_fields.length}`
+        : ""));
+    } catch (err: any) {
+      alert(err?.detail || "Failed to import provider rules");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -287,6 +308,19 @@ export default function RulesPage() {
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleImportProvider}
+                disabled={importing}
+              >
+                {importing ? (
+                  <Loader2 size={14} className="mr-1 animate-spin" />
+                ) : (
+                  <Download size={14} className="mr-1" />
+                )}
+                Import from Provider
+              </Button>
               <Button size="sm" onClick={() => setEditing(null)} className="bg-cyan-600 hover:bg-cyan-700 text-white">
                 <Plus size={14} className="mr-1" />
                 New Rule

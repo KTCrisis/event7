@@ -118,6 +118,8 @@ class ConfluentProvider(SchemaRegistryProvider):
             format=self._parse_format(data.get("schemaType", "AVRO")),
             schema_content=self._parse_schema_content(data["schema"]),
             references=references,
+            rule_set=data.get("ruleSet"),
+            metadata=data.get("metadata"),
         )
 
     async def create_schema(

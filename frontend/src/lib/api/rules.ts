@@ -91,6 +91,47 @@ export async function deleteRule(
 }
 
 // ============================================================
+// Provider Sync — Import Confluent ruleSet
+// ============================================================
+
+export interface ImportProviderResult {
+  subject: string;
+  imported: number;
+  skipped: number;
+  rules: string[];
+  pii_fields: Array<{ field: string; tags: string[] }>;
+  message: string;
+}
+
+export interface ImportProviderAllResult {
+  subjects_scanned: number;
+  subjects_with_rules: number;
+  imported: number;
+  skipped: number;
+  pii_fields: Array<{ subject: string; field: string; tags: string[] }>;
+  message: string;
+}
+
+/** Import governance rules from the schema registry provider for a single subject */
+export async function importProviderRules(
+  registryId: string,
+  subject: string
+): Promise<ImportProviderResult> {
+  return api.post<ImportProviderResult>(
+    `${base(registryId)}/rules/import-provider?subject=${encodeURIComponent(subject)}`
+  );
+}
+
+/** Import governance rules from ALL subjects with ruleSet */
+export async function importProviderRulesAll(
+  registryId: string
+): Promise<ImportProviderAllResult> {
+  return api.post<ImportProviderAllResult>(
+    `${base(registryId)}/rules/import-provider-all`
+  );
+}
+
+// ============================================================
 // Templates — Read
 // ============================================================
 

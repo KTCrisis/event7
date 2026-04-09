@@ -120,7 +120,7 @@ const groups: FeatureGroup[] = [
         icon: Shield,
         name: "Governance Rules & Policies",
         description:
-          "CEL conditions, compatibility checks, encryption transforms, and organizational policies. Four built-in templates (RAW/CORE/REFINED/APP). Three-axis scoring with confidence indicator.",
+          "CEL conditions, compatibility checks, encryption transforms, and organizational policies. Four built-in templates (RAW/CORE/REFINED/APP). Confluent Data Contract import (ruleSet + PII metadata). Three-axis scoring with confidence indicator.",
         badge: "Community",
         link: "/docs/governance-rules",
       },
@@ -224,7 +224,7 @@ const comingSoon: Feature[] = [
   {
     icon: ScrollText,
     name: "Provider Rule Sync",
-    description: "Import from Confluent ruleSet and Apicurio rules. Push back. Drift detection between declared and actual state.",
+    description: "Import from Confluent ruleSet — done (Phase 1). Push back + Apicurio import + drift detection — planned.",
     badge: "Pro",
   },
   {

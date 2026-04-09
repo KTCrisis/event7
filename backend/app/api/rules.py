@@ -201,6 +201,134 @@ async def delete_rule(
 
 
 # ================================================================
+# Provider Sync — Import Confluent ruleSet
+# ================================================================
+
+
+@router.post(
+    "/api/v1/registries/{registry_id}/rules/import-provider",
+)
+async def import_provider_rules(
+    registry_id: UUID = Path(..., description="Registry UUID"),
+    subject: str = Query(..., description="Subject to import rules for"),
+    user: UserContext = Depends(get_current_user),
+    service: GovernanceRulesService = Depends(_get_governance_service),
+):
+    """Import governance rules from the schema registry provider.
+
+    Fetches ruleSet + metadata from the provider (Confluent) for the given
+    subject, maps them to event7 GovernanceRules, and stores them in the DB.
+
+    Only works with Confluent Schema Registry (requires Data Contracts).
+    Rules are created with source='imported_provider'.
+    """
+    from app.api.dependencies import get_schema_service
+
+    # We need a provider to fetch the schema with ruleSet
+    # Re-use the schema service dependency
+    schema_service_gen = get_schema_service(registry_id, user)
+    schema_service = await schema_service_gen.__anext__()
+
+    try:
+        schema = await schema_service.provider.get_schema(subject)
+
+        if not schema.rule_set:
+            return {
+                "subject": subject,
+                "imported": 0,
+                "skipped": 0,
+                "rules": [],
+                "pii_fields": [],
+                "message": "No ruleSet found on this subject (requires Confluent Data Contracts)",
+            }
+
+        result = await service.import_provider_rules(
+            subject=subject,
+            rule_set=schema.rule_set,
+            metadata=schema.metadata,
+            user_id=str(user.user_id),
+        )
+
+        return {
+            "subject": subject,
+            **result,
+            "message": f"Imported {result['imported']} rules ({result['skipped']} skipped)",
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to import rules: {e}",
+        )
+    finally:
+        try:
+            await schema_service_gen.aclose()
+        except Exception:
+            pass
+
+
+@router.post(
+    "/api/v1/registries/{registry_id}/rules/import-provider-all",
+)
+async def import_provider_rules_all(
+    registry_id: UUID = Path(..., description="Registry UUID"),
+    user: UserContext = Depends(get_current_user),
+    service: GovernanceRulesService = Depends(_get_governance_service),
+):
+    """Import governance rules from ALL subjects that have a ruleSet.
+
+    Scans every subject in the registry, imports ruleSet + metadata where present.
+    """
+    from app.api.dependencies import get_schema_service
+
+    schema_service_gen = get_schema_service(registry_id, user)
+    schema_service = await schema_service_gen.__anext__()
+
+    try:
+        subjects = await schema_service.provider.list_subjects()
+        total_imported = 0
+        total_skipped = 0
+        subjects_with_rules = 0
+        all_pii_fields = []
+
+        for subj in subjects:
+            try:
+                schema = await schema_service.provider.get_schema(subj.subject)
+                if not schema.rule_set:
+                    continue
+
+                subjects_with_rules += 1
+                result = await service.import_provider_rules(
+                    subject=subj.subject,
+                    rule_set=schema.rule_set,
+                    metadata=schema.metadata,
+                    user_id=str(user.user_id),
+                )
+                total_imported += result["imported"]
+                total_skipped += result["skipped"]
+                if result.get("pii_fields"):
+                    all_pii_fields.extend(
+                        {"subject": subj.subject, **pf}
+                        for pf in result["pii_fields"]
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to import rules for {subj.subject}: {e}")
+
+        return {
+            "subjects_scanned": len(subjects),
+            "subjects_with_rules": subjects_with_rules,
+            "imported": total_imported,
+            "skipped": total_skipped,
+            "pii_fields": all_pii_fields,
+            "message": f"Imported {total_imported} rules from {subjects_with_rules} subjects",
+        }
+    finally:
+        try:
+            await schema_service_gen.aclose()
+        except Exception:
+            pass
+
+
+# ================================================================
 # Templates — Read
 # ================================================================
 
