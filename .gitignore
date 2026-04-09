@@ -49,3 +49,7 @@ htmlcov/
 # Dev scripts
 setup.sh
 dev_dashboard.jsx
+
+# Claude Code
+CLAUDE.md
+.claude/
