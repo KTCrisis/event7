@@ -62,7 +62,7 @@ const groups: FeatureGroup[] = [
         icon: Search,
         name: "Schema Explorer",
         description:
-          "Browse every subject in your registries. View schema content, field structure, format (Avro, JSON Schema), and all versions at a glance.",
+          "Browse every subject in your registries. View schema content, field structure, format (Avro, JSON Schema, Protobuf), and all versions at a glance.",
         badge: "Community",
       },
       {

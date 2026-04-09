@@ -263,7 +263,7 @@ pip install requests pyyaml   # if not already installed
 python scripts/seed_apicurio.py --url http://localhost:8081`}
             </CodeBlock>
             <p className="text-xs text-slate-500 mt-2">
-              Creates 9 Avro + JSON Schema subjects with cross-references and multiple versions.
+              Creates 11 subjects (7 Avro, 2 JSON Schema, 2 Protobuf) with cross-references and multiple versions.
             </p>
           </div>
 
@@ -275,7 +275,7 @@ python scripts/seed_apicurio.py --url http://localhost:8081`}
 {`python scripts/seed_event7.py --url http://localhost:8000`}
             </CodeBlock>
             <p className="text-xs text-slate-500 mt-2">
-              Creates 9 enrichments, 7 channels (Kafka + RabbitMQ + Redis), 9 bindings, and 7 governance rules.
+              Creates 11 enrichments, 8 channels (Kafka + RabbitMQ + Redis), 11 bindings, and 7 governance rules.
             </p>
           </div>
 
@@ -299,11 +299,11 @@ python scripts/seed_event7.py --skip-rules           # enrichments + channels on
             <tbody>
               {[
                 { page: "Dashboard", desc: "Schema count, enrichment coverage %, compatibility chart, governance score funnel" },
-                { page: "Explorer", desc: "9 subjects, multiple versions, Avro + JSON Schema formats" },
+                { page: "Explorer", desc: "11 subjects, multiple versions, Avro + JSON Schema + Protobuf formats" },
                 { page: "Diff Viewer", desc: "com.event7.User → diff v1 vs v2 → role field added" },
                 { page: "References", desc: "Order → Customer → Address chain, orphan detection" },
                 { page: "Catalog", desc: "Broker badges (Kafka/RabbitMQ/Redis), data layers, ownership" },
-                { page: "Channels", desc: "7 channels across 3 broker types, with bindings" },
+                { page: "Channels", desc: "8 channels across 3 broker types, with bindings" },
                 { page: "Rules", desc: "7 governance rules — global + per-subject, with severity levels" },
                 { page: "Validate", desc: "Paste a modified schema → PASS/WARN/FAIL verdict" },
               ].map((row) => (

@@ -74,7 +74,7 @@ event7 is not a registry, not a documentation portal, not a Kafka ops tool. It's
 | Feature | Description |
 |---------|-------------|
 | **Schema Explorer** | Browse subjects, versions, formats, and compatibility across registries |
-| **Visual Diff Viewer** | Side-by-side field-level diff with breaking change detection (Avro + JSON Schema) |
+| **Visual Diff Viewer** | Side-by-side field-level diff with breaking change detection (Avro, JSON Schema, Protobuf) |
 | **References Graph** | Interactive dependency graph — spot orphans, shared components, and hotspots |
 | **Schema Validator** | Validate before publishing: SR compatibility + governance rules + diff preview in one report (PASS/WARN/FAIL) |
 | **Dashboard KPIs** | Schema count, enrichment coverage, compatibility distribution, governance score funnel |
@@ -211,11 +211,11 @@ pip install requests pyyaml   # if not already installed
 python scripts/seed_apicurio.py --url http://localhost:8081
 ```
 
-This creates **10 Avro + JSON Schema subjects** with cross-references (Order → Customer → Address, etc.) and multiple versions (User v1 → v2 with role field).
+This creates **11 subjects (7 Avro, 2 JSON Schema, 2 Protobuf)** with cross-references (Order → Customer → Address, etc.) and multiple versions (User v1 → v2, DeviceEvent v1 → v2).
 
 #### Step 2: Connect the registry in event7
 
-If you haven't already (step 3 above), connect Apicurio in Settings. Once connected, go to **Schema Explorer** — you should see all 10 subjects with their versions, formats, and compatibility modes.
+If you haven't already (step 3 above), connect Apicurio in Settings. Once connected, go to **Schema Explorer** — you should see all 11 subjects with their versions, formats, and compatibility modes.
 
 #### Step 3: Seed event7 governance data
 
@@ -224,9 +224,9 @@ python scripts/seed_event7.py --url http://localhost:8000
 ```
 
 This creates:
-- **9 enrichments** — descriptions, owners, tags, classification, data layers (RAW/CORE/REFINED/APP)
-- **7 channels** — 5 Kafka topics + 1 RabbitMQ exchange + 1 Redis stream
-- **9 bindings** — N:N mappings between channels and subjects (value + key roles)
+- **11 enrichments** — descriptions, owners, tags, classification, data layers (RAW/CORE/REFINED/APP)
+- **8 channels** — 6 Kafka topics + 1 RabbitMQ exchange + 1 Redis stream
+- **11 bindings** — N:N mappings between channels and subjects (value + key roles)
 - **7 governance rules** — naming conventions, required fields, compliance checks
 
 You can skip specific sections:
@@ -242,11 +242,11 @@ python scripts/seed_event7.py --skip-rules           # enrichments + channels on
 | Page | What's there |
 |------|-------------|
 | **Dashboard** | Schema count, enrichment coverage %, compatibility distribution, data layer chart, governance score funnel |
-| **Schema Explorer** | 10 subjects, multiple versions, Avro + JSON Schema formats |
+| **Schema Explorer** | 11 subjects, multiple versions, Avro + JSON Schema + Protobuf formats |
 | **Visual Diff** | Pick `com.event7.User` → diff v1 vs v2 → see `role` field added (non-breaking) |
 | **References Graph** | Interactive d3-force graph — `Order` → `Customer` → `Address` chain, orphan detection |
 | **Event Catalog** | Business view with broker badges (Kafka/RabbitMQ/Redis), data layers, ownership, AsyncAPI status column |
-| **Channels** | 7 channels across 3 broker types, with bindings and data layers |
+| **Channels** | 8 channels across 3 broker types, with bindings and data layers |
 | **Rules** | 7 governance rules — some global, some per-subject, with severity levels |
 | **Validate** | Paste a modified User schema → get PASS/WARN/FAIL verdict with compatibility + governance + diff |
 | **AsyncAPI** | Overview tab with per-subject status — generate specs to see drift detection in action |
@@ -441,7 +441,7 @@ No changes to services, routes, or frontend. The Apicurio provider was added exa
 | RLS multi-tenant security | 🔜 Next |
 | Hosted registry provisioning (Apicurio-backed) | 🔜 Next |
 | AuthProvider OIDC | 🔜 Next |
-| Protobuf support | 🔜 Next |
+| Protobuf support (diff, validation, syntax highlighting) | ✅ Done |
 | Cross-registry aggregated view | 🔜 Next |
 | EventCatalog Enricher Mode V2 | 🔜 Next |
 | Provider Rule Sync (Confluent + Apicurio) | 🔜 Planned |

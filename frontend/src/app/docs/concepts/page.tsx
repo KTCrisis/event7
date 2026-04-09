@@ -96,7 +96,7 @@ export default function ConceptsPage() {
             name="Schema"
             stored="Schema Registry (Confluent, Apicurio, etc.)"
             scope="Per version"
-            description="The technical content of a subject at a specific version. Avro record, JSON Schema, or Protobuf (planned). Schemas are versioned, immutable once registered. event7 reads them from the registry — it never modifies them."
+            description="The technical content of a subject at a specific version. Avro record, JSON Schema, or Protobuf. Schemas are versioned, immutable once registered. event7 reads them from the registry — it never modifies them."
             example="com.event7.Order v3 — Avro record with 12 fields"
             pages={[
               { name: "Explorer", href: "/docs/features" },

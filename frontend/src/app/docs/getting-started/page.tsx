@@ -165,16 +165,16 @@ cp backend/.env.example backend/.env`}
 {`cd backend
 pip install requests pyyaml   # if not already installed
 
-# Seed Apicurio with 10 schemas + cross-references
+# Seed Apicurio with 11 schemas + cross-references (7 Avro, 2 JSON, 2 Protobuf)
 python scripts/seed_apicurio.py --url http://localhost:8081
 
 # Seed event7 with enrichments, channels, bindings, and rules
 python scripts/seed_event7.py --url http://localhost:8000`}
           </CodeBlock>
           <p className="text-sm text-slate-400 mt-3 leading-relaxed">
-            This creates 10 Avro + JSON Schema subjects with references, 9
-            enrichments (4 data layers, 6 teams), 7 channels (Kafka + RabbitMQ +
-            Redis Streams), 9 bindings, and 7 governance rules — a complete
+            This creates 11 subjects (7 Avro, 2 JSON Schema, 2 Protobuf) with references, 11
+            enrichments (4 data layers, 7 teams), 8 channels (Kafka + RabbitMQ +
+            Redis Streams), 11 bindings, and 7 governance rules — a complete
             demo environment.
           </p>
         </Step>

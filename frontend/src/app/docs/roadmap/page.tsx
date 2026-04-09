@@ -15,7 +15,7 @@ const done: RoadmapItem[] = [
   { name: "Confluent Schema Registry provider (Cloud + Platform)", tier: "Community" },
   { name: "Apicurio Registry v3 provider", tier: "Community" },
   { name: "Schema Explorer with field-level detail", tier: "Community" },
-  { name: "Visual Diff Viewer (LCS-based, Avro + JSON Schema)", tier: "Community" },
+  { name: "Visual Diff Viewer (LCS-based, Avro + JSON Schema + Protobuf)", tier: "Community" },
   { name: "Schema Validator — SR compatibility + governance rules + diff preview (PASS/WARN/FAIL)", tier: "Community" },
   { name: "Event Catalog with search, filter, CSV export", tier: "Community" },
   { name: "Catalog v3 — AsyncAPI column, CatalogSheet (Schema + AsyncAPI tabs), broker badges", tier: "Community" },
@@ -43,6 +43,7 @@ const done: RoadmapItem[] = [
   { name: "EventCatalog Generator V1 — governance-aware export plugin (generator-event7)", tier: "Community" },
   { name: "EventCatalog Export endpoint — aggregated API for the generator", tier: "Community" },
   { name: "Public documentation (/docs)", tier: "Community" },
+  { name: "Protobuf support — diff, validation, syntax highlighting, seed data", tier: "Community" },
   { name: "Hosted Registry UX stub (coming soon flow)", tier: "Pro" },
 ];
 
@@ -50,7 +51,7 @@ const next: RoadmapItem[] = [
   { name: "RLS Supabase — multi-tenant security", tier: "Community" },
   { name: "Hosted registry provisioning (Apicurio-backed)", tier: "Pro" },
   { name: "AuthProvider abstraction — Supabase vs OIDC", tier: "Enterprise" },
-  { name: "Protobuf support — 3rd schema format", tier: "Community" },
+
   { name: "Cross-registry aggregated view (All registries)", tier: "Community" },
   { name: "EventCatalog Enricher Mode V2 — enrich existing EC entries instead of creating", tier: "Community" },
   { name: "EventCatalog npm publish (@event7/generator-eventcatalog)", tier: "Community" },
