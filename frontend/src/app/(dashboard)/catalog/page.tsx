@@ -554,7 +554,9 @@ export default function CatalogPage() {
                         "text-[10px] px-1.5 py-0 h-5 border",
                         entry.format === "AVRO"
                           ? "text-cyan-400 border-cyan-500/20"
-                          : "text-amber-400 border-amber-500/20"
+                          : entry.format === "PROTOBUF"
+                            ? "text-purple-400 border-purple-500/20"
+                            : "text-amber-400 border-amber-500/20"
                       )}
                     >
                       {entry.format}

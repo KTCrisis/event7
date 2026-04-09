@@ -201,7 +201,10 @@ export default function ValidatePage() {
           setSchemaType("JSON");
         }
       } catch {
-        // Not JSON — could be Protobuf
+        // Not JSON — detect Protobuf by keywords
+        if (/\bsyntax\s*=\s*"proto[23]"/.test(text) || /\bmessage\s+\w+\s*\{/.test(text)) {
+          setSchemaType("PROTOBUF");
+        }
       }
     };
     reader.readAsText(file);
@@ -214,13 +217,15 @@ export default function ValidatePage() {
     setError(null);
     setResult(null);
 
-    try {
-      // Quick JSON check before calling API
-      JSON.parse(schemaContent);
-    } catch {
-      setError("Invalid JSON — please check your schema syntax.");
-      setLoading(false);
-      return;
+    // Quick syntax check before calling API (skip for Protobuf — not JSON)
+    if (schemaType !== "PROTOBUF") {
+      try {
+        JSON.parse(schemaContent);
+      } catch {
+        setError("Invalid JSON — please check your schema syntax.");
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -330,12 +335,15 @@ export default function ValidatePage() {
             {/* Schema textarea */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-400">
-                Schema (JSON)
+                Schema {schemaType === "PROTOBUF" ? "(.proto)" : "(JSON)"}
               </label>
               <textarea
                 value={schemaContent}
                 onChange={(e) => setSchemaContent(e.target.value)}
-                placeholder='{\n  "type": "record",\n  "name": "User",\n  "namespace": "com.event7",\n  "fields": [...]\n}'
+                placeholder={schemaType === "PROTOBUF"
+                  ? 'syntax = "proto3";\n\npackage com.event7;\n\nmessage User {\n  string name = 1;\n  int32 age = 2;\n}'
+                  : '{\n  "type": "record",\n  "name": "User",\n  "namespace": "com.event7",\n  "fields": [...]\n}'
+                }
                 rows={16}
                 className="w-full rounded-md border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-slate-200 font-mono placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 resize-y"
               />
@@ -345,10 +353,10 @@ export default function ValidatePage() {
             <div className="flex items-center gap-3">
               <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-400 border border-slate-700 rounded-md cursor-pointer hover:border-slate-600 hover:text-slate-300 transition-colors">
                 <Upload size={13} />
-                Upload .avsc / .json
+                Upload .avsc / .json / .proto
                 <input
                   type="file"
-                  accept=".avsc,.json,.avro"
+                  accept=".avsc,.json,.avro,.proto"
                   onChange={handleFileUpload}
                   className="hidden"
                 />

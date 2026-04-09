@@ -1,8 +1,10 @@
 """
 event7 - Schema Diff Service
 Diff field-level entre deux versions de schemas.
-Supporte Avro et JSON Schema.
+Supporte Avro, JSON Schema et Protobuf.
 """
+
+import re
 
 from app.models.schema import (
     SchemaDiff,
@@ -25,6 +27,8 @@ def compute_schema_diff(
         changes = _diff_avro(schema_from, schema_to)
     elif schema_format == SchemaFormat.JSON_SCHEMA:
         changes = _diff_json_schema(schema_from, schema_to)
+    elif schema_format == SchemaFormat.PROTOBUF:
+        changes = _diff_protobuf(schema_from, schema_to)
     else:
         changes = _diff_generic(schema_from, schema_to)
 
@@ -282,6 +286,319 @@ def _diff_json_schema(schema_from: dict, schema_to: dict, path: str = "") -> lis
         ))
 
     return changes
+
+
+# === Protobuf Diff ===
+
+
+def _diff_protobuf(
+    schema_from: dict | str, schema_to: dict | str, path: str = ""
+) -> list[FieldDiff]:
+    """Diff for Protobuf .proto schemas.
+
+    Protobuf schemas are stored as raw text strings (not JSON).
+    We parse messages, fields, enums, and oneofs to produce structured diffs.
+    """
+    text_from = schema_from if isinstance(schema_from, str) else str(schema_from)
+    text_to = schema_to if isinstance(schema_to, str) else str(schema_to)
+
+    parsed_from = _parse_proto(text_from)
+    parsed_to = _parse_proto(text_to)
+
+    changes: list[FieldDiff] = []
+
+    # Compare syntax version
+    if parsed_from.get("syntax") != parsed_to.get("syntax"):
+        changes.append(FieldDiff(
+            field_path="syntax",
+            change_type=DiffChangeType.MODIFIED,
+            old_value=parsed_from.get("syntax"),
+            new_value=parsed_to.get("syntax"),
+            details="syntax version changed",
+        ))
+
+    # Compare package
+    if parsed_from.get("package") != parsed_to.get("package"):
+        changes.append(FieldDiff(
+            field_path="package",
+            change_type=DiffChangeType.MODIFIED,
+            old_value=parsed_from.get("package"),
+            new_value=parsed_to.get("package"),
+            details="package changed",
+        ))
+
+    # Compare messages
+    msgs_from = {m["name"]: m for m in parsed_from.get("messages", [])}
+    msgs_to = {m["name"]: m for m in parsed_to.get("messages", [])}
+    changes.extend(_diff_proto_messages(msgs_from, msgs_to, path))
+
+    # Compare enums
+    enums_from = {e["name"]: e for e in parsed_from.get("enums", [])}
+    enums_to = {e["name"]: e for e in parsed_to.get("enums", [])}
+    changes.extend(_diff_proto_enums(enums_from, enums_to, path))
+
+    return changes
+
+
+def _diff_proto_messages(
+    msgs_from: dict, msgs_to: dict, parent_path: str
+) -> list[FieldDiff]:
+    """Compare Protobuf message definitions."""
+    changes: list[FieldDiff] = []
+    prefix = f"{parent_path}." if parent_path else ""
+
+    # Added messages
+    for name in set(msgs_to) - set(msgs_from):
+        changes.append(FieldDiff(
+            field_path=f"{prefix}{name}",
+            change_type=DiffChangeType.ADDED,
+            new_value=f"message {name}",
+            details="message added",
+        ))
+
+    # Removed messages
+    for name in set(msgs_from) - set(msgs_to):
+        changes.append(FieldDiff(
+            field_path=f"{prefix}{name}",
+            change_type=DiffChangeType.REMOVED,
+            old_value=f"message {name}",
+            details="message removed",
+        ))
+
+    # Modified messages — compare fields
+    for name in set(msgs_from) & set(msgs_to):
+        msg_path = f"{prefix}{name}"
+        old_msg = msgs_from[name]
+        new_msg = msgs_to[name]
+
+        old_fields = {f["name"]: f for f in old_msg.get("fields", [])}
+        new_fields = {f["name"]: f for f in new_msg.get("fields", [])}
+
+        # Added fields
+        for fname in set(new_fields) - set(old_fields):
+            f = new_fields[fname]
+            changes.append(FieldDiff(
+                field_path=f"{msg_path}.{fname}",
+                change_type=DiffChangeType.ADDED,
+                new_value=f"{f['type']} (#{f['number']})",
+                details="field added",
+            ))
+
+        # Removed fields
+        for fname in set(old_fields) - set(new_fields):
+            f = old_fields[fname]
+            changes.append(FieldDiff(
+                field_path=f"{msg_path}.{fname}",
+                change_type=DiffChangeType.REMOVED,
+                old_value=f"{f['type']} (#{f['number']})",
+                details="field removed (breaking)",
+            ))
+
+        # Modified fields
+        for fname in set(old_fields) & set(new_fields):
+            old_f = old_fields[fname]
+            new_f = new_fields[fname]
+            field_path = f"{msg_path}.{fname}"
+
+            # Type change (breaking)
+            if old_f["type"] != new_f["type"]:
+                changes.append(FieldDiff(
+                    field_path=field_path,
+                    change_type=DiffChangeType.MODIFIED,
+                    old_value=old_f["type"],
+                    new_value=new_f["type"],
+                    details="type changed (breaking)",
+                ))
+
+            # Field number change (breaking)
+            if old_f["number"] != new_f["number"]:
+                changes.append(FieldDiff(
+                    field_path=f"{field_path}.number",
+                    change_type=DiffChangeType.MODIFIED,
+                    old_value=str(old_f["number"]),
+                    new_value=str(new_f["number"]),
+                    details="field number changed (breaking)",
+                ))
+
+            # Label change (optional → repeated, etc.)
+            if old_f.get("label") != new_f.get("label"):
+                changes.append(FieldDiff(
+                    field_path=f"{field_path}.label",
+                    change_type=DiffChangeType.MODIFIED,
+                    old_value=old_f.get("label", ""),
+                    new_value=new_f.get("label", ""),
+                    details="field label changed",
+                ))
+
+        # Compare nested enums
+        old_enums = {e["name"]: e for e in old_msg.get("enums", [])}
+        new_enums = {e["name"]: e for e in new_msg.get("enums", [])}
+        changes.extend(_diff_proto_enums(old_enums, new_enums, msg_path))
+
+    return changes
+
+
+def _diff_proto_enums(
+    enums_from: dict, enums_to: dict, parent_path: str
+) -> list[FieldDiff]:
+    """Compare Protobuf enum definitions."""
+    changes: list[FieldDiff] = []
+    prefix = f"{parent_path}." if parent_path else ""
+
+    for name in set(enums_to) - set(enums_from):
+        changes.append(FieldDiff(
+            field_path=f"{prefix}{name}",
+            change_type=DiffChangeType.ADDED,
+            new_value=f"enum {name}",
+            details="enum added",
+        ))
+
+    for name in set(enums_from) - set(enums_to):
+        changes.append(FieldDiff(
+            field_path=f"{prefix}{name}",
+            change_type=DiffChangeType.REMOVED,
+            old_value=f"enum {name}",
+            details="enum removed",
+        ))
+
+    for name in set(enums_from) & set(enums_to):
+        enum_path = f"{prefix}{name}"
+        old_vals = {v["name"]: v["number"] for v in enums_from[name].get("values", [])}
+        new_vals = {v["name"]: v["number"] for v in enums_to[name].get("values", [])}
+
+        for vname in set(new_vals) - set(old_vals):
+            changes.append(FieldDiff(
+                field_path=f"{enum_path}.{vname}",
+                change_type=DiffChangeType.ADDED,
+                new_value=str(new_vals[vname]),
+                details=f"enum value '{vname}' added",
+            ))
+
+        for vname in set(old_vals) - set(new_vals):
+            changes.append(FieldDiff(
+                field_path=f"{enum_path}.{vname}",
+                change_type=DiffChangeType.REMOVED,
+                old_value=str(old_vals[vname]),
+                details=f"enum value '{vname}' removed",
+            ))
+
+        for vname in set(old_vals) & set(new_vals):
+            if old_vals[vname] != new_vals[vname]:
+                changes.append(FieldDiff(
+                    field_path=f"{enum_path}.{vname}",
+                    change_type=DiffChangeType.MODIFIED,
+                    old_value=str(old_vals[vname]),
+                    new_value=str(new_vals[vname]),
+                    details="enum value number changed (breaking)",
+                ))
+
+    return changes
+
+
+def _parse_proto(text: str) -> dict:
+    """Lightweight .proto parser. Extracts syntax, package, messages, and enums.
+
+    Not a full protobuf compiler — handles the structural elements needed for diffing.
+    """
+    result: dict = {"messages": [], "enums": []}
+
+    # Remove comments
+    text = re.sub(r'//[^\n]*', '', text)
+    text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
+
+    # Syntax
+    m = re.search(r'syntax\s*=\s*"([^"]+)"', text)
+    if m:
+        result["syntax"] = m.group(1)
+
+    # Package
+    m = re.search(r'package\s+([\w.]+)\s*;', text)
+    if m:
+        result["package"] = m.group(1)
+
+    # Parse top-level messages and enums
+    result["messages"] = _parse_proto_messages(text)
+    result["enums"] = _parse_proto_enums(text, top_level=True)
+
+    return result
+
+
+def _parse_proto_messages(text: str) -> list[dict]:
+    """Extract message definitions from proto text."""
+    messages = []
+    # Find message blocks
+    for m in re.finditer(r'\bmessage\s+(\w+)\s*\{', text):
+        name = m.group(1)
+        body = _extract_block(text, m.end() - 1)
+        if body is None:
+            continue
+
+        msg: dict = {"name": name, "fields": [], "enums": []}
+
+        # Parse fields: [label] type name = number;
+        for fm in re.finditer(
+            r'(?:(repeated|optional|required)\s+)?(\w[\w.]*)\s+(\w+)\s*=\s*(\d+)\s*;',
+            body,
+        ):
+            field: dict = {
+                "type": fm.group(2),
+                "name": fm.group(3),
+                "number": int(fm.group(4)),
+            }
+            if fm.group(1):
+                field["label"] = fm.group(1)
+            msg["fields"].append(field)
+
+        # Parse map fields: map<KeyType, ValueType> name = number;
+        for fm in re.finditer(
+            r'map\s*<\s*(\w+)\s*,\s*(\w[\w.]*)\s*>\s+(\w+)\s*=\s*(\d+)\s*;',
+            body,
+        ):
+            msg["fields"].append({
+                "type": f"map<{fm.group(1)}, {fm.group(2)}>",
+                "name": fm.group(3),
+                "number": int(fm.group(4)),
+            })
+
+        # Parse nested enums
+        msg["enums"] = _parse_proto_enums(body, top_level=False)
+
+        messages.append(msg)
+
+    return messages
+
+
+def _parse_proto_enums(text: str, top_level: bool = True) -> list[dict]:
+    """Extract enum definitions from proto text."""
+    enums = []
+    for m in re.finditer(r'\benum\s+(\w+)\s*\{', text):
+        name = m.group(1)
+        body = _extract_block(text, m.end() - 1)
+        if body is None:
+            continue
+
+        values = []
+        for vm in re.finditer(r'(\w+)\s*=\s*(-?\d+)\s*;', body):
+            values.append({"name": vm.group(1), "number": int(vm.group(2))})
+
+        enums.append({"name": name, "values": values})
+
+    return enums
+
+
+def _extract_block(text: str, open_brace_pos: int) -> str | None:
+    """Extract the content between matching braces starting at open_brace_pos."""
+    if open_brace_pos >= len(text) or text[open_brace_pos] != '{':
+        return None
+    depth = 0
+    for i in range(open_brace_pos, len(text)):
+        if text[i] == '{':
+            depth += 1
+        elif text[i] == '}':
+            depth -= 1
+            if depth == 0:
+                return text[open_brace_pos + 1:i]
+    return None
 
 
 # === Generic Diff (fallback) ===

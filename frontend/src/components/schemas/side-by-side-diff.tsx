@@ -5,8 +5,8 @@ import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 interface SideBySideDiffProps {
-  left: Record<string, unknown>;
-  right: Record<string, unknown>;
+  left: Record<string, unknown> | string;
+  right: Record<string, unknown> | string;
   leftLabel: string;
   rightLabel: string;
 }
@@ -166,8 +166,8 @@ export function SideBySideDiff({
   rightLabel,
 }: SideBySideDiffProps) {
   const diffLines = useMemo(() => {
-    const leftStr = JSON.stringify(left, null, 2);
-    const rightStr = JSON.stringify(right, null, 2);
+    const leftStr = typeof left === "string" ? left : JSON.stringify(left, null, 2);
+    const rightStr = typeof right === "string" ? right : JSON.stringify(right, null, 2);
     return computeLineDiff(leftStr.split("\n"), rightStr.split("\n"));
   }, [left, right]);
 

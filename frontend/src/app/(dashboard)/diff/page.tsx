@@ -205,6 +205,8 @@ export default function DiffPage() {
                     >
                       {s.format === "AVRO" ? (
                         <FileCode size={12} className="text-cyan-400 shrink-0" />
+                      ) : s.format === "PROTOBUF" ? (
+                        <FileCode size={12} className="text-purple-400 shrink-0" />
                       ) : (
                         <Braces size={12} className="text-amber-400 shrink-0" />
                       )}

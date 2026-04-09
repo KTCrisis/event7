@@ -124,7 +124,7 @@ async def list_versions_detail(
 async def create_schema(
     subject: str,
     payload: dict,
-    schema_type: str = Query("AVRO", description="AVRO or JSON"),
+    schema_type: str = Query("AVRO", description="Schema format: AVRO, JSON, or PROTOBUF"),
     user: UserContext = Depends(get_current_user),
     service: SchemaService = Depends(get_schema_service),
 ):

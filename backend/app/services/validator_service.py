@@ -66,10 +66,15 @@ class SchemaValidatorService:
         Exécute les 3 checks et assemble le rapport.
         """
         # Parse le schema candidat
-        try:
-            schema_dict = json.loads(request.schema_content)
-        except (json.JSONDecodeError, TypeError) as e:
-            raise ValueError(f"Invalid JSON in schema_content: {e}")
+        # Protobuf schemas are raw text, not JSON
+        is_protobuf = request.schema_type == SchemaFormat.PROTOBUF
+        if is_protobuf:
+            schema_dict = request.schema_content  # raw .proto text
+        else:
+            try:
+                schema_dict = json.loads(request.schema_content)
+            except (json.JSONDecodeError, TypeError) as e:
+                raise ValueError(f"Invalid JSON in schema_content: {e}")
 
         # Détecte si le subject existe déjà dans le SR
         is_new_subject = False
@@ -85,8 +90,9 @@ class SchemaValidatorService:
             logger.info(f"Validator: subject '{request.subject}' is new (not in SR)")
 
         # ── 1. Compatibility check (async — appel SR) ──
+        schema_type_str = request.schema_type.value if hasattr(request.schema_type, "value") else str(request.schema_type)
         compatibility = await self._check_compatibility(
-            request.subject, schema_dict, is_new_subject
+            request.subject, schema_dict, is_new_subject, schema_type_str
         )
 
         # ── 2. Governance rules evaluation (sync — event7 DB) ──
@@ -122,8 +128,9 @@ class SchemaValidatorService:
     async def _check_compatibility(
         self,
         subject: str,
-        schema_dict: dict,
+        schema_dict: dict | str,
         is_new_subject: bool,
+        schema_type: str = "AVRO",
     ) -> CompatibilityResult:
         """Proxy vers provider.check_compatibility()."""
         if is_new_subject:
@@ -140,7 +147,9 @@ class SchemaValidatorService:
             mode_str = mode.value if hasattr(mode, "value") else str(mode)
 
             # Check compatibility
-            result = await self.provider.check_compatibility(subject, schema_dict)
+            result = await self.provider.check_compatibility(
+                subject, schema_dict, schema_type
+            )
 
             # Provider may return a Pydantic model or a dict
             if hasattr(result, "is_compatible"):

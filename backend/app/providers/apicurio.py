@@ -439,7 +439,9 @@ class ApicurioProvider(SchemaRegistryProvider):
                         return CompatibilityMode("NONE")
             raise
 
-    async def check_compatibility(self, subject: str, schema: dict) -> dict:
+    async def check_compatibility(
+        self, subject: str, schema: dict, schema_type: str = "AVRO"
+    ) -> dict:
         """
         Check compatibility using the Confluent-compatible endpoint.
         Apicurio exposes /api/ccompat/v7 for this.
@@ -448,7 +450,7 @@ class ApicurioProvider(SchemaRegistryProvider):
         try:
             result = await self._post(
                 f"{CCOMPAT_PATH}/compatibility/subjects/{subject}/versions/latest",
-                json={"schema": schema_str, "schemaType": "AVRO"},
+                json={"schema": schema_str, "schemaType": schema_type},
             )
             return {
                 "is_compatible": result.get("is_compatible", False),

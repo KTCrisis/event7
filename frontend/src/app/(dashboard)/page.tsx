@@ -145,6 +145,7 @@ export default function DashboardPage() {
         <KpiCard icon={Database} label="Subjects" value={stats.total} />
         <KpiCard icon={FileCode} label="Avro" value={stats.avroCount} accent="#22d3ee" />
         <KpiCard icon={FileCode} label="JSON" value={stats.jsonCount} accent="#f59e0b" />
+        {stats.protoCount > 0 && <KpiCard icon={FileCode} label="Protobuf" value={stats.protoCount} accent="#a78bfa" />}
         <KpiCard icon={LayoutDashboard} label="Versions" value={stats.totalVersions} />
         <KpiCard icon={GitBranch} label="References" value={stats.refEdges} accent="#34d399" />
         <KpiCard icon={AlertCircle} label="Undocumented" value={stats.undocumented} accent={stats.undocumented > 0 ? "#f87171" : undefined} />

@@ -226,12 +226,13 @@ class ConfluentProvider(SchemaRegistryProvider):
             raise
 
     async def check_compatibility(
-        self, subject: str, schema: dict
+        self, subject: str, schema: dict, schema_type: str = "AVRO"
     ) -> CompatibilityResult:
         import json
 
         payload = {
             "schema": json.dumps(schema) if isinstance(schema, dict) else schema,
+            "schemaType": schema_type,
         }
         try:
             result = await self._request(

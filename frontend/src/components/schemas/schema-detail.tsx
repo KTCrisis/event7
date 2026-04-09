@@ -249,7 +249,7 @@ export function SchemaDetail({ registryId, subject }: SchemaDetailProps) {
       {/* Content */}
       <div className="flex-1 overflow-auto p-4">
         {tab === "schema" ? (
-          <SchemaContent content={schema.schema_content} maxHeight="none" />
+          <SchemaContent content={schema.schema_content} maxHeight="none" format={schema.format} />
         ) : (
           <EvolutionTimeline
             registryId={registryId}

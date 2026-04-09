@@ -17,6 +17,7 @@ cryptography==44.*
 # === Schema handling ===
 fastavro==1.10.*       # Avro parsing & validation
 jsonschema==4.23.*     # JSON Schema validation
+protobuf>=5.0,<6.0     # Protobuf schema support
 
 # === AsyncAPI ===
 pyyaml==6.0.*

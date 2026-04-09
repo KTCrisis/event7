@@ -1,12 +1,14 @@
 // src/components/schemas/schema-content.tsx
-// JSON syntax highlighting with line numbers — dark theme, no external deps
+// Syntax highlighting with line numbers — dark theme, no external deps
+// Supports JSON (Avro, JSON Schema) and Protobuf (.proto)
 "use client";
 
 import { useMemo } from "react";
 
 interface SchemaContentProps {
-  content: Record<string, unknown>;
+  content: Record<string, unknown> | string;
   maxHeight?: string;
+  format?: string;
 }
 
 function highlightJson(json: string): string {
@@ -26,15 +28,63 @@ function highlightJson(json: string): string {
     }
   );
 }
-export function SchemaContent({ content, maxHeight = "600px" }: SchemaContentProps) {
+
+function highlightProto(text: string): string {
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text
+    .split("\n")
+    .map((line) => {
+      let escaped = esc(line);
+      // Comments
+      escaped = escaped.replace(
+        /(\/\/.*)/g,
+        '<span style="color:#64748b">$1</span>'
+      );
+      // Keywords
+      escaped = escaped.replace(
+        /\b(syntax|package|import|option|message|enum|oneof|map|service|rpc|returns|reserved|repeated|optional|required|stream)\b/g,
+        '<span style="color:#c084fc">$1</span>'
+      );
+      // Types
+      escaped = escaped.replace(
+        /\b(string|int32|int64|uint32|uint64|sint32|sint64|fixed32|fixed64|sfixed32|sfixed64|float|double|bool|bytes)\b/g,
+        '<span style="color:#67e8f9">$1</span>'
+      );
+      // Strings
+      escaped = escaped.replace(
+        /("(?:[^"\\]|\\.)*")/g,
+        '<span style="color:#6ee7b7">$1</span>'
+      );
+      // Numbers (field numbers after =)
+      escaped = escaped.replace(
+        /=\s*(\d+)/g,
+        '= <span style="color:#fbbf24">$1</span>'
+      );
+      return escaped;
+    })
+    .join("\n");
+}
+
+export function SchemaContent({ content, maxHeight = "600px", format }: SchemaContentProps) {
   const { highlighted, lineCount } = useMemo(() => {
-    const raw = JSON.stringify(content, null, 2);
-    const lines = raw.split("\n");
+    const isProto = format === "PROTOBUF" || typeof content === "string";
+    let raw: string;
+    let hl: string;
+
+    if (isProto && typeof content === "string") {
+      raw = content;
+      hl = highlightProto(raw);
+    } else {
+      raw = JSON.stringify(content, null, 2);
+      hl = highlightJson(raw);
+    }
+
     return {
-      highlighted: highlightJson(raw),
-      lineCount: lines.length,
+      highlighted: hl,
+      lineCount: raw.split("\n").length,
     };
-  }, [content]);
+  }, [content, format]);
 
   return (
     <div
