@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { useRegistry } from "@/providers/registry-provider";
 import { listRules, deleteRule, listTemplates, applyTemplate, importProviderRulesAll } from "@/lib/api/rules";
 import { RuleEditor } from "@/components/rules/rule-editor";
@@ -152,7 +153,7 @@ export default function RulesPage() {
       await deleteRule(registry.id, rule.id);
       loadData();
     } catch (err: any) {
-      alert(err?.detail || "Failed to delete rule");
+      toast.error(err?.detail || "Failed to delete rule");
     }
   };
 
@@ -165,12 +166,12 @@ export default function RulesPage() {
         subject: null,
         overwrite: false,
       });
-      alert(
+      toast.success(
         `Template applied: ${result.rules_created} created, ${result.rules_skipped} skipped`
       );
       loadData();
     } catch (err: any) {
-      alert(err?.detail || "Failed to apply template");
+      toast.error(err?.detail || "Failed to apply template");
     } finally {
       setApplyingTemplate(null);
     }
@@ -183,12 +184,28 @@ export default function RulesPage() {
       const result = await importProviderRulesAll(registry.id);
       if (result.imported > 0) {
         loadData();
+        toast.success(result.message, {
+          description: result.pii_fields.length > 0
+            ? `${result.pii_fields.length} PII field(s) detected`
+            : undefined,
+        });
+      } else if (result.subjects_with_rules === 0) {
+        toast.info("No Data Contracts found", {
+          description: registry.provider_type === "confluent"
+            ? "Confluent Data Contracts require the Advanced Stream Governance package (Cloud) or Enterprise license with resource.extension.class=...RuleSetResourceExtension (Platform)."
+            : "This provider does not support ruleSet. Data Contracts are a Confluent Schema Registry feature.",
+          duration: 8000,
+        });
+      } else {
+        toast.info(result.message);
       }
-      alert(result.message + (result.pii_fields.length > 0
-        ? `\n\nPII fields detected: ${result.pii_fields.length}`
-        : ""));
     } catch (err: any) {
-      alert(err?.detail || "Failed to import provider rules");
+      const detail = err?.detail || "Failed to import provider rules";
+      toast.error(detail, {
+        description: detail.includes("ruleSet") || detail.includes("Data Contract")
+          ? "Ensure Data Contracts are enabled on your Confluent Schema Registry."
+          : undefined,
+      });
     } finally {
       setImporting(false);
     }
