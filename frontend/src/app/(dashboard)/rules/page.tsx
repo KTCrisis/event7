@@ -193,7 +193,7 @@ export default function RulesPage() {
       } else if (result.subjects_with_rules === 0) {
         toast.info("No Data Contracts found", {
           description: registry.provider_type === "confluent"
-            ? "Confluent Data Contracts require the Advanced Stream Governance package (Cloud) or Enterprise license with resource.extension.class=...RuleSetResourceExtension (Platform)."
+            ? "Confluent Data Contracts require the Advanced Stream Governance package (Cloud) or Enterprise license (Platform)."
             : "This provider does not support ruleSet. Data Contracts are a Confluent Schema Registry feature.",
           duration: 8000,
         });
