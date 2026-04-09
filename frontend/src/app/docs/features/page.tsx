@@ -224,7 +224,7 @@ const comingSoon: Feature[] = [
   {
     icon: ScrollText,
     name: "Provider Rule Sync",
-    description: "Import from Confluent ruleSet — done (Phase 1). Push back + Apicurio import + drift detection — planned.",
+    description: "Bidirectional Confluent sync — import ruleSet + PII metadata, push event7 rules back as Data Contracts. Apicurio import + drift detection — planned.",
     badge: "Pro",
   },
   {

@@ -8,7 +8,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Shield, Plus, Search, Loader2, AlertCircle,
   DatabaseZap, RefreshCw, Layers, Zap, ClipboardList,
-  ChevronDown, Trash2, Edit3, Download,
+  ChevronDown, Trash2, Edit3, Download, Upload,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useRegistry } from "@/providers/registry-provider";
-import { listRules, deleteRule, listTemplates, applyTemplate, importProviderRulesAll } from "@/lib/api/rules";
+import { listRules, deleteRule, listTemplates, applyTemplate, importProviderRulesAll, pushProviderRules } from "@/lib/api/rules";
 import { RuleEditor } from "@/components/rules/rule-editor";
 import { TemplateManager } from "@/components/rules/template-manager";
 import {
@@ -70,8 +70,9 @@ export default function RulesPage() {
   // Template applying
   const [applyingTemplate, setApplyingTemplate] = useState<string | null>(null);
 
-  // Provider import
+  // Provider sync
   const [importing, setImporting] = useState(false);
+  const [pushing, setPushing] = useState(false);
 
   // Fetch data
   const loadData = useCallback(async () => {
@@ -211,6 +212,39 @@ export default function RulesPage() {
     }
   };
 
+  // Subjects that have rules (for push dropdown)
+  const subjectsWithRules = useMemo(() => {
+    if (!data) return [];
+    const subjects = new Set<string>();
+    data.rules.forEach((r) => { if (r.subject) subjects.add(r.subject); });
+    return Array.from(subjects).sort();
+  }, [data]);
+
+  const handlePushProvider = async (subject: string) => {
+    if (!registry) return;
+    setPushing(true);
+    try {
+      const result = await pushProviderRules(registry.id, subject);
+      if (result.pushed > 0) {
+        toast.success(result.message, {
+          description: `${result.pushed} rule(s) pushed as Confluent ruleSet`,
+        });
+      } else {
+        toast.info(result.message);
+      }
+    } catch (err: any) {
+      const detail = err?.detail || "Failed to push rules";
+      toast.error(detail, {
+        description: detail.includes("Data Contracts")
+          ? "Requires Confluent Enterprise or Advanced Stream Governance (Cloud)."
+          : undefined,
+        duration: 8000,
+      });
+    } finally {
+      setPushing(false);
+    }
+  };
+
   const handleSaved = () => {
     setEditing(undefined);
     loadData();
@@ -338,6 +372,31 @@ export default function RulesPage() {
                 )}
                 Import from Provider
               </Button>
+              {subjectsWithRules.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={pushing}>
+                      {pushing ? (
+                        <Loader2 size={14} className="mr-1 animate-spin" />
+                      ) : (
+                        <Upload size={14} className="mr-1" />
+                      )}
+                      Push to Provider
+                      <ChevronDown size={12} className="ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64 max-h-64 overflow-y-auto">
+                    {subjectsWithRules.map((s) => (
+                      <DropdownMenuItem
+                        key={s}
+                        onClick={() => handlePushProvider(s)}
+                      >
+                        <span className="truncate text-sm">{s}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
               <Button size="sm" onClick={() => setEditing(null)} className="bg-cyan-600 hover:bg-cyan-700 text-white">
                 <Plus size={14} className="mr-1" />
                 New Rule

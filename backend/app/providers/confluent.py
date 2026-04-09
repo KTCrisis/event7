@@ -252,6 +252,56 @@ class ConfluentProvider(SchemaRegistryProvider):
                 messages=[str(e)],
             )
 
+    # === Data Contracts ===
+
+    async def push_rule_set(
+        self, subject: str, rule_set: dict, metadata: dict | None = None
+    ) -> dict:
+        """Push ruleSet + metadata to Confluent by re-registering the current schema.
+
+        Confluent attaches ruleSet/metadata to schema versions, so we fetch the
+        current schema and re-register it with the ruleSet appended.
+        This creates a new version only if the ruleSet/metadata changed.
+        """
+        import json
+
+        # Fetch current schema to preserve it
+        current = await self.get_schema(subject)
+        schema_str = (
+            json.dumps(current.schema_content)
+            if isinstance(current.schema_content, dict)
+            else current.schema_content
+        )
+
+        payload: dict = {
+            "schema": schema_str,
+            "schemaType": current.format.value if current.format.value != "JSON" else "JSON",
+        }
+
+        # Add references if present
+        if current.references:
+            payload["references"] = [
+                {"name": ref.name, "subject": ref.subject, "version": ref.version}
+                for ref in current.references
+            ]
+
+        # Attach ruleSet and metadata
+        if rule_set:
+            payload["ruleSet"] = rule_set
+        if metadata:
+            payload["metadata"] = metadata
+
+        result = await self._request(
+            "POST", f"/subjects/{subject}/versions", json=payload
+        )
+
+        return {
+            "schema_id": result.get("id"),
+            "subject": subject,
+            "rules_pushed": len(rule_set.get("domainRules", []))
+            + len(rule_set.get("migrationRules", [])),
+        }
+
     # === Helpers ===
 
     @staticmethod

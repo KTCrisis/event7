@@ -329,6 +329,107 @@ async def import_provider_rules_all(
 
 
 # ================================================================
+# Provider Sync — Push event7 rules to Confluent
+# ================================================================
+
+
+@router.post(
+    "/api/v1/registries/{registry_id}/rules/push-provider",
+)
+async def push_provider_rules(
+    registry_id: UUID = Path(..., description="Registry UUID"),
+    subject: str = Query(..., description="Subject to push rules for"),
+    user: UserContext = Depends(get_current_user),
+    service: GovernanceRulesService = Depends(_get_governance_service),
+):
+    """Push event7 governance rules to the schema registry provider as a ruleSet.
+
+    Converts event7 GovernanceRules to a Confluent ruleSet (domainRules + migrationRules)
+    and re-registers the current schema with the ruleSet attached.
+
+    Only works with Confluent Schema Registry (requires Data Contracts / Enterprise license
+    or Advanced Stream Governance on Cloud).
+    """
+    from app.api.dependencies import get_schema_service
+    from app.services.confluent_rules_mapper import export_ruleset
+
+    # Get rules for this subject
+    rules_data = service.list_rules(subject=subject)
+    subject_rules = [r for r in rules_data.rules if r.subject == subject]
+
+    if not subject_rules:
+        return {
+            "subject": subject,
+            "pushed": 0,
+            "message": "No rules found for this subject",
+        }
+
+    # Build Confluent ruleSet
+    rule_set = export_ruleset(subject_rules)
+    if not rule_set:
+        return {
+            "subject": subject,
+            "pushed": 0,
+            "message": "No Confluent-compatible rules to push (only CEL/CEL_FIELD/JSONATA rules can be exported)",
+        }
+
+    # Build metadata from PII policy rules
+    metadata = None
+    for rule in subject_rules:
+        if rule.params and rule.params.get("pii_fields"):
+            pii_fields = rule.params["pii_fields"]
+            metadata = {
+                "tags": {field: ["PII"] for field in pii_fields},
+            }
+            break
+
+    # Push to provider
+    schema_service_gen = get_schema_service(registry_id, user)
+    schema_service = await schema_service_gen.__anext__()
+
+    try:
+        result = await schema_service.provider.push_rule_set(
+            subject=subject,
+            rule_set=rule_set,
+            metadata=metadata,
+        )
+
+        total_rules = len(rule_set.get("domainRules", [])) + len(rule_set.get("migrationRules", []))
+
+        logger.info(
+            f"Pushed {total_rules} rules to {subject} on registry {registry_id}"
+        )
+
+        return {
+            "subject": subject,
+            "pushed": total_rules,
+            "schema_id": result.get("schema_id"),
+            "rule_set": rule_set,
+            "metadata": metadata,
+            "message": f"Pushed {total_rules} rules to Confluent",
+        }
+    except NotImplementedError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This provider does not support Data Contracts. Push is only available for Confluent Schema Registry.",
+        )
+    except Exception as e:
+        error_msg = str(e)
+        detail = f"Failed to push rules: {error_msg}"
+        if "401" in error_msg or "403" in error_msg:
+            detail += " — Check that Data Contracts are enabled (Enterprise license or Advanced Stream Governance)."
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail,
+        )
+    finally:
+        try:
+            await schema_service_gen.aclose()
+        except Exception:
+            pass
+
+
+# ================================================================
 # Templates — Read
 # ================================================================
 

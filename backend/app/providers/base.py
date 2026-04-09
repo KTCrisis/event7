@@ -79,3 +79,15 @@ class SchemaRegistryProvider(ABC):
     async def check_compatibility(
         self, subject: str, schema: dict, schema_type: str = "AVRO"
     ) -> dict: ...
+
+    # --- Data Contracts (Confluent only) ---
+
+    async def push_rule_set(
+        self, subject: str, rule_set: dict, metadata: dict | None = None
+    ) -> dict:
+        """Push ruleSet + metadata to the provider.
+
+        Default: not supported. Only Confluent implements this.
+        Re-registers the current schema with the ruleSet attached.
+        """
+        raise NotImplementedError("This provider does not support Data Contracts (ruleSet)")

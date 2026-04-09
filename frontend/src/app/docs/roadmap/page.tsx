@@ -44,7 +44,7 @@ const done: RoadmapItem[] = [
   { name: "EventCatalog Export endpoint — aggregated API for the generator", tier: "Community" },
   { name: "Public documentation (/docs)", tier: "Community" },
   { name: "Protobuf support — diff, validation, syntax highlighting, seed data", tier: "Community" },
-  { name: "Provider Rule Sync — import Confluent ruleSet + PII metadata", tier: "Community" },
+  { name: "Provider Rule Sync — Confluent bidirectional (import + push ruleSet + PII metadata)", tier: "Community" },
   { name: "Hosted Registry UX stub (coming soon flow)", tier: "Pro" },
 ];
 
@@ -56,7 +56,6 @@ const next: RoadmapItem[] = [
   { name: "Cross-registry aggregated view (All registries)", tier: "Community" },
   { name: "EventCatalog Enricher Mode V2 — enrich existing EC entries instead of creating", tier: "Community" },
   { name: "EventCatalog npm publish (@event7/generator-eventcatalog)", tier: "Community" },
-  { name: "Provider Rule Sync — push rules to Confluent", tier: "Pro" },
   { name: "Provider Rule Sync — import Apicurio artifact rules", tier: "Pro" },
   { name: "Drift detection — event7 vs provider comparison", tier: "Pro" },
   { name: "Extended business metadata — custom attributes", tier: "Community" },

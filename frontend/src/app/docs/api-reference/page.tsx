@@ -104,6 +104,7 @@ const groups: EndpointGroup[] = [
       { method: "POST", path: "/rules/templates/{template_id}/apply", description: "Apply a governance template to registry or subject" },
       { method: "POST", path: "/rules/import-provider?subject=...", description: "Import Confluent ruleSet + metadata for a subject" },
       { method: "POST", path: "/rules/import-provider-all", description: "Import Confluent ruleSet from all subjects with Data Contracts" },
+      { method: "POST", path: "/rules/push-provider?subject=...", description: "Push event7 rules to Confluent as a ruleSet (Data Contracts)" },
       { method: "GET", path: "/governance/score", description: "Governance score for registry or subject (?subject=...)" },
     ],
   },

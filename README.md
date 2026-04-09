@@ -444,8 +444,8 @@ No changes to services, routes, or frontend. The Apicurio provider was added exa
 | Protobuf support (diff, validation, syntax highlighting) | ✅ Done |
 | Cross-registry aggregated view | 🔜 Next |
 | EventCatalog Enricher Mode V2 | 🔜 Next |
-| Provider Rule Sync — Confluent import (ruleSet + metadata) | ✅ Done |
-| Provider Rule Sync — Confluent push + Apicurio | 🔜 Planned |
+| Provider Rule Sync — Confluent bidirectional (import + push ruleSet) | ✅ Done |
+| Provider Rule Sync — Apicurio | 🔜 Planned |
 | AsyncAPI Export Mode 3 (real channels → spec) | 🔜 Planned |
 | CloudEvents support | 🔜 Planned |
 | AWS Glue / Azure SR providers | 🔜 Planned |

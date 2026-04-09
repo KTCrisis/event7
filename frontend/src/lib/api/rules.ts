@@ -132,6 +132,29 @@ export async function importProviderRulesAll(
 }
 
 // ============================================================
+// Provider Sync — Push event7 rules to Confluent
+// ============================================================
+
+export interface PushProviderResult {
+  subject: string;
+  pushed: number;
+  schema_id?: number;
+  rule_set?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  message: string;
+}
+
+/** Push event7 governance rules to the provider as a Confluent ruleSet */
+export async function pushProviderRules(
+  registryId: string,
+  subject: string
+): Promise<PushProviderResult> {
+  return api.post<PushProviderResult>(
+    `${base(registryId)}/rules/push-provider?subject=${encodeURIComponent(subject)}`
+  );
+}
+
+// ============================================================
 // Templates — Read
 // ============================================================
 
