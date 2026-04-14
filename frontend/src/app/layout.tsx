@@ -14,7 +14,7 @@ export const metadata = {
     icon: "/icon.svg",
   },
   verification: {
-    google: "OAfm_sY25xeFXc0L18o7hhqy_uAJnPQwRlZDRiuaLdA",
+    google: "my2BaHIHiIxSPYBc-DT6-IwTF3Jze4z7fwiMgYvnZjw",
   },
 };
 
