@@ -853,13 +853,13 @@ class GovernanceRulesService:
         )
 
         has_doc_rule = any(
-            "doc" in (r.get("rule_name", "") + r.get("description", "")).lower()
+            "doc" in ((r.get("rule_name") or "") + (r.get("description") or "")).lower()
             and r.get("enforcement_status") in ("expected", "synced", "verified")
             for r in rules
         )
 
         has_ref_rule = any(
-            "reference" in (r.get("rule_name", "") + r.get("description", "")).lower()
+            "reference" in ((r.get("rule_name") or "") + (r.get("description") or "")).lower()
             and r.get("enforcement_status") in ("expected", "synced", "verified")
             for r in rules
         )
