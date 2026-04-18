@@ -29,4 +29,5 @@
 
 - [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md) — Backend deployment (Railway + Supabase + Redis)
 - [CLOUDFLARE_DEPLOYMENT.md](CLOUDFLARE_DEPLOYMENT.md) — Frontend deployment (Cloudflare Pages + OpenNext)
+- [CACHING.md](CACHING.md) — Redis caching strategy, key format, invalidation, error handling
 - [TESTING.md](TESTING.md) — Test structure, commands, coverage gaps
