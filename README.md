@@ -419,37 +419,72 @@ No changes to services, routes, or frontend. The Apicurio provider was added exa
 
 ## Roadmap
 
+### Done
+
 | Feature | Status |
 |---------|--------|
-| Confluent + Apicurio providers | ✅ Done |
+| Confluent + Apicurio providers (+ Karapace, Redpanda compatible) | ✅ Done |
 | Schema Explorer, Visual Diff, References Graph | ✅ Done |
 | Schema Validator (SR compat + governance rules + diff) | ✅ Done |
-| Event Catalog with enrichments | ✅ Done |
 | Catalog v3 (AsyncAPI column, CatalogSheet, broker badges) | ✅ Done |
-| AsyncAPI 3.0 generation (Kafka bindings, key schema) | ✅ Done |
-| AsyncAPI Import (preview + apply, multi-broker) | ✅ Done |
-| AsyncAPI Dual Mode (overview, KPIs, drift detection) | ✅ Done |
+| AsyncAPI 3.0 (generation, import, dual mode, drift detection) | ✅ Done |
 | Smart schema registration (provider-type routing) | ✅ Done |
 | Dashboard KPIs (Recharts) | ✅ Done |
 | AI Agent (6 context commands + 3 actions) | ✅ Done |
 | Governance Rules engine (CRUD, templates, scoring) | ✅ Done |
-| Channel Model (9 broker types, N:N bindings, data layers) | ✅ Done |
-| EventCatalog Generator V1 (governance-aware export) | ✅ Done |
-| EventCatalog Export endpoint (aggregated API) | ✅ Done |
-| Dual-mode deployment (SaaS + self-hosted) | ✅ Done |
-| Public documentation (/docs) | ✅ Done |
-| RLS multi-tenant security | 🔜 Next |
-| Hosted registry provisioning (Apicurio-backed) | 🔜 Next |
-| AuthProvider OIDC | 🔜 Next |
+| Channel Model (22 broker types, N:N bindings, data layers) | ✅ Done |
+| Provider Rule Sync — Confluent bidirectional | ✅ Done |
 | Protobuf support (diff, validation, syntax highlighting) | ✅ Done |
-| Cross-registry aggregated view | 🔜 Next |
-| EventCatalog Enricher Mode V2 | 🔜 Next |
-| Provider Rule Sync — Confluent bidirectional (import + push ruleSet) | ✅ Done |
-| Provider Rule Sync — Apicurio | 🔜 Planned |
+| EventCatalog Generator V1 (governance-aware export) | ✅ Done |
+| Dual-mode deployment (SaaS + self-hosted Docker) | ✅ Done |
+| Public documentation (/docs) | ✅ Done |
+
+### Phase 1 — Application model & full lineage
+
+| Feature | Status |
+|---------|--------|
+| Application object (producer/consumer) as first-class entity | 🔜 Next |
+| Application-channel bindings with role (producer/consumer/both) | 🔜 Next |
+| Full lineage view: application → channel → schema (D3 graph) | 🔜 Next |
+| Enriched views (Schema "Lineage" tab, Catalog producer/consumer columns) | 🔜 Next |
+| Governance rules on flows (no_producer, no_consumer, restricted_flow) | 🔜 Next |
+
+### Phase 2 — AsyncAPI full loop
+
+| Feature | Status |
+|---------|--------|
+| AsyncAPI import extracts applications automatically | 🔜 Planned |
+| AsyncAPI generate includes producer/consumer metadata | 🔜 Planned |
 | AsyncAPI Export Mode 3 (real channels → spec) | 🔜 Planned |
+| AsyncAPI batch generate | 🔜 Planned |
 | CloudEvents support | 🔜 Planned |
+
+### Phase 3 — Auth & enterprise
+
+| Feature | Status |
+|---------|--------|
+| Enterprise auth (registry credentials via SSO, inherited RBAC) | 🔜 Planned |
+| AuthProvider OIDC | 🔜 Planned |
+| RLS multi-tenant security | 🔜 Planned |
+| RBAC, SSO, audit logs | 🔜 Planned |
+
+### Phase 4 — Providers & discovery
+
+| Feature | Status |
+|---------|--------|
+| Provider Rule Sync — Apicurio | 🔜 Planned |
 | AWS Glue / Azure SR providers | 🔜 Planned |
-| RBAC, SSO, audit logs | 📋 Future |
+| Broker discovery (Kafka AdminClient, Confluent Cloud API) | 📋 Future |
+| Cross-registry aggregated view | 📋 Future |
+| Google Pub/Sub / Pulsar providers | 📋 Future |
+
+### Phase 5 — Deployment & scale
+
+| Feature | Status |
+|---------|--------|
+| Kubernetes operator / Helm chart | 📋 Future |
+| Hosted registry provisioning (Apicurio-backed) | 📋 Future |
+| EventCatalog Enricher Mode V2 | 📋 Future |
 
 ---
 
